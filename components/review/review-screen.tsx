@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import {
-  ArrowLeft,
   ChevronLeft,
   ChevronRight,
   Cloud,
@@ -22,7 +21,7 @@ import {
   type ReviewStep,
 } from "@/lib/modules"
 import type { Answer } from "@/lib/types"
-import { BrandLogo } from "@/components/brand-logo"
+import { AppShell } from "@/components/app-shell"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -157,16 +156,46 @@ export function ReviewScreen({ id }: { id: string }) {
     ) : undefined
 
   const shell = (children: React.ReactNode) => (
-    <Shell
+    <AppShell
       title={project.name ?? project.url ?? "Review"}
-      subtitle={project.url}
-      onBack={() => router.push("/")}
-      onResults={() => router.push(`/review/${id}/scorecard`)}
-      saving={saving}
-      preview={preview}
+      actions={
+        <>
+          <span className="hidden items-center gap-1 text-xs text-muted-foreground sm:flex">
+            {saving ? (
+              <>
+                <Loader2 className="h-3 w-3 animate-spin" /> Opslaan…
+              </>
+            ) : (
+              <>
+                <Cloud className="h-3 w-3" /> Opgeslagen
+              </>
+            )}
+          </span>
+          <Button
+            size="sm"
+            onClick={() => router.push(`/review/${id}/scorecard`)}
+          >
+            Resultaten
+          </Button>
+        </>
+      }
     >
-      {children}
-    </Shell>
+      <div className="flex flex-1">
+        <main
+          className={cn(
+            "min-w-0 flex-1 px-4 py-6",
+            preview ? "lg:max-w-2xl" : "mx-auto max-w-3xl",
+          )}
+        >
+          {children}
+        </main>
+        {preview && (
+          <aside className="hidden flex-1 border-l lg:block">
+            <div className="sticky top-0 h-svh">{preview}</div>
+          </aside>
+        )}
+      </div>
+    </AppShell>
   )
 
   if (project.reviewType === "free-form") {
@@ -334,73 +363,4 @@ function QuestionCard({
   )
 }
 
-function Shell({
-  title,
-  subtitle,
-  onBack,
-  onResults,
-  saving,
-  preview,
-  children,
-}: {
-  title: string
-  subtitle?: string
-  onBack: () => void
-  onResults?: () => void
-  saving?: boolean
-  preview?: React.ReactNode
-  children: React.ReactNode
-}) {
-  return (
-    <div className="min-h-svh bg-background">
-      <header className="sticky top-0 z-30 border-b bg-background/80 pt-[env(safe-area-inset-top)] backdrop-blur">
-        <div className="flex h-14 items-center gap-3 px-4">
-          <Button variant="ghost" size="icon" onClick={onBack}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <BrandLogo className="h-5 w-auto" />
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-semibold">{title}</div>
-            {subtitle && (
-              <div className="truncate text-xs text-muted-foreground">
-                {subtitle}
-              </div>
-            )}
-          </div>
-          <span className="hidden items-center gap-1 text-xs text-muted-foreground sm:flex">
-            {saving ? (
-              <>
-                <Loader2 className="h-3 w-3 animate-spin" /> Opslaan…
-              </>
-            ) : (
-              <>
-                <Cloud className="h-3 w-3" /> Opgeslagen
-              </>
-            )}
-          </span>
-          {onResults && (
-            <Button size="sm" onClick={onResults}>
-              Resultaten
-            </Button>
-          )}
-        </div>
-      </header>
-      <div className="flex">
-        <main
-          className={cn(
-            "min-w-0 flex-1 px-4 py-6",
-            preview ? "lg:max-w-2xl" : "mx-auto max-w-3xl",
-          )}
-        >
-          {children}
-        </main>
-        {preview && (
-          <aside className="sticky top-14 hidden h-[calc(100svh-3.5rem)] flex-1 border-l lg:block">
-            {preview}
-          </aside>
-        )}
-      </div>
-    </div>
-  )
-}
 

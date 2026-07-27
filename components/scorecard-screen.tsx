@@ -20,7 +20,7 @@ import type { Project } from "@/lib/types"
 import { buildReport } from "@/lib/report"
 import { generateActionPlan } from "@/lib/ai"
 import { scoreTone } from "@/lib/score"
-import { BrandLogo } from "@/components/brand-logo"
+import { AppShell } from "@/components/app-shell"
 import { ReportView } from "@/components/report/report-view"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -127,28 +127,28 @@ export function ScorecardScreen({ id }: { id: string }) {
   }
 
   return (
-    <div className="min-h-svh bg-background">
-      <header className="sticky top-0 z-20 border-b bg-background/80 pt-[env(safe-area-inset-top)] backdrop-blur print:hidden">
-        <div className="mx-auto flex h-14 max-w-3xl items-center gap-2 px-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => router.push(`/review/${id}`)}
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <BrandLogo className="h-5 w-auto" />
-          <div className="flex-1 truncate text-sm font-semibold">Resultaten</div>
-          <Button variant="outline" size="sm" onClick={() => window.print()}>
-            <FileText className="mr-1 h-4 w-4" /> PDF
-          </Button>
-          <Button size="sm" onClick={publish}>
-            <Share2 className="mr-1 h-4 w-4" /> Deel link
-          </Button>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-3xl px-4 py-6">
+    <>
+      <AppShell
+        title="Resultaten"
+        actions={
+          <>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => router.push(`/review/${id}`)}
+            >
+              <ArrowLeft className="mr-1 h-4 w-4" /> Review
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => window.print()}>
+              <FileText className="mr-1 h-4 w-4" /> PDF
+            </Button>
+            <Button size="sm" onClick={publish}>
+              <Share2 className="mr-1 h-4 w-4" /> Deel link
+            </Button>
+          </>
+        }
+      >
+        <div className="mx-auto max-w-3xl px-4 py-6">
         {/* Stat-tegels */}
         <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Stat
@@ -186,7 +186,8 @@ export function ScorecardScreen({ id }: { id: string }) {
         </Card>
 
         <ReportView project={project} data={data} aiPlan={project.aiPlan} />
-      </main>
+        </div>
+      </AppShell>
 
       {/* Deel-venster */}
       {shareLink && (
@@ -248,7 +249,7 @@ export function ScorecardScreen({ id }: { id: string }) {
           </Card>
         </div>
       )}
-    </div>
+    </>
   )
 }
 

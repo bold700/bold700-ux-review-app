@@ -203,3 +203,12 @@
 .report-prose ul { margin: 0.4rem 0; padding-left: 1.15rem; list-style: disc; }
 .report-prose li { margin: 0.15rem 0; }
 .report-prose strong { font-weight: 600; }
+/* PDF-print: verberg sidebar en header, alleen het rapport */
+@media print {
+  header,
+  [data-slot="sidebar-container"],
+  [data-slot="sidebar-gap"],
+  [data-slot="sidebar-trigger"] {
+    display: none !important;
+  }
+}
