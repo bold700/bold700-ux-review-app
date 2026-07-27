@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import Link from "next/link"
 import {
   collection,
   getDocs,
@@ -10,7 +9,7 @@ import {
   query,
   where,
 } from "firebase/firestore"
-import { Plus, Search } from "lucide-react"
+import { Globe, Plus, Search } from "lucide-react"
 
 import { getDb } from "@/lib/firebase"
 import type { Project } from "@/lib/types"
@@ -105,6 +104,20 @@ export function Dashboard() {
     return sorted
   }, [projects, q, sort, statusFilter])
 
+  // Groepeer per domein
+  const groups = useMemo(() => {
+    const map = new Map<string, Project[]>()
+    for (const p of visible) {
+      const d = normalizeUrl(p.url ?? "") || "onbekend"
+      if (!map.has(d)) map.set(d, [])
+      map.get(d)!.push(p)
+    }
+    return [...map.entries()].sort((a, b) => {
+      if (b[1].length !== a[1].length) return b[1].length - a[1].length
+      return (b[1][0]?.createdAt ?? "").localeCompare(a[1][0]?.createdAt ?? "")
+    })
+  }, [visible])
+
   return (
     <AppShell
       title="Dashboard"
@@ -158,67 +171,50 @@ export function Dashboard() {
               <Skeleton key={i} className="h-32 rounded-xl" />
             ))}
           </div>
+        ) : groups.length === 0 ? (
+          <Card>
+            <CardContent className="py-10 text-center text-sm text-muted-foreground">
+              Geen projecten gevonden.
+            </CardContent>
+          </Card>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <Link
-              href="/new"
-              className="flex min-h-32 flex-col items-center justify-center gap-2 rounded-xl border border-dashed text-muted-foreground transition-colors hover:border-ring hover:text-foreground"
-            >
-              <Plus className="h-6 w-6" />
-              <span className="text-sm font-medium">Nieuw project</span>
-            </Link>
-
-            {visible.length === 0 && (
-              <Card className="sm:col-span-2">
-                <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                  Geen projecten gevonden.
-                </CardContent>
-              </Card>
-            )}
-
-            {visible.map((p) => {
-              const score = projectScore(p)
-              const tone = scoreTone(score)
-              const done = isDone(p)
+          <div className="space-y-8">
+            {groups.map(([domain, items]) => {
+              const scores = items
+                .map((p) => projectScore(p))
+                .filter((s): s is number => s != null)
+              const avg = scores.length
+                ? scores.reduce((a, b) => a + b, 0) / scores.length
+                : null
               return (
-                <Card
-                  key={p.id}
-                  onClick={() => router.push(`/review/${p.id}`)}
-                  className="flex cursor-pointer flex-col justify-between transition-colors hover:border-ring"
-                >
-                  <CardHeader className="pb-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <CardTitle className="truncate text-base">
-                        {p.name || p.url || "Naamloos project"}
-                      </CardTitle>
-                      <span className={cn("text-lg font-bold", toneClass[tone])}>
-                        {score == null ? "—" : score.toFixed(1)}
+                <section key={domain}>
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                    <Globe className="h-4 w-4 text-muted-foreground" />
+                    <h3 className="text-sm font-semibold">{domain}</h3>
+                    <Badge variant="secondary">
+                      {items.length} review{items.length !== 1 ? "s" : ""}
+                    </Badge>
+                    {avg != null && (
+                      <span
+                        className={cn(
+                          "text-xs font-medium",
+                          toneClass[scoreTone(avg)],
+                        )}
+                      >
+                        gem. {avg.toFixed(1)}
                       </span>
-                    </div>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {p.url}
-                    </p>
-                  </CardHeader>
-                  <CardContent className="flex flex-wrap items-center gap-2">
-                    {p.reviewType === "free-form" ? (
-                      <Badge variant="secondary">Vrije review</Badge>
-                    ) : p.selectedTemplate ? (
-                      <Badge variant="secondary">Quick Scan</Badge>
-                    ) : (
-                      <Badge variant="outline">Audit</Badge>
                     )}
-                    {done && (
-                      <Badge className="bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15">
-                        Afgerond
-                      </Badge>
-                    )}
-                    <span className="ml-auto text-xs text-muted-foreground">
-                      {p.createdAt
-                        ? new Date(p.createdAt).toLocaleDateString("nl-NL")
-                        : ""}
-                    </span>
-                  </CardContent>
-                </Card>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {items.map((p) => (
+                      <ReviewCard
+                        key={p.id}
+                        p={p}
+                        onClick={() => router.push(`/review/${p.id}`)}
+                      />
+                    ))}
+                  </div>
+                </section>
               )
             })}
           </div>
@@ -254,6 +250,47 @@ function SegGroup<T extends string>({
         </button>
       ))}
     </div>
+  )
+}
+
+function ReviewCard({ p, onClick }: { p: Project; onClick: () => void }) {
+  const score = projectScore(p)
+  const tone = scoreTone(score)
+  const done = isDone(p)
+  return (
+    <Card
+      onClick={onClick}
+      className="flex cursor-pointer flex-col justify-between transition-colors hover:border-ring"
+    >
+      <CardHeader className="pb-2">
+        <div className="flex items-start justify-between gap-2">
+          <CardTitle className="truncate text-base">
+            {p.name || p.url || "Naamloos project"}
+          </CardTitle>
+          <span className={cn("text-lg font-bold", toneClass[tone])}>
+            {score == null ? "—" : score.toFixed(1)}
+          </span>
+        </div>
+        <p className="truncate text-xs text-muted-foreground">{p.url}</p>
+      </CardHeader>
+      <CardContent className="flex flex-wrap items-center gap-2">
+        {p.reviewType === "free-form" ? (
+          <Badge variant="secondary">Vrije review</Badge>
+        ) : p.selectedTemplate ? (
+          <Badge variant="secondary">Quick Scan</Badge>
+        ) : (
+          <Badge variant="outline">Audit</Badge>
+        )}
+        {done && (
+          <Badge className="bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15">
+            Afgerond
+          </Badge>
+        )}
+        <span className="ml-auto text-xs text-muted-foreground">
+          {p.createdAt ? new Date(p.createdAt).toLocaleDateString("nl-NL") : ""}
+        </span>
+      </CardContent>
+    </Card>
   )
 }
 
