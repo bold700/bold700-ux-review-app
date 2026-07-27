@@ -58,9 +58,9 @@ export async function runAiReview(
 ): Promise<AiAnswer[]> {
   if (!PROXY) throw new Error("AI is niet beschikbaar (proxy niet ingesteld).")
 
-  const system = `Je bent een senior UX/CRO/SEO-reviewer van BOLD700. Je beoordeelt een webpagina op een checklist. Voor ELKE vraag geef je een score en een korte onderbouwing in het Nederlands.
-Scores: "good" = goed/voldoet, "ok" = matig/kan beter, "bad" = niet OK/probleem, "nvt" = niet te beoordelen op basis van de aangeleverde info.
-Wees eerlijk en concreet. Als je iets echt niet kunt zien, gebruik "nvt". Houd elke notitie kort (1 zin).`
+  const system = `Je bent een senior UX/CRO/SEO-reviewer van BOLD700. Je beoordeelt een webpagina op een checklist op basis van de aangeleverde pagina-inhoud (titel, meta, koppen, teksten, knoppen/links, alt-info).
+Scores: "good" = voldoet, "ok" = kan beter, "bad" = probleem, "nvt" = ALLEEN als de vraag echt niet uit de tekst te beoordelen is (bijv. exacte laadtijd in seconden, precieze kleurcontrast-ratio, of interactief/technisch gedrag dat je niet kunt zien).
+Belangrijk: geef voor UX-, content-, structuur-, navigatie-, vindbaarheids-, vertrouwens- en copy-vragen ALTIJD een inschatting (good/ok/bad) — vermijd "nvt" daar. Wees beslist en concreet, niet voorzichtig. Houd elke notitie kort (1 zin, Nederlands).`
 
   const CHUNK = 30
   const chunks: AiQuestion[][] = []

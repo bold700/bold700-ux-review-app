@@ -131,12 +131,15 @@ export function ReviewScreen({ id }: { id: string }) {
         }
         return next
       })
-      if (filled)
+      if (filled) {
+        const d = { good: 0, ok: 0, bad: 0, nvt: 0 }
+        for (const r of results)
+          if (valid.has(r.score)) d[r.score as keyof typeof d]++
         toast.success(`${filled} vragen vooraf ingevuld`, {
           id: t,
-          description: "Loop ze na en pas aan waar nodig.",
+          description: `${d.good} goed · ${d.ok} matig · ${d.bad} niet ok · ${d.nvt} nvt. Loop ze na.`,
         })
-      else toast.error("Geen bruikbaar AI-antwoord ontvangen", { id: t })
+      } else toast.error("Geen bruikbaar AI-antwoord ontvangen", { id: t })
     } catch (e) {
       toast.error("AI Auto-Review mislukt", {
         id: t,
