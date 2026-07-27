@@ -9,7 +9,7 @@ import {
 } from "firebase/auth"
 import { doc, getDoc } from "firebase/firestore"
 
-import { auth, db } from "@/lib/firebase"
+import { getDb, getFirebaseAuth } from "@/lib/firebase"
 import type { Role } from "@/lib/types"
 
 interface AuthContextValue {
@@ -28,11 +28,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    return onAuthStateChanged(auth, async (u) => {
+    return onAuthStateChanged(getFirebaseAuth(), async (u) => {
       setUser(u)
       if (u) {
         try {
-          const snap = await getDoc(doc(db, "users", u.uid))
+          const snap = await getDoc(doc(getDb(), "users", u.uid))
           setRole(snap.exists() ? ((snap.data().role as Role) ?? null) : null)
         } catch {
           setRole(null)
@@ -45,11 +45,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const login = async (email: string, password: string) => {
-    await signInWithEmailAndPassword(auth, email, password)
+    await signInWithEmailAndPassword(getFirebaseAuth(), email, password)
   }
 
   const logout = async () => {
-    await signOut(auth)
+    await signOut(getFirebaseAuth())
   }
 
   return (

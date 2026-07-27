@@ -1,7 +1,7 @@
-import { getApp, getApps, initializeApp } from "firebase/app"
-import { getAuth } from "firebase/auth"
-import { getFirestore } from "firebase/firestore"
-import { getStorage } from "firebase/storage"
+import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app"
+import { getAuth, type Auth } from "firebase/auth"
+import { getFirestore, type Firestore } from "firebase/firestore"
+import { getStorage, type FirebaseStorage } from "firebase/storage"
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -12,9 +12,24 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 }
 
-const app = getApps().length ? getApp() : initializeApp(firebaseConfig)
+// Lazy-init: Firebase wordt pas geïnitialiseerd bij eerste gebruik (in de
+// browser). Zo draait er niets tijdens de server-build/prerender.
+let _app: FirebaseApp | undefined
+function app(): FirebaseApp {
+  return (_app ??= getApps().length ? getApp() : initializeApp(firebaseConfig))
+}
 
-export const auth = getAuth(app)
-export const db = getFirestore(app)
-export const storage = getStorage(app)
-export default app
+let _auth: Auth | undefined
+export function getFirebaseAuth(): Auth {
+  return (_auth ??= getAuth(app()))
+}
+
+let _db: Firestore | undefined
+export function getDb(): Firestore {
+  return (_db ??= getFirestore(app()))
+}
+
+let _storage: FirebaseStorage | undefined
+export function getFirebaseStorage(): FirebaseStorage {
+  return (_storage ??= getStorage(app()))
+}

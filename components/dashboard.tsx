@@ -10,7 +10,7 @@ import {
 } from "firebase/firestore"
 import { LogOut } from "lucide-react"
 
-import { db } from "@/lib/firebase"
+import { getDb } from "@/lib/firebase"
 import type { Project } from "@/lib/types"
 import { projectScore, scoreTone } from "@/lib/score"
 import { useAuth } from "@/components/providers/auth-provider"
@@ -49,7 +49,7 @@ export function Dashboard() {
     async function load() {
       if (!user) return
       try {
-        const col = collection(db, "projects")
+        const col = collection(getDb(), "projects")
         const q =
           role === "admin"
             ? query(col, orderBy("createdAt", "desc"))
