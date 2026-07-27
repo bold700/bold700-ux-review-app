@@ -1,0 +1,272 @@
+"use client"
+
+import { useEffect, useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
+import { doc, getDoc, updateDoc } from "firebase/firestore"
+import {
+  ArrowLeft,
+  Check,
+  Copy,
+  ExternalLink,
+  FileText,
+  Loader2,
+  Share2,
+  Sparkles,
+} from "lucide-react"
+import { toast } from "sonner"
+
+import { getDb } from "@/lib/firebase"
+import type { Project } from "@/lib/types"
+import { buildReport } from "@/lib/report"
+import { generateActionPlan } from "@/lib/ai"
+import { scoreTone } from "@/lib/score"
+import { BrandLogo } from "@/components/brand-logo"
+import { ReportView } from "@/components/report/report-view"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { cn } from "@/lib/utils"
+
+const scoreColor: Record<string, string> = {
+  good: "text-emerald-500",
+  ok: "text-amber-500",
+  bad: "text-red-500",
+  na: "text-muted-foreground",
+}
+
+export function ScorecardScreen({ id }: { id: string }) {
+  const router = useRouter()
+  const [project, setProject] = useState<Project | null | undefined>(undefined)
+  const [genBusy, setGenBusy] = useState(false)
+  const [shareLink, setShareLink] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const snap = await getDoc(doc(getDb(), "projects", id))
+        if (!cancelled)
+          setProject(
+            snap.exists() ? ({ id: snap.id, ...snap.data() } as Project) : null,
+          )
+      } catch {
+        if (!cancelled) setProject(null)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [id])
+
+  const data = useMemo(() => (project ? buildReport(project) : null), [project])
+
+  async function generate() {
+    if (!project || !data) return
+    setGenBusy(true)
+    try {
+      const plan = await generateActionPlan(project, data)
+      if (!plan) throw new Error("Geen resultaat ontvangen")
+      await updateDoc(doc(getDb(), "projects", id), {
+        aiPlan: plan,
+        aiPlanDate: new Date().toISOString(),
+      })
+      setProject((p) => (p ? { ...p, aiPlan: plan } : p))
+      toast.success("AI-actieplan gegenereerd")
+    } catch (e) {
+      toast.error("AI-actieplan mislukt", {
+        description: e instanceof Error ? e.message : undefined,
+      })
+    } finally {
+      setGenBusy(false)
+    }
+  }
+
+  async function publish() {
+    if (!project) return
+    const exp = Date.now() + 7 * 24 * 60 * 60 * 1000
+    try {
+      await updateDoc(doc(getDb(), "projects", id), {
+        public: true,
+        sharedAt: new Date().toISOString(),
+        shareExpiresAtMs: exp,
+      })
+      setProject((p) => (p ? { ...p, public: true, shareExpiresAtMs: exp } : p))
+      const link = `${location.origin}/report?id=${encodeURIComponent(id)}`
+      await navigator.clipboard.writeText(link).catch(() => {})
+      setShareLink(link)
+    } catch (e) {
+      toast.error("Delen mislukt", {
+        description: e instanceof Error ? e.message : undefined,
+      })
+    }
+  }
+
+  async function unpublish() {
+    if (!project) return
+    await updateDoc(doc(getDb(), "projects", id), { public: false })
+    setProject((p) => (p ? { ...p, public: false } : p))
+    setShareLink(null)
+    toast.success("Delen gestopt")
+  }
+
+  if (project === undefined) {
+    return (
+      <div className="flex min-h-svh items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+  if (project === null || !data) {
+    return (
+      <div className="flex min-h-svh flex-col items-center justify-center gap-4 p-6 text-center">
+        <p className="text-muted-foreground">Review niet gevonden.</p>
+        <Button variant="outline" onClick={() => router.push("/")}>
+          Terug
+        </Button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-svh bg-background">
+      <header className="sticky top-0 z-20 border-b bg-background/80 pt-[env(safe-area-inset-top)] backdrop-blur print:hidden">
+        <div className="mx-auto flex h-14 max-w-3xl items-center gap-2 px-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => router.push(`/review/${id}`)}
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <BrandLogo className="h-5 w-auto" />
+          <div className="flex-1 truncate text-sm font-semibold">Resultaten</div>
+          <Button variant="outline" size="sm" onClick={() => window.print()}>
+            <FileText className="mr-1 h-4 w-4" /> PDF
+          </Button>
+          <Button size="sm" onClick={publish}>
+            <Share2 className="mr-1 h-4 w-4" /> Deel link
+          </Button>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-3xl px-4 py-6">
+        {/* Stat-tegels */}
+        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Stat
+            label="Totaalscore"
+            value={data.score == null ? "—" : data.score.toFixed(1)}
+            className={scoreColor[scoreTone(data.score)]}
+          />
+          <Stat label="Verbeterpunten" value={data.issues.length} />
+          <Stat
+            label="Quick Wins"
+            value={data.counts.quickWins}
+            className="text-emerald-500"
+          />
+          <Stat label="Sterke punten" value={data.strengths.length} />
+        </div>
+
+        {/* AI Actieplan besturing */}
+        <Card className="mb-6 print:hidden">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Sparkles className="h-4 w-4 text-primary" /> AI Actieplan
+            </div>
+            <Button onClick={generate} disabled={genBusy} size="sm">
+              {genBusy ? (
+                <>
+                  <Loader2 className="mr-1 h-4 w-4 animate-spin" /> Genereren…
+                </>
+              ) : project.aiPlan ? (
+                "Opnieuw genereren"
+              ) : (
+                "Genereer AI Actieplan"
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+
+        <ReportView project={project} data={data} aiPlan={project.aiPlan} />
+      </main>
+
+      {/* Deel-venster */}
+      {shareLink && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => e.target === e.currentTarget && setShareLink(null)}
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 print:hidden"
+        >
+          <Card className="w-full max-w-md">
+            <CardContent className="space-y-4 py-5">
+              <div className="flex items-center gap-2 font-semibold">
+                <Share2 className="h-4 w-4 text-emerald-500" /> Rapport gedeeld
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Iedereen met deze link ziet het live rapport — geen login nodig.
+                De link verloopt automatisch na 7 dagen.
+              </p>
+              <div className="flex gap-2">
+                <input
+                  readOnly
+                  value={shareLink}
+                  onClick={(e) => e.currentTarget.select()}
+                  className="flex-1 rounded-md border bg-muted px-3 py-2 font-mono text-xs"
+                />
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText(shareLink)
+                    toast.success("Link gekopieerd")
+                  }}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.open(shareLink, "_blank")}
+                >
+                  <ExternalLink className="mr-1 h-4 w-4" /> Openen
+                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-red-500"
+                    onClick={unpublish}
+                  >
+                    Stop met delen
+                  </Button>
+                  <Button size="sm" onClick={() => setShareLink(null)}>
+                    <Check className="mr-1 h-4 w-4" /> Klaar
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function Stat({
+  label,
+  value,
+  className,
+}: {
+  label: string
+  value: string | number
+  className?: string
+}) {
+  return (
+    <Card>
+      <CardContent className="py-4">
+        <div className={cn("text-2xl font-bold", className)}>{value}</div>
+        <div className="text-xs text-muted-foreground">{label}</div>
+      </CardContent>
+    </Card>
+  )
+}

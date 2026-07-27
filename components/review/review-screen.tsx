@@ -71,6 +71,7 @@ export function ReviewScreen({ id }: { id: string }) {
       title={project.name ?? project.url ?? "Review"}
       subtitle={project.url}
       onBack={() => router.push("/")}
+      onResults={() => router.push(`/review/${id}/scorecard`)}
       saving={saving}
     >
       {children}
@@ -221,12 +222,14 @@ function Shell({
   title,
   subtitle,
   onBack,
+  onResults,
   saving,
   children,
 }: {
   title: string
   subtitle?: string
   onBack: () => void
+  onResults?: () => void
   saving?: boolean
   children: React.ReactNode
 }) {
@@ -246,7 +249,7 @@ function Shell({
               </div>
             )}
           </div>
-          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+          <span className="hidden items-center gap-1 text-xs text-muted-foreground sm:flex">
             {saving ? (
               <>
                 <Loader2 className="h-3 w-3 animate-spin" /> Opslaan…
@@ -257,6 +260,11 @@ function Shell({
               </>
             )}
           </span>
+          {onResults && (
+            <Button size="sm" onClick={onResults}>
+              Resultaten
+            </Button>
+          )}
         </div>
       </header>
       <main className="mx-auto max-w-3xl px-4 py-6">{children}</main>

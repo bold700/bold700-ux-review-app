@@ -196,3 +196,10 @@
     @apply font-sans;
     }
 }
+/* AI-actieplan opmaak */
+.report-prose h2 { font-size: 1rem; font-weight: 600; margin: 0.85rem 0 0.4rem; }
+.report-prose h3 { font-size: 0.9rem; font-weight: 600; margin: 0.65rem 0 0.25rem; }
+.report-prose p { margin: 0.4rem 0; }
+.report-prose ul { margin: 0.4rem 0; padding-left: 1.15rem; list-style: disc; }
+.report-prose li { margin: 0.15rem 0; }
+.report-prose strong { font-weight: 600; }
