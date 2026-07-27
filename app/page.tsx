@@ -1,19 +1,21 @@
-import { Button } from "@/components/ui/button"
+"use client"
+
+import { Loader2 } from "lucide-react"
+
+import { useAuth } from "@/components/providers/auth-provider"
+import { LoginForm } from "@/components/login-form"
+import { Dashboard } from "@/components/dashboard"
 
 export default function Page() {
-  return (
-    <div className="flex min-h-svh p-6">
-      <div className="flex max-w-md min-w-0 flex-col gap-4 text-sm leading-loose">
-        <div>
-          <h1 className="font-medium">Project ready!</h1>
-          <p>You may now add components and start building.</p>
-          <p>We&apos;ve already added the button component for you.</p>
-          <Button className="mt-2">Button</Button>
-        </div>
-        <div className="font-mono text-xs text-muted-foreground">
-          (Press <kbd>d</kbd> to toggle dark mode)
-        </div>
+  const { user, loading } = useAuth()
+
+  if (loading) {
+    return (
+      <div className="flex min-h-svh items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
-    </div>
-  )
+    )
+  }
+
+  return user ? <Dashboard /> : <LoginForm />
 }
