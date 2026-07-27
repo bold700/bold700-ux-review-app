@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Camera, Loader2, X } from "lucide-react"
 import { toast } from "sonner"
 
@@ -20,6 +20,14 @@ export function ScreenshotStrip({
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
+  const [preview, setPreview] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!preview) return
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setPreview(null)
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [preview])
 
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return
@@ -59,7 +67,7 @@ export function ScreenshotStrip({
           <img
             src={src}
             alt=""
-            onClick={() => window.open(src, "_blank")}
+            onClick={() => setPreview(src)}
             className="h-16 w-16 cursor-zoom-in rounded-md border object-cover"
           />
           <button
@@ -92,6 +100,30 @@ export function ScreenshotStrip({
         )}
         Screenshot
       </Button>
+
+      {preview && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setPreview(null)}
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={preview}
+            alt="Screenshot"
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-full max-w-full rounded-lg object-contain shadow-2xl"
+          />
+          <button
+            onClick={() => setPreview(null)}
+            aria-label="Sluiten"
+            className="absolute top-4 right-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+      )}
     </div>
   )
 }
