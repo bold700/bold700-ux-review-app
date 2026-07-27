@@ -2,9 +2,19 @@
 
 import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, ChevronLeft, ChevronRight, Cloud, Loader2 } from "lucide-react"
+import {
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  Cloud,
+  Loader2,
+  Sparkles,
+} from "lucide-react"
+import { toast } from "sonner"
 
 import { useProject } from "@/hooks/use-project"
+import { fetchPageText } from "@/lib/page-fetch"
+import { runAiReview } from "@/lib/ai-review"
 import {
   buildReviewSteps,
   getDefaultModuleConfig,
@@ -27,6 +37,7 @@ export function ReviewScreen({ id }: { id: string }) {
   const router = useRouter()
   const { project, setAnswer, mutate, saving } = useProject(id)
   const [focus, setFocus] = useState(0)
+  const [aiBusy, setAiBusy] = useState(false)
 
   const steps: ReviewStep[] = useMemo(() => {
     if (!project || project.reviewType === "free-form") return []
@@ -66,6 +77,76 @@ export function ReviewScreen({ id }: { id: string }) {
 
   const answers = project.answers ?? {}
 
+  async function autoReview() {
+    if (!project) return
+    const qs = steps
+      .flatMap((s) =>
+        s.questions.map((q) => ({
+          id: q.id,
+          text: q.text,
+          category: s.shortTitle,
+        })),
+      )
+      .filter((q) => {
+        const a = answers[q.id]
+        // sla handmatig beantwoorde vragen over
+        return !(a?.score && !a.autoScanned && !a.aiFilled)
+      })
+    if (qs.length === 0) {
+      toast.info("Alles is al beantwoord")
+      return
+    }
+    setAiBusy(true)
+    const t = toast.loading("AI Auto-Review — pagina ophalen…")
+    try {
+      const pageText = await fetchPageText(project.url ?? "")
+      const results = await runAiReview(
+        project.url ?? "",
+        pageText || "(geen pagina-inhoud opgehaald)",
+        qs,
+        (done, total) =>
+          toast.loading(
+            total > 1
+              ? `AI beoordeelt deel ${Math.min(done + 1, total)}/${total}…`
+              : "AI beoordeelt…",
+            { id: t },
+          ),
+      )
+      const valid = new Set(["good", "ok", "bad", "nvt"])
+      let filled = 0
+      mutate((a) => {
+        const next = { ...a }
+        for (const r of results) {
+          if (!r?.id || !valid.has(r.score)) continue
+          const cur = next[r.id]
+          if (cur?.score && !cur.autoScanned && !cur.aiFilled) continue
+          next[r.id] = {
+            ...(cur ?? {}),
+            score: r.score,
+            notes: r.note ? "[AI] " + r.note : (cur?.notes ?? ""),
+            aiFilled: true,
+            autoScanned: true,
+          }
+          filled++
+        }
+        return next
+      })
+      if (filled)
+        toast.success(`${filled} vragen vooraf ingevuld`, {
+          id: t,
+          description: "Loop ze na en pas aan waar nodig.",
+        })
+      else toast.error("Geen bruikbaar AI-antwoord ontvangen", { id: t })
+    } catch (e) {
+      toast.error("AI Auto-Review mislukt", {
+        id: t,
+        description: e instanceof Error ? e.message : undefined,
+      })
+    } finally {
+      setAiBusy(false)
+    }
+  }
+
   const shell = (children: React.ReactNode) => (
     <Shell
       title={project.name ?? project.url ?? "Review"}
@@ -97,6 +178,24 @@ export function ReviewScreen({ id }: { id: string }) {
 
   return shell(
     <>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/30 p-2.5">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Sparkles className="h-4 w-4 text-primary" /> Vul de checklist in één
+          klik vooraf in
+        </div>
+        <Button size="sm" onClick={autoReview} disabled={aiBusy}>
+          {aiBusy ? (
+            <>
+              <Loader2 className="mr-1 h-4 w-4 animate-spin" /> Bezig…
+            </>
+          ) : (
+            <>
+              <Sparkles className="mr-1 h-4 w-4" /> AI Auto-Review
+            </>
+          )}
+        </Button>
+      </div>
+
       <div className="mb-4">
         <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
           <span>
@@ -183,7 +282,14 @@ function QuestionCard({
   return (
     <Card>
       <CardContent className="space-y-4 py-5">
-        <div className="text-base font-medium">{question.text}</div>
+        <div className="flex items-start gap-2">
+          <div className="flex-1 text-base font-medium">{question.text}</div>
+          {answer.aiFilled && (
+            <Badge variant="secondary" className="shrink-0 gap-1 text-[10px]">
+              <Sparkles className="h-3 w-3" /> AI
+            </Badge>
+          )}
+        </div>
         {question.business_impact_nl &&
           (answer.score === "bad" || answer.score === "ok") && (
             <p className="text-xs text-muted-foreground">
