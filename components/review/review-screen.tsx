@@ -31,6 +31,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { ScreenshotStrip } from "@/components/review/screenshot-strip"
 import { FreeFormReview } from "@/components/review/free-form-review"
 import { ScoreButtons, SeverityRow } from "@/components/review/score-controls"
+import { LivePreview } from "@/components/review/live-preview"
 import { cn } from "@/lib/utils"
 
 export function ReviewScreen({ id }: { id: string }) {
@@ -150,6 +151,11 @@ export function ReviewScreen({ id }: { id: string }) {
     }
   }
 
+  const preview =
+    project.url && project.sourceType !== "figma" ? (
+      <LivePreview url={project.url} />
+    ) : undefined
+
   const shell = (children: React.ReactNode) => (
     <Shell
       title={project.name ?? project.url ?? "Review"}
@@ -157,6 +163,7 @@ export function ReviewScreen({ id }: { id: string }) {
       onBack={() => router.push("/")}
       onResults={() => router.push(`/review/${id}/scorecard`)}
       saving={saving}
+      preview={preview}
     >
       {children}
     </Shell>
@@ -333,6 +340,7 @@ function Shell({
   onBack,
   onResults,
   saving,
+  preview,
   children,
 }: {
   title: string
@@ -340,12 +348,13 @@ function Shell({
   onBack: () => void
   onResults?: () => void
   saving?: boolean
+  preview?: React.ReactNode
   children: React.ReactNode
 }) {
   return (
     <div className="min-h-svh bg-background">
-      <header className="sticky top-0 z-20 border-b bg-background/80 pt-[env(safe-area-inset-top)] backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-3xl items-center gap-3 px-4">
+      <header className="sticky top-0 z-30 border-b bg-background/80 pt-[env(safe-area-inset-top)] backdrop-blur">
+        <div className="flex h-14 items-center gap-3 px-4">
           <Button variant="ghost" size="icon" onClick={onBack}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
@@ -376,7 +385,21 @@ function Shell({
           )}
         </div>
       </header>
-      <main className="mx-auto max-w-3xl px-4 py-6">{children}</main>
+      <div className="flex">
+        <main
+          className={cn(
+            "min-w-0 flex-1 px-4 py-6",
+            preview ? "lg:max-w-2xl" : "mx-auto max-w-3xl",
+          )}
+        >
+          {children}
+        </main>
+        {preview && (
+          <aside className="sticky top-14 hidden h-[calc(100svh-3.5rem)] flex-1 border-l lg:block">
+            {preview}
+          </aside>
+        )}
+      </div>
     </div>
   )
 }
