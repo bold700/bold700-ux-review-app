@@ -219,7 +219,11 @@ export function Dashboard() {
               const tone = scoreTone(score)
               const done = isDone(p)
               return (
-                <Card key={p.id} className="flex flex-col justify-between">
+                <Card
+                  key={p.id}
+                  onClick={() => router.push(`/review/${p.id}`)}
+                  className="flex cursor-pointer flex-col justify-between transition-colors hover:border-ring"
+                >
                   <CardHeader className="pb-2">
                     <div className="flex items-start justify-between gap-2">
                       <CardTitle className="truncate text-base">
