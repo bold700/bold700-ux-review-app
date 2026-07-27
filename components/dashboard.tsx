@@ -80,8 +80,8 @@ export function Dashboard() {
 
   return (
     <div className="min-h-svh bg-background">
-      <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4">
+      <header className="sticky top-0 z-20 border-b bg-background/80 pt-[env(safe-area-inset-top)] backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-[max(1rem,env(safe-area-inset-left))]">
           <div className="flex items-center gap-2">
             <BrandLogo className="h-6 w-auto" />
             <span className="text-sm font-semibold">UX Review Platform</span>
