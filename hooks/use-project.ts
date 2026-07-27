@@ -65,5 +65,17 @@ export function useProject(id: string) {
     [persist],
   )
 
-  return { project, setAnswer, saving }
+  const mutate = useCallback(
+    (fn: (answers: Record<string, Answer>) => Record<string, Answer>) => {
+      setProject((p) => {
+        if (!p) return p
+        const answers = fn({ ...(p.answers ?? {}) })
+        persist(answers)
+        return { ...p, answers }
+      })
+    },
+    [persist],
+  )
+
+  return { project, setAnswer, mutate, saving }
 }

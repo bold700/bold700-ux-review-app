@@ -2,33 +2,31 @@
 
 import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import {
-  ArrowLeft,
-  ChevronLeft,
-  ChevronRight,
-  Cloud,
-  Loader2,
-} from "lucide-react"
+import { ArrowLeft, ChevronLeft, ChevronRight, Cloud, Loader2 } from "lucide-react"
 
 import { useProject } from "@/hooks/use-project"
 import {
   buildReviewSteps,
   getDefaultModuleConfig,
+  type ReviewCheck,
   type ReviewStep,
 } from "@/lib/modules"
-import type { Score, Severity } from "@/lib/types"
+import type { Answer } from "@/lib/types"
 import { BrandLogo } from "@/components/brand-logo"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Textarea } from "@/components/ui/textarea"
+import { ScreenshotStrip } from "@/components/review/screenshot-strip"
+import { FreeFormReview } from "@/components/review/free-form-review"
+import { ScoreButtons, SeverityRow } from "@/components/review/score-controls"
 import { cn } from "@/lib/utils"
 
 export function ReviewScreen({ id }: { id: string }) {
   const router = useRouter()
-  const { project, setAnswer, saving } = useProject(id)
-  const [stepIdx, setStepIdx] = useState(0)
+  const { project, setAnswer, mutate, saving } = useProject(id)
+  const [focus, setFocus] = useState(0)
 
   const steps: ReviewStep[] = useMemo(() => {
     if (!project || project.reviewType === "free-form") return []
@@ -38,6 +36,15 @@ export function ReviewScreen({ id }: { id: string }) {
       return []
     }
   }, [project])
+
+  // Platte lijst van alle vragen met hun stap, voor focus-navigatie
+  const flat = useMemo(
+    () =>
+      steps.flatMap((s, si) =>
+        s.questions.map((q, qi) => ({ step: s, q, si, qi })),
+      ),
+    [steps],
+  )
 
   if (project === undefined) {
     return (
@@ -59,52 +66,58 @@ export function ReviewScreen({ id }: { id: string }) {
 
   const answers = project.answers ?? {}
 
-  if (project.reviewType === "free-form") {
-    return (
-      <Shell title={project.name ?? "Vrije review"} onBack={() => router.push("/")}>
-        <Card>
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            De vrije-review-modus komt in een volgende stap. Deze review is wel
-            aangemaakt en zichtbaar op je dashboard.
-          </CardContent>
-        </Card>
-      </Shell>
-    )
-  }
-
-  const allQ = steps.flatMap((s) => s.questions)
-  const answered = allQ.filter((q) => answers[q.id]?.score).length
-  const pct = allQ.length ? Math.round((answered / allQ.length) * 100) : 0
-  const step = steps[Math.min(stepIdx, Math.max(0, steps.length - 1))]
-
-  return (
+  const shell = (children: React.ReactNode) => (
     <Shell
       title={project.name ?? project.url ?? "Review"}
       subtitle={project.url}
       onBack={() => router.push("/")}
       saving={saving}
     >
+      {children}
+    </Shell>
+  )
+
+  if (project.reviewType === "free-form") {
+    return shell(
+      <FreeFormReview
+        projectId={id}
+        answers={answers}
+        setAnswer={setAnswer}
+        mutate={mutate}
+      />,
+    )
+  }
+
+  const total = flat.length
+  const answered = flat.filter(({ q }) => answers[q.id]?.score).length
+  const pct = total ? Math.round((answered / total) * 100) : 0
+  const idx = Math.min(focus, Math.max(0, total - 1))
+  const current = flat[idx]
+
+  return shell(
+    <>
       <div className="mb-4">
         <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
           <span>
-            {answered} / {allQ.length} beoordeeld
+            {answered} / {total} beoordeeld
           </span>
           <span>{pct}%</span>
         </div>
         <Progress value={pct} />
       </div>
 
-      {/* Stap-navigatie */}
+      {/* Stap-chips */}
       <div className="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1">
-        {steps.map((s, i) => {
+        {steps.map((s, si) => {
           const done = s.questions.every((q) => answers[q.id]?.score)
+          const firstIndex = flat.findIndex((f) => f.si === si)
           return (
             <button
               key={s.id}
-              onClick={() => setStepIdx(i)}
+              onClick={() => setFocus(firstIndex)}
               className={cn(
-                "flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors",
-                i === stepIdx
+                "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors",
+                current?.si === si
                   ? "border-primary bg-primary text-primary-foreground"
                   : done
                     ? "border-emerald-500/40 text-emerald-500"
@@ -117,70 +130,90 @@ export function ReviewScreen({ id }: { id: string }) {
         })}
       </div>
 
-      {step && (
+      {current && (
         <div>
-          <h2 className="mb-1 text-lg font-semibold">{step.title}</h2>
-          {step.desc && (
-            <p className="mb-4 text-sm text-muted-foreground">{step.desc}</p>
-          )}
-          <div className="grid gap-3">
-            {step.questions.map((q, qi) => {
-              const a = answers[q.id] ?? {}
-              return (
-                <Card key={q.id}>
-                  <CardContent className="space-y-3 py-4">
-                    <div className="flex gap-2 text-sm font-medium">
-                      <span className="text-muted-foreground">{qi + 1}.</span>
-                      <span>{q.text}</span>
-                    </div>
-                    {q.type === "auto" && (
-                      <Badge variant="outline" className="text-[10px]">
-                        auto-check
-                      </Badge>
-                    )}
-                    <ScoreButtons
-                      value={a.score}
-                      onChange={(s) => setAnswer(q.id, { score: s })}
-                    />
-                    <SeverityRow
-                      score={a.score}
-                      value={a.severity}
-                      onChange={(sev) => setAnswer(q.id, { severity: sev })}
-                    />
-                    <Textarea
-                      value={a.notes ?? ""}
-                      onChange={(e) =>
-                        setAnswer(q.id, { notes: e.target.value })
-                      }
-                      placeholder="Notities, bevindingen, aanbevelingen…"
-                      className="min-h-20"
-                    />
-                  </CardContent>
-                </Card>
-              )
-            })}
+          <div className="mb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+            {current.step.title} · vraag {current.qi + 1}/
+            {current.step.questions.length}
           </div>
+          <QuestionCard
+            projectId={id}
+            question={current.q}
+            answer={answers[current.q.id] ?? {}}
+            setAnswer={setAnswer}
+          />
 
           <div className="mt-6 flex items-center justify-between">
             <Button
               variant="outline"
-              onClick={() => setStepIdx((s) => Math.max(0, s - 1))}
-              disabled={stepIdx === 0}
+              onClick={() => setFocus((f) => Math.max(0, f - 1))}
+              disabled={idx === 0}
             >
               <ChevronLeft className="mr-1 h-4 w-4" /> Vorige
             </Button>
+            <div className="text-xs text-muted-foreground">
+              {idx + 1} / {total}
+            </div>
             <Button
-              onClick={() =>
-                setStepIdx((s) => Math.min(steps.length - 1, s + 1))
-              }
-              disabled={stepIdx >= steps.length - 1}
+              onClick={() => setFocus((f) => Math.min(total - 1, f + 1))}
+              disabled={idx >= total - 1}
             >
               Volgende <ChevronRight className="ml-1 h-4 w-4" />
             </Button>
           </div>
         </div>
       )}
-    </Shell>
+    </>,
+  )
+}
+
+function QuestionCard({
+  projectId,
+  question,
+  answer,
+  setAnswer,
+}: {
+  projectId: string
+  question: ReviewCheck
+  answer: Answer
+  setAnswer: (qId: string, patch: Partial<Answer>) => void
+}) {
+  const images = answer.screenshotUrls ?? answer.screenshots ?? []
+  return (
+    <Card>
+      <CardContent className="space-y-4 py-5">
+        <div className="text-base font-medium">{question.text}</div>
+        {question.business_impact_nl &&
+          (answer.score === "bad" || answer.score === "ok") && (
+            <p className="text-xs text-muted-foreground">
+              {question.business_impact_nl}
+            </p>
+          )}
+        <ScoreButtons
+          value={answer.score}
+          onChange={(s) => setAnswer(question.id, { score: s })}
+        />
+        <SeverityRow
+          score={answer.score}
+          value={answer.severity}
+          onChange={(sev) => setAnswer(question.id, { severity: sev })}
+        />
+        <Textarea
+          value={answer.notes ?? ""}
+          onChange={(e) => setAnswer(question.id, { notes: e.target.value })}
+          placeholder="Notities, bevindingen, aanbevelingen…"
+          className="min-h-24"
+        />
+        <ScreenshotStrip
+          projectId={projectId}
+          itemKey={question.id}
+          images={images}
+          onChange={(next) =>
+            setAnswer(question.id, { screenshotUrls: next, screenshots: [] })
+          }
+        />
+      </CardContent>
+    </Card>
   )
 }
 
@@ -231,78 +264,3 @@ function Shell({
   )
 }
 
-const SCORE_OPTS: { v: Score; label: string; on: string }[] = [
-  { v: "bad", label: "Niet OK", on: "bg-red-500 text-white border-red-500" },
-  { v: "ok", label: "Matig", on: "bg-amber-500 text-white border-amber-500" },
-  {
-    v: "good",
-    label: "Goed",
-    on: "bg-emerald-500 text-white border-emerald-500",
-  },
-  { v: "nvt", label: "N.v.t.", on: "bg-muted-foreground text-white" },
-]
-
-function ScoreButtons({
-  value,
-  onChange,
-}: {
-  value?: Score | null
-  onChange: (s: Score) => void
-}) {
-  return (
-    <div className="grid grid-cols-4 gap-2">
-      {SCORE_OPTS.map((o) => (
-        <button
-          key={o.v}
-          onClick={() => onChange(o.v)}
-          className={cn(
-            "rounded-md border py-2 text-xs font-medium transition-colors",
-            value === o.v ? o.on : "hover:bg-muted",
-          )}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  )
-}
-
-function SeverityRow({
-  score,
-  value,
-  onChange,
-}: {
-  score?: Score | null
-  value?: Severity | null
-  onChange: (s: Severity) => void
-}) {
-  if (score !== "ok" && score !== "bad") return null
-  const opts: { v: Severity; label: string }[] =
-    score === "ok"
-      ? [
-          { v: "high", label: "Quick Win" },
-          { v: "low", label: "Opvuller" },
-        ]
-      : [
-          { v: "high", label: "Strategisch" },
-          { v: "low", label: "Niet Nu" },
-        ]
-  return (
-    <div className="grid grid-cols-2 gap-2">
-      {opts.map((o) => (
-        <button
-          key={o.v}
-          onClick={() => onChange(o.v)}
-          className={cn(
-            "rounded-md border py-1.5 text-xs font-medium transition-colors",
-            value === o.v
-              ? "border-primary bg-primary/10 text-primary"
-              : "text-muted-foreground hover:bg-muted",
-          )}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  )
-}
