@@ -15,7 +15,7 @@ import {
 } from "@/lib/modules"
 import { normalizeUrl, projectNameFromUrl } from "@/lib/url"
 import { useAuth } from "@/components/providers/auth-provider"
-import { BrandLogo } from "@/components/brand-logo"
+import { AppShell } from "@/components/app-shell"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -103,20 +103,15 @@ export function NewProjectWizard() {
   }
 
   return (
-    <div className="min-h-svh bg-background">
-      <header className="border-b pt-[env(safe-area-inset-top)]">
-        <div className="mx-auto flex h-14 max-w-2xl items-center justify-between gap-3 px-4">
-          <div className="flex items-center gap-2">
-            <BrandLogo className="h-6 w-auto" />
-            <span className="text-sm font-semibold">Nieuw project</span>
-          </div>
-          <Button variant="ghost" size="sm" onClick={() => router.push("/")}>
-            Annuleren
-          </Button>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-2xl px-4 py-8">
+    <AppShell
+      title="Nieuw project"
+      actions={
+        <Button variant="ghost" size="sm" onClick={() => router.push("/")}>
+          Annuleren
+        </Button>
+      }
+    >
+      <div className="mx-auto max-w-2xl px-4 py-8">
         <Stepper step={step} />
 
         {step === 1 && (
@@ -234,8 +229,8 @@ export function NewProjectWizard() {
             </Button>
           )}
         </div>
-      </main>
-    </div>
+      </div>
+    </AppShell>
   )
 }
 

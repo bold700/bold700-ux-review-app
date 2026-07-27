@@ -1,8 +1,8 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import {
   collection,
   getDocs,
@@ -10,27 +10,18 @@ import {
   query,
   where,
 } from "firebase/firestore"
-import { LogOut, Plus, Search } from "lucide-react"
+import { Plus, Search } from "lucide-react"
 
 import { getDb } from "@/lib/firebase"
 import type { Project } from "@/lib/types"
 import { projectScore, scoreTone } from "@/lib/score"
 import { normalizeUrl } from "@/lib/url"
 import { useAuth } from "@/components/providers/auth-provider"
-import { BrandLogo } from "@/components/brand-logo"
+import { AppShell } from "@/components/app-shell"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 
@@ -51,7 +42,7 @@ function isDone(p: Project) {
 }
 
 export function Dashboard() {
-  const { user, role, logout } = useAuth()
+  const { user, role } = useAuth()
   const router = useRouter()
   const [projects, setProjects] = useState<Project[] | null>(null)
   const [q, setQ] = useState("")
@@ -99,7 +90,9 @@ export function Dashboard() {
       )
     }
     if (statusFilter !== "all") {
-      list = list.filter((p) => (statusFilter === "done" ? isDone(p) : !isDone(p)))
+      list = list.filter((p) =>
+        statusFilter === "done" ? isDone(p) : !isDone(p),
+      )
     }
     const sorted = [...list]
     if (sort === "recent") {
@@ -113,51 +106,20 @@ export function Dashboard() {
   }, [projects, q, sort, statusFilter])
 
   return (
-    <div className="min-h-svh bg-background">
-      <header className="sticky top-0 z-20 border-b bg-background/80 pt-[env(safe-area-inset-top)] backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-[max(1rem,env(safe-area-inset-left))]">
-          <div className="flex items-center gap-2">
-            <BrandLogo className="h-6 w-auto" />
-            <span className="text-sm font-semibold">UX Review Platform</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              className="hidden sm:inline-flex"
-              onClick={() => router.push("/new")}
-            >
-              <Plus className="mr-1 h-4 w-4" /> Nieuw project
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback className="text-xs">
-                    {(user?.email ?? "?").slice(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel className="max-w-[220px] truncate font-normal">
-                  {user?.email}
-                  {role ? ` · ${role}` : ""}
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => logout()}>
-                  <LogOut className="mr-2 h-4 w-4" /> Uitloggen
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
+    <AppShell
+      title="Dashboard"
+      actions={
+        <Button size="sm" onClick={() => router.push("/new")}>
+          <Plus className="mr-1 h-4 w-4" /> Nieuw project
+        </Button>
+      }
+    >
+      <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
         <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
           <StatCard label="Projecten" value={projects ? stats.total : null} />
           <StatCard label="Afgerond" value={projects ? stats.done : null} />
         </div>
 
-        {/* Toolbar */}
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="relative sm:max-w-xs">
             <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -207,7 +169,7 @@ export function Dashboard() {
             </Link>
 
             {visible.length === 0 && (
-              <Card className="sm:col-span-2 lg:col-span-2">
+              <Card className="sm:col-span-2">
                 <CardContent className="py-10 text-center text-sm text-muted-foreground">
                   Geen projecten gevonden.
                 </CardContent>
@@ -261,8 +223,8 @@ export function Dashboard() {
             })}
           </div>
         )}
-      </main>
-    </div>
+      </div>
+    </AppShell>
   )
 }
 
