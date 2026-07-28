@@ -1,14 +1,16 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Check, X } from "lucide-react"
+import { Check, HelpCircle, MessageSquarePlus, X } from "lucide-react"
 
 import type { Project } from "@/lib/types"
-import type { DevStatusMap } from "@/lib/dev-status"
+import type { DevEntry, DevStatusMap } from "@/lib/dev-status"
+import { devStateOf } from "@/lib/dev-status"
 import type { Finding, ReportData } from "@/lib/report"
 import { scoreTone } from "@/lib/score"
 import { markdownToHtml } from "@/lib/markdown"
 import { ActionPlanView } from "@/components/report/action-plan-view"
+import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 
 const dot: Record<string, string> = {
@@ -29,16 +31,20 @@ export function ReportView({
   data,
   aiPlan,
   devStatus,
-  onToggleDone,
+  onDevUpdate,
 }: {
   project: Project
   data: ReportData
   aiPlan?: string
   devStatus?: DevStatusMap
-  onToggleDone?: (id: string, done: boolean) => void
+  onDevUpdate?: (id: string, entry: DevEntry) => void
 }) {
-  const doneCount = onToggleDone
-    ? data.issues.filter((f) => devStatus?.[f.id]?.done).length
+  const doneCount = onDevUpdate
+    ? data.issues.filter((f) => devStateOf(devStatus?.[f.id]) === "done").length
+    : 0
+  const questionCount = onDevUpdate
+    ? data.issues.filter((f) => devStateOf(devStatus?.[f.id]) === "question")
+        .length
     : 0
   const [preview, setPreview] = useState<string | null>(null)
   useEffect(() => {
@@ -98,14 +104,16 @@ export function ReportView({
 
       <ActionPlanView project={project} />
 
-      {onToggleDone && data.issues.length > 0 && (
+      {onDevUpdate && data.issues.length > 0 && (
         <div className="rounded-xl border bg-muted/30 p-3 text-sm">
-          <div className="mb-1.5 flex items-center justify-between">
+          <div className="mb-1.5 flex items-center justify-between gap-2">
             <span className="font-medium">
               Verwerkt: {doneCount} / {data.issues.length}
             </span>
             <span className="text-muted-foreground">
-              Vink af wat je hebt opgepakt
+              {questionCount > 0
+                ? `${questionCount} met een vraag`
+                : "Vink af wat je hebt opgepakt"}
             </span>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-muted">
@@ -126,7 +134,7 @@ export function ReportView({
         empty="Geen verbeterpunten — netjes!"
         onImage={setPreview}
         devStatus={devStatus}
-        onToggleDone={onToggleDone}
+        onDevUpdate={onDevUpdate}
       />
       <FindingSection
         title={`Sterke punten (${data.strengths.length})`}
@@ -170,7 +178,7 @@ function FindingSection({
   empty,
   onImage,
   devStatus,
-  onToggleDone,
+  onDevUpdate,
 }: {
   title: string
   color: string
@@ -178,7 +186,7 @@ function FindingSection({
   empty: string
   onImage: (src: string) => void
   devStatus?: DevStatusMap
-  onToggleDone?: (id: string, done: boolean) => void
+  onDevUpdate?: (id: string, entry: DevEntry) => void
 }) {
   return (
     <section>
@@ -189,84 +197,173 @@ function FindingSection({
         <p className="text-sm text-muted-foreground">{empty}</p>
       ) : (
         <div className="space-y-2.5">
-          {findings.map((f) => {
-            const done = !!devStatus?.[f.id]?.done
-            return (
-              <div
-                key={f.id}
-                className={cn(
-                  "rounded-lg border p-3 transition-colors",
-                  done && "border-emerald-500/40 bg-emerald-500/5",
-                )}
-              >
-                <div className="flex items-start gap-2">
-                  {onToggleDone && (
-                    <button
-                      onClick={() => onToggleDone(f.id, !done)}
-                      aria-label={done ? "Markeer als open" : "Markeer als verwerkt"}
-                      className={cn(
-                        "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors",
-                        done
-                          ? "border-emerald-500 bg-emerald-500 text-white"
-                          : "border-input hover:border-emerald-500",
-                      )}
-                    >
-                      {done && <Check className="h-3.5 w-3.5" />}
-                    </button>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      {!onToggleDone && (
-                        <span
-                          className={cn(
-                            "h-2.5 w-2.5 shrink-0 rounded-full",
-                            dot[f.score],
-                          )}
-                        />
-                      )}
-                      <span
-                        className={cn(
-                          "text-sm font-medium",
-                          done && "text-muted-foreground line-through",
-                        )}
-                      >
-                        {f.question}
-                      </span>
-                      <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
-                        {f.category}
-                      </span>
-                      {done && (
-                        <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
-                          Verwerkt
-                        </span>
-                      )}
-                    </div>
-                    {f.notes && (
-                      <p className="mt-1.5 text-sm whitespace-pre-wrap text-muted-foreground">
-                        {f.notes}
-                      </p>
-                    )}
-                    {f.images.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {f.images.map((src, i) => (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            key={i}
-                            src={src}
-                            alt=""
-                            onClick={() => onImage(src)}
-                            className="h-20 w-28 cursor-zoom-in rounded-md border object-cover"
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )
-          })}
+          {findings.map((f) => (
+            <FindingItem
+              key={f.id}
+              f={f}
+              onImage={onImage}
+              entry={devStatus?.[f.id]}
+              onDevUpdate={onDevUpdate}
+            />
+          ))}
         </div>
       )}
     </section>
+  )
+}
+
+function FindingItem({
+  f,
+  onImage,
+  entry,
+  onDevUpdate,
+}: {
+  f: Finding
+  onImage: (src: string) => void
+  entry?: DevEntry
+  onDevUpdate?: (id: string, entry: DevEntry) => void
+}) {
+  const state = devStateOf(entry)
+  const done = state === "done"
+  const question = state === "question"
+  const [noteOpen, setNoteOpen] = useState(!!entry?.note)
+  const [note, setNote] = useState(entry?.note ?? "")
+
+  useEffect(() => {
+    setNote(entry?.note ?? "")
+    if (entry?.note) setNoteOpen(true)
+  }, [entry?.note])
+
+  const update = (patch: Partial<DevEntry>) =>
+    onDevUpdate?.(f.id, {
+      status: state,
+      note,
+      ...patch,
+    })
+
+  return (
+    <div
+      className={cn(
+        "rounded-lg border p-3 transition-colors",
+        done && "border-emerald-500/40 bg-emerald-500/5",
+        question && "border-amber-500/40 bg-amber-500/5",
+      )}
+    >
+      <div className="flex items-start gap-2">
+        {onDevUpdate && (
+          <button
+            onClick={() => update({ status: done ? "open" : "done" })}
+            aria-label={done ? "Markeer als open" : "Markeer als verwerkt"}
+            className={cn(
+              "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors",
+              done
+                ? "border-emerald-500 bg-emerald-500 text-white"
+                : "border-input hover:border-emerald-500",
+            )}
+          >
+            {done && <Check className="h-3.5 w-3.5" />}
+          </button>
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            {!onDevUpdate && (
+              <span
+                className={cn("h-2.5 w-2.5 shrink-0 rounded-full", dot[f.score])}
+              />
+            )}
+            <span
+              className={cn(
+                "text-sm font-medium",
+                done && "text-muted-foreground line-through",
+              )}
+            >
+              {f.question}
+            </span>
+            <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+              {f.category}
+            </span>
+            {done && (
+              <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                Verwerkt
+              </span>
+            )}
+            {question && (
+              <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400">
+                Vraag
+              </span>
+            )}
+          </div>
+          {f.notes && (
+            <p className="mt-1.5 text-sm whitespace-pre-wrap text-muted-foreground">
+              {f.notes}
+            </p>
+          )}
+          {f.images.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {f.images.map((src, i) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={i}
+                  src={src}
+                  alt=""
+                  onClick={() => onImage(src)}
+                  className="h-20 w-28 cursor-zoom-in rounded-md border object-cover"
+                />
+              ))}
+            </div>
+          )}
+
+          {onDevUpdate && (
+            <div className="mt-2.5 space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() =>
+                    update({ status: question ? "open" : "question" })
+                  }
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors",
+                    question
+                      ? "border-amber-500 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                      : "text-muted-foreground hover:border-amber-500 hover:text-foreground",
+                  )}
+                >
+                  <HelpCircle className="h-3.5 w-3.5" />
+                  {question ? "Vraag gesteld" : "Ik snap dit niet"}
+                </button>
+                {!noteOpen && (
+                  <button
+                    onClick={() => setNoteOpen(true)}
+                    className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    <MessageSquarePlus className="h-3.5 w-3.5" /> Notitie
+                  </button>
+                )}
+              </div>
+              {noteOpen && (
+                <Textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  onBlur={() => {
+                    if ((entry?.note ?? "") !== note) update({ note })
+                  }}
+                  placeholder="Notitie voor de reviewer (bijv. 'opgelost in commit abc123' of 'wat bedoel je hier precies?')"
+                  className="min-h-16 text-sm"
+                />
+              )}
+            </div>
+          )}
+
+          {/* Toon een opgeslagen developer-notitie ook read-only (bijv. voor de reviewer) */}
+          {!onDevUpdate && entry?.note && (
+            <div className="mt-2 rounded-md border-l-2 border-primary bg-muted/40 px-3 py-1.5 text-sm">
+              <span className="font-medium">Developer: </span>
+              <span className="whitespace-pre-wrap text-muted-foreground">
+                {entry.note}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   )
 }

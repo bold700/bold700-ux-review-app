@@ -18,7 +18,12 @@ import { toast } from "sonner"
 import { getDb } from "@/lib/firebase"
 import type { Project } from "@/lib/types"
 import { buildReport } from "@/lib/report"
-import { setDevDone, type DevStatusMap } from "@/lib/dev-status"
+import {
+  devStateOf,
+  saveDevStatus,
+  type DevEntry,
+  type DevStatusMap,
+} from "@/lib/dev-status"
 import { generateActionPlan } from "@/lib/ai"
 import { scoreTone } from "@/lib/score"
 import { AppShell } from "@/components/app-shell"
@@ -64,14 +69,20 @@ export function ScorecardScreen({ id }: { id: string }) {
 
   const data = useMemo(() => (project ? buildReport(project) : null), [project])
   const devDone = data
-    ? data.issues.filter((f) => devStatus[f.id]?.done).length
+    ? data.issues.filter((f) => devStateOf(devStatus[f.id]) === "done").length
     : 0
 
-  async function toggleDone(findingId: string, done: boolean) {
+  async function devUpdate(findingId: string, entry: DevEntry) {
     const prev = devStatus
-    setDevStatus((s) => ({ ...s, [findingId]: { done, at: new Date().toISOString() } }))
+    const merged: DevEntry = {
+      status: entry.status ?? "open",
+      done: (entry.status ?? "open") === "done",
+      note: entry.note ?? "",
+      at: new Date().toISOString(),
+    }
+    setDevStatus((s) => ({ ...s, [findingId]: merged }))
     try {
-      await setDevDone(id, findingId, done)
+      await saveDevStatus(id, findingId, entry)
     } catch (e) {
       setDevStatus(prev)
       toast.error("Kon status niet opslaan", {
@@ -217,7 +228,7 @@ export function ScorecardScreen({ id }: { id: string }) {
           data={data}
           aiPlan={project.aiPlan}
           devStatus={devStatus}
-          onToggleDone={toggleDone}
+          onDevUpdate={devUpdate}
         />
         </div>
       </AppShell>

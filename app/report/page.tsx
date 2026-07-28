@@ -10,7 +10,7 @@ import { toast } from "sonner"
 import { getDb } from "@/lib/firebase"
 import type { Project } from "@/lib/types"
 import { buildReport } from "@/lib/report"
-import { setDevDone, type DevStatusMap } from "@/lib/dev-status"
+import { saveDevStatus, type DevEntry, type DevStatusMap } from "@/lib/dev-status"
 import { BrandLogo } from "@/components/brand-logo"
 import { ReportView } from "@/components/report/report-view"
 import { Button } from "@/components/ui/button"
@@ -50,12 +50,18 @@ function ReportContent() {
     }
   }, [id])
 
-  async function toggleDone(findingId: string, done: boolean) {
+  async function devUpdate(findingId: string, entry: DevEntry) {
     if (!id) return
     const prev = devStatus
-    setDevStatus((s) => ({ ...s, [findingId]: { done, at: new Date().toISOString() } }))
+    const merged: DevEntry = {
+      status: entry.status ?? "open",
+      done: (entry.status ?? "open") === "done",
+      note: entry.note ?? "",
+      at: new Date().toISOString(),
+    }
+    setDevStatus((s) => ({ ...s, [findingId]: merged }))
     try {
-      await setDevDone(id, findingId, done)
+      await saveDevStatus(id, findingId, entry)
     } catch {
       setDevStatus(prev)
       toast.error("Kon status niet opslaan", {
@@ -99,7 +105,7 @@ function ReportContent() {
               data={buildReport(project)}
               aiPlan={project.aiPlan}
               devStatus={devStatus}
-              onToggleDone={toggleDone}
+              onDevUpdate={devUpdate}
             />
           </div>
           <p className="mt-6 text-center text-sm text-muted-foreground">
