@@ -1,23 +1,42 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Camera, Loader2, Pen, X } from "lucide-react"
+import {
+  Camera,
+  ClipboardPaste,
+  Loader2,
+  Monitor,
+  Pen,
+  X,
+} from "lucide-react"
 import { toast } from "sonner"
 
 import { fileToDataUrl, uploadScreenshot } from "@/lib/storage"
 import { Button } from "@/components/ui/button"
 import { Annotator } from "@/components/review/annotator"
 
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader()
+    r.onload = () => resolve(r.result as string)
+    r.onerror = () => reject(new Error("lees-fout"))
+    r.readAsDataURL(blob)
+  })
+}
+
 export function ScreenshotStrip({
   projectId,
   itemKey,
   images,
   onChange,
+  active,
 }: {
   projectId: string
   itemKey: string
   images: string[]
   onChange: (next: string[]) => void
+  // true = luister naar Cmd/Ctrl+V op deze strip (huidige/gefocuste bevinding)
+  active?: boolean
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
@@ -28,12 +47,81 @@ export function ScreenshotStrip({
     replaceIndex?: number
   } | null>(null)
 
+  const canCapture =
+    typeof navigator !== "undefined" &&
+    !!navigator.mediaDevices?.getDisplayMedia
+
   useEffect(() => {
     if (!preview) return
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setPreview(null)
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
   }, [preview])
+
+  // Cmd/Ctrl+V plakken van een gekopieerde afbeelding (alleen op de actieve strip)
+  useEffect(() => {
+    if (!active) return
+    const onPaste = (e: ClipboardEvent) => {
+      const item = Array.from(e.clipboardData?.items ?? []).find((i) =>
+        i.type.startsWith("image/"),
+      )
+      const file = item?.getAsFile()
+      if (!file) return
+      e.preventDefault()
+      fileToDataUrl(file)
+        .then((d) => setAnnotate({ src: d }))
+        .catch(() => toast.error("Kon geplakte afbeelding niet lezen"))
+    }
+    window.addEventListener("paste", onPaste)
+    return () => window.removeEventListener("paste", onPaste)
+  }, [active])
+
+  // Leg het huidige tabblad/scherm vast (desktop). Op mobiel niet beschikbaar:
+  // val terug op de fotokiezer (waar de OS-screenshot in staat).
+  async function capture() {
+    if (!canCapture) {
+      inputRef.current?.click()
+      return
+    }
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: false,
+      })
+      const video = document.createElement("video")
+      video.srcObject = stream
+      await video.play()
+      await new Promise((r) => requestAnimationFrame(() => r(null)))
+      const canvas = document.createElement("canvas")
+      canvas.width = video.videoWidth
+      canvas.height = video.videoHeight
+      canvas.getContext("2d")?.drawImage(video, 0, 0)
+      stream.getTracks().forEach((t) => t.stop())
+      setAnnotate({ src: canvas.toDataURL("image/jpeg", 0.92) })
+    } catch {
+      // gebruiker annuleerde de tab-keuze
+    }
+  }
+
+  // Plakken via knop (leest het klembord expliciet uit).
+  async function pasteFromClipboard() {
+    try {
+      const items = await navigator.clipboard.read()
+      for (const it of items) {
+        const type = it.types.find((t) => t.startsWith("image/"))
+        if (type) {
+          const blob = await it.getType(type)
+          setAnnotate({ src: await blobToDataUrl(blob) })
+          return
+        }
+      }
+      toast.info("Geen afbeelding op het klembord")
+    } catch {
+      toast.error("Kon klembord niet lezen", {
+        description: "Gebruik Cmd/Ctrl+V of de knop Screenshot.",
+      })
+    }
+  }
 
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return
@@ -121,6 +209,24 @@ export function ScreenshotStrip({
           <Camera className="mr-1 h-4 w-4" />
         )}
         Screenshot
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={capture}
+        disabled={busy}
+        title={canCapture ? "Tabblad/scherm vastleggen" : "Kies een screenshot"}
+      >
+        <Monitor className="mr-1 h-4 w-4" /> Capture
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={pasteFromClipboard}
+        disabled={busy}
+        title="Plakken (Cmd/Ctrl+V)"
+      >
+        <ClipboardPaste className="mr-1 h-4 w-4" /> Plakken
       </Button>
 
       {annotate && (

@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { Plus, Trash2 } from "lucide-react"
 
 import { FF_CATEGORIES } from "@/lib/modules"
@@ -23,6 +24,7 @@ export function FreeFormReview({
   setAnswer: (qId: string, patch: Partial<Answer>) => void
   mutate: (fn: (a: Record<string, Answer>) => Record<string, Answer>) => void
 }) {
+  const [focusedId, setFocusedId] = useState<string | null>(null)
   const findings = Object.keys(answers)
     .filter((k) => k.startsWith("ff-"))
     .sort(
@@ -87,8 +89,9 @@ export function FreeFormReview({
         const a = answers[id] ?? {}
         const cats = a.findingCategories ?? []
         const images = a.screenshotUrls ?? a.screenshots ?? []
+        const activePaste = focusedId ? focusedId === id : i === 0
         return (
-          <Card key={id}>
+          <Card key={id} onFocusCapture={() => setFocusedId(id)}>
             <CardContent className="space-y-4 py-5">
               <div className="flex items-start gap-2">
                 <span className="mt-2 text-sm font-medium text-muted-foreground">
@@ -146,6 +149,7 @@ export function FreeFormReview({
                 projectId={projectId}
                 itemKey={id}
                 images={images}
+                active={activePaste}
                 onChange={(next) =>
                   setAnswer(id, { screenshotUrls: next, screenshots: [] })
                 }

@@ -452,6 +452,7 @@ function QuestionCard({
             projectId={projectId}
             itemKey={question.id}
             images={images}
+            active
             onChange={(next) =>
               setAnswer(question.id, { screenshotUrls: next, screenshots: [] })
             }
