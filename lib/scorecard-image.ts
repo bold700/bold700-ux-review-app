@@ -1,6 +1,7 @@
 import type { ReportData } from "@/lib/report"
 import type { Project } from "@/lib/types"
 import { scoreTone } from "@/lib/score"
+import { B_PATH } from "@/components/brand-logo"
 
 const TONE: Record<string, string> = {
   good: "#10b981",
@@ -59,23 +60,24 @@ export function drawScorecard(project: Project, data: ReportData): string {
   const PAD = 90
   let y = 110
 
-  // Merk: oranje B + naam
-  roundRect(ctx, PAD, y, 76, 76, 18)
+  // Merk: echte BOLD700-vectormark (geen vierkant) + woordmerk
+  const logoH = 86
+  const s = logoH / 245
+  const logoW = 238 * s
+  ctx.save()
+  ctx.translate(PAD, y - 4)
+  ctx.scale(s, s)
   ctx.fillStyle = accent
-  ctx.fill()
+  ctx.fill(new Path2D(B_PATH))
+  ctx.restore()
+  const tx = PAD + logoW + 30
   ctx.fillStyle = "#ffffff"
-  ctx.font = "800 46px system-ui, sans-serif"
-  ctx.textBaseline = "middle"
-  ctx.textAlign = "center"
-  ctx.fillText("B", PAD + 38, y + 40)
-  ctx.textAlign = "left"
-  ctx.fillStyle = "#ffffff"
-  ctx.font = "700 34px system-ui, sans-serif"
+  ctx.font = "800 40px system-ui, sans-serif"
   ctx.textBaseline = "alphabetic"
-  ctx.fillText("BOLD700", PAD + 96, y + 30)
+  ctx.fillText("BOLD700", tx, y + 36)
   ctx.fillStyle = "#8b8b93"
-  ctx.font = "600 22px system-ui, sans-serif"
-  ctx.fillText("UX REVIEW", PAD + 96, y + 60)
+  ctx.font = "600 24px system-ui, sans-serif"
+  ctx.fillText("UX REVIEW", tx, y + 70)
 
   // Label
   y = 340
