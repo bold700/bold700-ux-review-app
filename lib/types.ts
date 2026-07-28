@@ -48,6 +48,8 @@ export interface Project {
   // developer-handoff: per bevinding/verbeterpunt de verwerk-status
   devStatus?: Record<string, { done: boolean; at?: string }>
   devMode?: boolean
+  // Engelse vertaling van vrije-review-bevindingen (voor de developer-link)
+  findingTranslations?: Record<string, { title?: string; note?: string }>
   // professional/audit
   auditStatus?: string
   assignedTo?: string | null

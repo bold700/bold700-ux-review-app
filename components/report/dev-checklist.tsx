@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { Check, HelpCircle, MessageSquarePlus } from "lucide-react"
 
 import type { Project } from "@/lib/types"
-import { buildActionPlan, type PlanItem } from "@/lib/action-plan"
+import { buildDevItems, type DevItem } from "@/lib/dev-items"
 import {
   devStateOf,
   type DevEntry,
@@ -20,16 +20,6 @@ const sevClass: Record<string, string> = {
   Important: "bg-amber-500/15 text-amber-500",
   Minor: "bg-muted text-muted-foreground",
 }
-const SEV_EN: Record<string, string> = {
-  Kritiek: "Critical",
-  Belangrijk: "Important",
-  Klein: "Minor",
-}
-const EFFORT_EN: Record<string, string> = {
-  Klein: "Low",
-  Middel: "Medium",
-  Groot: "High",
-}
 
 export function DevChecklist({
   project,
@@ -40,8 +30,7 @@ export function DevChecklist({
   devStatus: DevStatusMap
   onDevUpdate: (id: string, entry: DevEntry) => void
 }) {
-  const plan = buildActionPlan(project)
-  const items = plan.priorities
+  const items = buildDevItems(project)
   const done = items.filter((i) => devStateOf(devStatus[i.id]) === "done").length
 
   if (items.length === 0) {
@@ -99,7 +88,7 @@ function DevRow({
   entry,
   onDevUpdate,
 }: {
-  item: PlanItem
+  item: DevItem
   rank: number
   entry?: DevEntry
   onDevUpdate: (id: string, entry: DevEntry) => void
@@ -118,8 +107,8 @@ function DevRow({
   const update = (patch: Partial<DevEntry>) =>
     onDevUpdate(item.id, { status: state, note, ...patch })
 
-  const sevEn = SEV_EN[item.severityLabel] ?? item.severityLabel
-  const effEn = EFFORT_EN[item.effortLabel] ?? item.effortLabel
+  const sevEn = item.severity
+  const effEn = item.effort
 
   return (
     <Card
@@ -150,23 +139,27 @@ function DevRow({
                   done && "text-muted-foreground line-through",
                 )}
               >
-                {item.fixEn || item.titleEn}
+                {item.fix || item.title}
               </span>
               <Badge className={cn("text-[10px]", sevClass[sevEn] ?? "bg-muted")}>
                 {sevEn}
               </Badge>
-              <Badge variant="outline" className="text-[10px] text-muted-foreground">
-                Effort: {effEn}
-              </Badge>
+              {effEn && (
+                <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                  Effort: {effEn}
+                </Badge>
+              )}
               {question && (
                 <Badge className="bg-amber-500/15 text-[10px] text-amber-600 dark:text-amber-400">
                   Question
                 </Badge>
               )}
             </div>
-            <p className="text-xs text-muted-foreground">
-              Context: {item.titleEn}
-            </p>
+            {item.title && item.title !== item.fix && (
+              <p className="text-xs text-muted-foreground">
+                Context: {item.title}
+              </p>
+            )}
 
             <div className="flex flex-wrap items-center gap-2 pt-1">
               <button

@@ -19,6 +19,7 @@ import { toast } from "sonner"
 import { getDb } from "@/lib/firebase"
 import type { Project } from "@/lib/types"
 import { buildReport } from "@/lib/report"
+import { translateFindings } from "@/lib/translate"
 import { SocialShareDialog } from "@/components/scorecard/social-share"
 import {
   devStateOf,
@@ -128,6 +129,17 @@ export function ScorecardScreen({ id }: { id: string }) {
       const link = `${location.origin}/report?id=${encodeURIComponent(id)}`
       await navigator.clipboard.writeText(link).catch(() => {})
       setShareLink(link)
+
+      // Vrije review: bevindingen naar Engels vertalen voor de developer-link.
+      if (
+        project.reviewType === "free-form" &&
+        !project.findingTranslations
+      ) {
+        const tr = await translateFindings(project)
+        if (Object.keys(tr).length) {
+          setProject((p) => (p ? { ...p, findingTranslations: tr } : p))
+        }
+      }
     } catch (e) {
       toast.error("Delen mislukt", {
         description: e instanceof Error ? e.message : undefined,
