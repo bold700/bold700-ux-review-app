@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { LayoutDashboardIcon, FolderIcon } from "lucide-react"
+import { LayoutDashboardIcon } from "lucide-react"
 
 import { BrandLogo } from "@/components/brand-logo"
 import { NavMain } from "@/components/nav-main"
@@ -18,7 +18,6 @@ import {
 
 const navMain = [
   { title: "Dashboard", url: "/", icon: <LayoutDashboardIcon /> },
-  { title: "Projecten", url: "/", icon: <FolderIcon /> },
 ]
 
 export function AppSidebar({

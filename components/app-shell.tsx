@@ -6,6 +6,13 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 
+// Onthoud de open/dicht-staat van de sidebar (cookie die SidebarProvider zelf zet).
+function readSidebarOpen(): boolean {
+  if (typeof document === "undefined") return true
+  const m = document.cookie.match(/(?:^|;\s*)sidebar_state=([^;]+)/)
+  return m ? m[1] !== "false" : true
+}
+
 export function AppShell({
   title,
   actions,
@@ -17,6 +24,7 @@ export function AppShell({
 }) {
   return (
     <SidebarProvider
+      defaultOpen={readSidebarOpen()}
       style={
         {
           "--sidebar-width": "calc(var(--spacing) * 72)",

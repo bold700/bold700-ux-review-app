@@ -9,7 +9,7 @@ import {
   query,
   where,
 } from "firebase/firestore"
-import { Globe, Plus, Search } from "lucide-react"
+import { Globe, LayoutGrid, Plus, Search, Table as TableIcon } from "lucide-react"
 
 import { getDb } from "@/lib/firebase"
 import type { Project } from "@/lib/types"
@@ -22,6 +22,14 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import { cn } from "@/lib/utils"
 
 const toneClass: Record<string, string> = {
@@ -47,6 +55,7 @@ export function Dashboard() {
   const [q, setQ] = useState("")
   const [sort, setSort] = useState<Sort>("recent")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
+  const [view, setView] = useState<"cards" | "table">("cards")
 
   useEffect(() => {
     let cancelled = false
@@ -127,7 +136,7 @@ export function Dashboard() {
         </Button>
       }
     >
-      <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
+      <div className="px-4 py-6 sm:py-8 lg:px-6">
         <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
           <StatCard label="Projecten" value={projects ? stats.total : null} />
           <StatCard label="Afgerond" value={projects ? stats.done : null} />
@@ -162,12 +171,38 @@ export function Dashboard() {
                 { v: "name", label: "Naam" },
               ]}
             />
+            <div className="ml-1 inline-flex rounded-lg border p-0.5">
+              <button
+                onClick={() => setView("cards")}
+                aria-label="Kaarten"
+                className={cn(
+                  "rounded-md p-1.5 transition-colors",
+                  view === "cards"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setView("table")}
+                aria-label="Tabel"
+                className={cn(
+                  "rounded-md p-1.5 transition-colors",
+                  view === "table"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <TableIcon className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         </div>
 
         {!projects ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 6 }).map((_, i) => (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {Array.from({ length: 8 }).map((_, i) => (
               <Skeleton key={i} className="h-32 rounded-xl" />
             ))}
           </div>
@@ -177,6 +212,11 @@ export function Dashboard() {
               Geen projecten gevonden.
             </CardContent>
           </Card>
+        ) : view === "table" ? (
+          <ProjectsTable
+            rows={visible}
+            onOpen={(id) => router.push(`/review/${id}`)}
+          />
         ) : (
           <div className="space-y-8">
             {groups.map(([domain, items]) => {
@@ -205,7 +245,7 @@ export function Dashboard() {
                       </span>
                     )}
                   </div>
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                     {items.map((p) => (
                       <ReviewCard
                         key={p.id}
@@ -249,6 +289,88 @@ function SegGroup<T extends string>({
           {o.label}
         </button>
       ))}
+    </div>
+  )
+}
+
+function ProjectsTable({
+  rows,
+  onOpen,
+}: {
+  rows: Project[]
+  onOpen: (id: string) => void
+}) {
+  return (
+    <div className="overflow-x-auto rounded-xl border">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Project</TableHead>
+            <TableHead className="hidden md:table-cell">Domein</TableHead>
+            <TableHead>Type</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead className="hidden sm:table-cell">Datum</TableHead>
+            <TableHead className="text-right">Score</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((p) => {
+            const score = projectScore(p)
+            const tone = scoreTone(score)
+            const done = isDone(p)
+            return (
+              <TableRow
+                key={p.id}
+                onClick={() => onOpen(p.id)}
+                className="cursor-pointer"
+              >
+                <TableCell className="max-w-[280px] font-medium">
+                  <div className="truncate">
+                    {p.name || p.url || "Naamloos project"}
+                  </div>
+                  <div className="truncate text-xs text-muted-foreground md:hidden">
+                    {normalizeUrl(p.url ?? "")}
+                  </div>
+                </TableCell>
+                <TableCell className="hidden text-muted-foreground md:table-cell">
+                  {normalizeUrl(p.url ?? "")}
+                </TableCell>
+                <TableCell>
+                  {p.reviewType === "free-form" ? (
+                    <Badge variant="secondary">Vrije review</Badge>
+                  ) : p.selectedTemplate ? (
+                    <Badge variant="secondary">Quick Scan</Badge>
+                  ) : (
+                    <Badge variant="outline">Audit</Badge>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {done ? (
+                    <Badge className="bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15">
+                      Afgerond
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline">Open</Badge>
+                  )}
+                </TableCell>
+                <TableCell className="hidden text-muted-foreground sm:table-cell">
+                  {p.createdAt
+                    ? new Date(p.createdAt).toLocaleDateString("nl-NL")
+                    : ""}
+                </TableCell>
+                <TableCell
+                  className={cn(
+                    "text-right font-bold tabular-nums",
+                    toneClass[tone],
+                  )}
+                >
+                  {score == null ? "—" : score.toFixed(1)}
+                </TableCell>
+              </TableRow>
+            )
+          })}
+        </TableBody>
+      </Table>
     </div>
   )
 }

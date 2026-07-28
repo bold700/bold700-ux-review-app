@@ -91,7 +91,7 @@ export function NewProjectWizard() {
 
       await setDoc(doc(getDb(), "projects", id), project)
       toast.success("Project aangemaakt", { description: project.name as string })
-      router.push("/")
+      router.push(`/review/${id}`)
     } catch (e) {
       console.error(e)
       toast.error("Aanmaken mislukt", {
@@ -111,8 +111,9 @@ export function NewProjectWizard() {
         </Button>
       }
     >
-      <div className="mx-auto max-w-2xl px-4 py-8">
-        <Stepper step={step} />
+      <div className="flex min-h-[calc(100svh-var(--header-height))] flex-col">
+        <div className="flex-1 px-4 py-8 lg:px-6">
+          <Stepper step={step} />
 
         {step === 1 && (
           <Section title="Wat wil je reviewen?" desc="Kies de bron.">
@@ -141,31 +142,47 @@ export function NewProjectWizard() {
           </Section>
         )}
 
-        {step === 2 && (
-          <Section title="Type review" desc="Volledige audit of een gerichte Quick Scan.">
-            <div className="grid gap-3">
-              <ChoiceCard
-                active={template === FULL_AUDIT}
-                onClick={() => setTemplate(FULL_AUDIT)}
-                title="Volledige Audit"
-                desc="Alle modules — de complete checklist"
-              />
-              {bundles.map((b) => (
-                <ChoiceCard
-                  key={b.id}
-                  active={template === b.id}
-                  onClick={() => setTemplate(b.id)}
-                  title={b.name_nl.replace(" Quick Scan", "")}
-                  desc={b.description_nl ?? b.estimated_duration_nl}
-                />
-              ))}
-            </div>
-          </Section>
-        )}
+        {step === 2 &&
+          (() => {
+            const freeForm = bundles.find((b) => b.is_free_form)
+            const scans = bundles.filter((b) => !b.is_free_form)
+            return (
+              <Section
+                title="Type review"
+                desc="Vrije review, volledige audit of een gerichte Quick Scan."
+              >
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {freeForm && (
+                    <ChoiceCard
+                      active={template === freeForm.id}
+                      onClick={() => setTemplate(freeForm.id)}
+                      title="Vrije Review"
+                      desc="Zelf bevindingen toevoegen, zonder checklist"
+                    />
+                  )}
+                  <ChoiceCard
+                    active={template === FULL_AUDIT}
+                    onClick={() => setTemplate(FULL_AUDIT)}
+                    title="Volledige Audit"
+                    desc="Alle modules — de complete checklist"
+                  />
+                  {scans.map((b) => (
+                    <ChoiceCard
+                      key={b.id}
+                      active={template === b.id}
+                      onClick={() => setTemplate(b.id)}
+                      title={b.name_nl.replace(" Quick Scan", "")}
+                      desc={b.description_nl ?? b.estimated_duration_nl}
+                    />
+                  ))}
+                </div>
+              </Section>
+            )
+          })()}
 
         {step === 3 && (
           <Section title="Details" desc="Vul de details in om te starten.">
-            <div className="grid gap-4">
+            <div className="grid max-w-2xl gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="np-url">
                   {source === "figma" ? "Figma URL" : "Website URL"} *
@@ -203,7 +220,9 @@ export function NewProjectWizard() {
           </Section>
         )}
 
-        <div className="mt-8 flex items-center justify-between">
+        </div>
+
+        <div className="sticky bottom-0 z-10 flex items-center justify-between gap-2 border-t bg-background/90 px-4 py-3 backdrop-blur lg:px-6">
           <Button
             variant="outline"
             onClick={() => setStep((s) => Math.max(1, s - 1))}
