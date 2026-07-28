@@ -18,6 +18,7 @@ import { toast } from "sonner"
 import { getDb } from "@/lib/firebase"
 import type { Project } from "@/lib/types"
 import { buildReport } from "@/lib/report"
+import { setDevDone, type DevStatusMap } from "@/lib/dev-status"
 import { generateActionPlan } from "@/lib/ai"
 import { scoreTone } from "@/lib/score"
 import { AppShell } from "@/components/app-shell"
@@ -38,16 +39,20 @@ export function ScorecardScreen({ id }: { id: string }) {
   const [project, setProject] = useState<Project | null | undefined>(undefined)
   const [genBusy, setGenBusy] = useState(false)
   const [shareLink, setShareLink] = useState<string | null>(null)
+  const [devStatus, setDevStatus] = useState<DevStatusMap>({})
 
   useEffect(() => {
     let cancelled = false
     ;(async () => {
       try {
         const snap = await getDoc(doc(getDb(), "projects", id))
-        if (!cancelled)
-          setProject(
-            snap.exists() ? ({ id: snap.id, ...snap.data() } as Project) : null,
-          )
+        if (!cancelled) {
+          const p = snap.exists()
+            ? ({ id: snap.id, ...snap.data() } as Project)
+            : null
+          setProject(p)
+          setDevStatus(p?.devStatus ?? {})
+        }
       } catch {
         if (!cancelled) setProject(null)
       }
@@ -58,6 +63,22 @@ export function ScorecardScreen({ id }: { id: string }) {
   }, [id])
 
   const data = useMemo(() => (project ? buildReport(project) : null), [project])
+  const devDone = data
+    ? data.issues.filter((f) => devStatus[f.id]?.done).length
+    : 0
+
+  async function toggleDone(findingId: string, done: boolean) {
+    const prev = devStatus
+    setDevStatus((s) => ({ ...s, [findingId]: { done, at: new Date().toISOString() } }))
+    try {
+      await setDevDone(id, findingId, done)
+    } catch (e) {
+      setDevStatus(prev)
+      toast.error("Kon status niet opslaan", {
+        description: e instanceof Error ? e.message : undefined,
+      })
+    }
+  }
 
   async function generate() {
     if (!project || !data) return
@@ -158,8 +179,10 @@ export function ScorecardScreen({ id }: { id: string }) {
           />
           <Stat label="Verbeterpunten" value={data.issues.length} />
           <Stat
-            label="Quick Wins"
-            value={data.counts.quickWins}
+            label="Verwerkt door dev"
+            value={
+              data.issues.length ? `${devDone}/${data.issues.length}` : "—"
+            }
             className="text-emerald-500"
           />
           <Stat label="Sterke punten" value={data.strengths.length} />
@@ -189,7 +212,13 @@ export function ScorecardScreen({ id }: { id: string }) {
           </CardContent>
         </Card>
 
-        <ReportView project={project} data={data} aiPlan={project.aiPlan} />
+        <ReportView
+          project={project}
+          data={data}
+          aiPlan={project.aiPlan}
+          devStatus={devStatus}
+          onToggleDone={toggleDone}
+        />
         </div>
       </AppShell>
 

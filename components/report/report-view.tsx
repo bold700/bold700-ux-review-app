@@ -1,9 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { X } from "lucide-react"
+import { Check, X } from "lucide-react"
 
 import type { Project } from "@/lib/types"
+import type { DevStatusMap } from "@/lib/dev-status"
 import type { Finding, ReportData } from "@/lib/report"
 import { scoreTone } from "@/lib/score"
 import { markdownToHtml } from "@/lib/markdown"
@@ -27,11 +28,18 @@ export function ReportView({
   project,
   data,
   aiPlan,
+  devStatus,
+  onToggleDone,
 }: {
   project: Project
   data: ReportData
   aiPlan?: string
+  devStatus?: DevStatusMap
+  onToggleDone?: (id: string, done: boolean) => void
 }) {
+  const doneCount = onToggleDone
+    ? data.issues.filter((f) => devStatus?.[f.id]?.done).length
+    : 0
   const [preview, setPreview] = useState<string | null>(null)
   useEffect(() => {
     if (!preview) return
@@ -90,18 +98,41 @@ export function ReportView({
 
       <ActionPlanView project={project} />
 
-      <FindingSection
-        title={`Sterke punten (${data.strengths.length})`}
-        color="text-emerald-500"
-        findings={data.strengths}
-        empty="Geen expliciete sterke punten genoteerd."
-        onImage={setPreview}
-      />
+      {onToggleDone && data.issues.length > 0 && (
+        <div className="rounded-xl border bg-muted/30 p-3 text-sm">
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="font-medium">
+              Verwerkt: {doneCount} / {data.issues.length}
+            </span>
+            <span className="text-muted-foreground">
+              Vink af wat je hebt opgepakt
+            </span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-emerald-500 transition-all"
+              style={{
+                width: `${data.issues.length ? (doneCount / data.issues.length) * 100 : 0}%`,
+              }}
+            />
+          </div>
+        </div>
+      )}
+
       <FindingSection
         title={`Verbeterpunten (${data.issues.length})`}
         color="text-red-500"
         findings={data.issues}
         empty="Geen verbeterpunten — netjes!"
+        onImage={setPreview}
+        devStatus={devStatus}
+        onToggleDone={onToggleDone}
+      />
+      <FindingSection
+        title={`Sterke punten (${data.strengths.length})`}
+        color="text-emerald-500"
+        findings={data.strengths}
+        empty="Geen expliciete sterke punten genoteerd."
         onImage={setPreview}
       />
 
@@ -138,12 +169,16 @@ function FindingSection({
   findings,
   empty,
   onImage,
+  devStatus,
+  onToggleDone,
 }: {
   title: string
   color: string
   findings: Finding[]
   empty: string
   onImage: (src: string) => void
+  devStatus?: DevStatusMap
+  onToggleDone?: (id: string, done: boolean) => void
 }) {
   return (
     <section>
@@ -154,38 +189,82 @@ function FindingSection({
         <p className="text-sm text-muted-foreground">{empty}</p>
       ) : (
         <div className="space-y-2.5">
-          {findings.map((f) => (
-            <div key={f.id} className="rounded-lg border p-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <span
-                  className={cn("h-2.5 w-2.5 shrink-0 rounded-full", dot[f.score])}
-                />
-                <span className="text-sm font-medium">{f.question}</span>
-                <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
-                  {f.category}
-                </span>
-              </div>
-              {f.notes && (
-                <p className="mt-1.5 text-sm whitespace-pre-wrap text-muted-foreground">
-                  {f.notes}
-                </p>
-              )}
-              {f.images.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {f.images.map((src, i) => (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      key={i}
-                      src={src}
-                      alt=""
-                      onClick={() => onImage(src)}
-                      className="h-20 w-28 cursor-zoom-in rounded-md border object-cover"
-                    />
-                  ))}
+          {findings.map((f) => {
+            const done = !!devStatus?.[f.id]?.done
+            return (
+              <div
+                key={f.id}
+                className={cn(
+                  "rounded-lg border p-3 transition-colors",
+                  done && "border-emerald-500/40 bg-emerald-500/5",
+                )}
+              >
+                <div className="flex items-start gap-2">
+                  {onToggleDone && (
+                    <button
+                      onClick={() => onToggleDone(f.id, !done)}
+                      aria-label={done ? "Markeer als open" : "Markeer als verwerkt"}
+                      className={cn(
+                        "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors",
+                        done
+                          ? "border-emerald-500 bg-emerald-500 text-white"
+                          : "border-input hover:border-emerald-500",
+                      )}
+                    >
+                      {done && <Check className="h-3.5 w-3.5" />}
+                    </button>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {!onToggleDone && (
+                        <span
+                          className={cn(
+                            "h-2.5 w-2.5 shrink-0 rounded-full",
+                            dot[f.score],
+                          )}
+                        />
+                      )}
+                      <span
+                        className={cn(
+                          "text-sm font-medium",
+                          done && "text-muted-foreground line-through",
+                        )}
+                      >
+                        {f.question}
+                      </span>
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                        {f.category}
+                      </span>
+                      {done && (
+                        <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                          Verwerkt
+                        </span>
+                      )}
+                    </div>
+                    {f.notes && (
+                      <p className="mt-1.5 text-sm whitespace-pre-wrap text-muted-foreground">
+                        {f.notes}
+                      </p>
+                    )}
+                    {f.images.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {f.images.map((src, i) => (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            key={i}
+                            src={src}
+                            alt=""
+                            onClick={() => onImage(src)}
+                            className="h-20 w-28 cursor-zoom-in rounded-md border object-cover"
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              )}
-            </div>
-          ))}
+              </div>
+            )
+          })}
         </div>
       )}
     </section>

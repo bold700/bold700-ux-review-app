@@ -45,6 +45,9 @@ export interface Project {
   public?: boolean
   sharedAt?: string
   shareExpiresAtMs?: number
+  // developer-handoff: per bevinding/verbeterpunt de verwerk-status
+  devStatus?: Record<string, { done: boolean; at?: string }>
+  devMode?: boolean
   // professional/audit
   auditStatus?: string
   assignedTo?: string | null

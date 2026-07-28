@@ -1,11 +1,12 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Camera, Loader2, X } from "lucide-react"
+import { Camera, Loader2, Pen, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { fileToDataUrl, uploadScreenshot } from "@/lib/storage"
 import { Button } from "@/components/ui/button"
+import { Annotator } from "@/components/review/annotator"
 
 export function ScreenshotStrip({
   projectId,
@@ -21,6 +22,11 @@ export function ScreenshotStrip({
   const inputRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
   const [preview, setPreview] = useState<string | null>(null)
+  // Annotatie: nieuwe afbeelding (replaceIndex undefined) of bestaande bijwerken.
+  const [annotate, setAnnotate] = useState<{
+    src: string
+    replaceIndex?: number
+  } | null>(null)
 
   useEffect(() => {
     if (!preview) return
@@ -31,25 +37,34 @@ export function ScreenshotStrip({
 
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return
+    const file = files[0]
+    if (inputRef.current) inputRef.current.value = ""
+    if (!file.type.startsWith("image/")) return
+    try {
+      const dataUrl = await fileToDataUrl(file)
+      setAnnotate({ src: dataUrl })
+    } catch {
+      toast.error("Kon afbeelding niet verwerken", { description: file.name })
+    }
+  }
+
+  async function saveAnnotated(dataUrl: string) {
+    const target = annotate
+    setAnnotate(null)
     setBusy(true)
     try {
-      const next = [...images]
-      for (const file of Array.from(files)) {
-        if (!file.type.startsWith("image/")) continue
-        try {
-          const dataUrl = await fileToDataUrl(file)
-          const key = `${itemKey}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
-          const url = await uploadScreenshot(projectId, key, dataUrl)
-          if (url) next.push(url)
-          else toast.error("Upload mislukt", { description: file.name })
-        } catch {
-          toast.error("Kon afbeelding niet verwerken", { description: file.name })
-        }
+      const key = `${itemKey}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
+      const url = await uploadScreenshot(projectId, key, dataUrl)
+      if (!url) {
+        toast.error("Upload mislukt")
+        return
       }
+      const next = [...images]
+      if (target?.replaceIndex != null) next[target.replaceIndex] = url
+      else next.push(url)
       onChange(next)
     } finally {
       setBusy(false)
-      if (inputRef.current) inputRef.current.value = ""
     }
   }
 
@@ -62,7 +77,7 @@ export function ScreenshotStrip({
   return (
     <div className="flex flex-wrap items-center gap-2">
       {images.map((src, i) => (
-        <div key={i} className="relative">
+        <div key={i} className="group relative">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={src}
@@ -70,6 +85,14 @@ export function ScreenshotStrip({
             onClick={() => setPreview(src)}
             className="h-16 w-16 cursor-zoom-in rounded-md border object-cover"
           />
+          <button
+            onClick={() => setAnnotate({ src, replaceIndex: i })}
+            aria-label="Annoteren"
+            title="Annoteren"
+            className="absolute -bottom-1.5 -left-1.5 flex h-5 w-5 items-center justify-center rounded-full border bg-background text-muted-foreground hover:text-foreground"
+          >
+            <Pen className="h-3 w-3" />
+          </button>
           <button
             onClick={() => remove(i)}
             aria-label="Verwijder screenshot"
@@ -83,7 +106,6 @@ export function ScreenshotStrip({
         ref={inputRef}
         type="file"
         accept="image/*"
-        multiple
         hidden
         onChange={(e) => handleFiles(e.target.files)}
       />
@@ -100,6 +122,14 @@ export function ScreenshotStrip({
         )}
         Screenshot
       </Button>
+
+      {annotate && (
+        <Annotator
+          src={annotate.src}
+          onSave={saveAnnotated}
+          onCancel={() => setAnnotate(null)}
+        />
+      )}
 
       {preview && (
         <div

@@ -4,11 +4,13 @@ import { Suspense, useEffect, useState } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { doc, getDoc } from "firebase/firestore"
-import { Clock, Loader2, Lock, SearchX } from "lucide-react"
+import { Clock, ListChecks, Loader2, Lock, SearchX } from "lucide-react"
+import { toast } from "sonner"
 
 import { getDb } from "@/lib/firebase"
 import type { Project } from "@/lib/types"
 import { buildReport } from "@/lib/report"
+import { setDevDone, type DevStatusMap } from "@/lib/dev-status"
 import { BrandLogo } from "@/components/brand-logo"
 import { ReportView } from "@/components/report/report-view"
 import { Button } from "@/components/ui/button"
@@ -19,6 +21,7 @@ function ReportContent() {
   const id = useSearchParams().get("id")
   const [status, setStatus] = useState<Status>("loading")
   const [project, setProject] = useState<Project | null>(null)
+  const [devStatus, setDevStatus] = useState<DevStatusMap>({})
 
   useEffect(() => {
     if (!id) {
@@ -36,6 +39,7 @@ function ReportContent() {
         if (p.shareExpiresAtMs && Date.now() > p.shareExpiresAtMs)
           return setStatus("expired")
         setProject(p)
+        setDevStatus(p.devStatus ?? {})
         setStatus("ok")
       } catch {
         if (!cancelled) setStatus("error")
@@ -45,6 +49,20 @@ function ReportContent() {
       cancelled = true
     }
   }, [id])
+
+  async function toggleDone(findingId: string, done: boolean) {
+    if (!id) return
+    const prev = devStatus
+    setDevStatus((s) => ({ ...s, [findingId]: { done, at: new Date().toISOString() } }))
+    try {
+      await setDevDone(id, findingId, done)
+    } catch {
+      setDevStatus(prev)
+      toast.error("Kon status niet opslaan", {
+        description: "Mogelijk zijn de rechten nog niet ingesteld.",
+      })
+    }
+  }
 
   return (
     <div className="min-h-svh bg-muted/30">
@@ -65,8 +83,24 @@ function ReportContent() {
 
       {status === "ok" && project && (
         <main className="mx-auto max-w-2xl px-4 py-8">
+          <div className="mb-4 flex items-start gap-3 rounded-xl border bg-background p-4 text-sm shadow-sm">
+            <ListChecks className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+            <div>
+              <div className="font-medium">Developer-handoff</div>
+              <p className="text-muted-foreground">
+                Vink hieronder aan wat je hebt verwerkt. De reviewer ziet je
+                voortgang direct, geen login nodig.
+              </p>
+            </div>
+          </div>
           <div className="rounded-2xl border bg-background p-6 shadow-sm sm:p-8">
-            <ReportView project={project} data={buildReport(project)} aiPlan={project.aiPlan} />
+            <ReportView
+              project={project}
+              data={buildReport(project)}
+              aiPlan={project.aiPlan}
+              devStatus={devStatus}
+              onToggleDone={toggleDone}
+            />
           </div>
           <p className="mt-6 text-center text-sm text-muted-foreground">
             Dit rapport is live op het BOLD700-platform en altijd actueel.
