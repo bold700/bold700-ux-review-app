@@ -16,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
-export function LoginForm() {
+export function LoginForm({ onBack }: { onBack?: () => void }) {
   const { login } = useAuth()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -71,6 +71,15 @@ export function LoginForm() {
             <Button type="submit" className="w-full" disabled={busy}>
               {busy ? "Bezig met inloggen…" : "Inloggen"}
             </Button>
+            {onBack && (
+              <button
+                type="button"
+                onClick={onBack}
+                className="text-center text-sm text-muted-foreground hover:text-foreground"
+              >
+                ← Terug naar de site
+              </button>
+            )}
           </form>
         </CardContent>
       </Card>

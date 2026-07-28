@@ -1,16 +1,13 @@
 "use client"
 
-import { useState } from "react"
 import { Loader2 } from "lucide-react"
 
 import { useAuth } from "@/components/providers/auth-provider"
 import { LoginForm } from "@/components/login-form"
-import { Landing } from "@/components/landing"
-import { Dashboard } from "@/components/dashboard"
+import { LeadsDashboard } from "@/components/leads-dashboard"
 
-export default function Page() {
+export default function LeadsPage() {
   const { user, loading } = useAuth()
-  const [showLogin, setShowLogin] = useState(false)
 
   if (loading) {
     return (
@@ -20,10 +17,5 @@ export default function Page() {
     )
   }
 
-  if (user) return <Dashboard />
-  return showLogin ? (
-    <LoginForm onBack={() => setShowLogin(false)} />
-  ) : (
-    <Landing onLogin={() => setShowLogin(true)} />
-  )
+  return user ? <LeadsDashboard /> : <LoginForm />
 }

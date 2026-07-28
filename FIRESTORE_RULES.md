@@ -52,6 +52,20 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
+    // ── Leads collection (landingspagina-aanmeldingen) ──
+    match /leads/{id} {
+      // Aanmelden vanaf de publieke landingspagina (anoniem ingelogd).
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid;
+      // De aanvrager mag zijn eigen lead bijwerken (scanstatus/score tijdens scan).
+      allow update: if request.auth != null
+        && resource.data.userId == request.auth.uid;
+      // Beheerder (Kenny): volledige toegang.
+      allow read, write: if request.auth != null
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
     // ── Auditor Applications collection ──
     match /auditor_applications/{userId} {
       allow create, read, update: if request.auth != null && request.auth.uid == userId;
