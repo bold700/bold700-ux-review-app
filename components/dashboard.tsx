@@ -247,7 +247,7 @@ export function Dashboard() {
                   className="pl-9"
                 />
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <SegGroup
                   value={statusFilter}
                   onChange={setStatusFilter}
@@ -266,7 +266,7 @@ export function Dashboard() {
                     { v: "name", label: "Naam" },
                   ]}
                 />
-                <div className="ml-1 inline-flex rounded-lg border p-0.5">
+                <div className="inline-flex rounded-lg border p-0.5">
                   <button
                     onClick={() => setView("cards")}
                     aria-label="Kaarten"
