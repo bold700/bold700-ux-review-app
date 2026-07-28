@@ -99,10 +99,20 @@ export function ReviewScreen({ id }: { id: string }) {
     setAiBusy(true)
     const t = toast.loading("AI Auto-Review — pagina ophalen…")
     try {
-      const pageText = await fetchPageText(project.url ?? "")
+      const cleanUrl = (project.url ?? "").trim()
+      const pageText = await fetchPageText(cleanUrl)
+      if (!pageText || pageText.trim().length < 40) {
+        toast.error("Pagina kon niet worden opgehaald", {
+          id: t,
+          description:
+            "Controleer de URL — zonder pagina-inhoud kan de AI niet beoordelen (alles wordt dan N.v.t.).",
+        })
+        setAiBusy(false)
+        return
+      }
       const results = await runAiReview(
-        project.url ?? "",
-        pageText || "(geen pagina-inhoud opgehaald)",
+        cleanUrl,
+        pageText,
         qs,
         (done, total) =>
           toast.loading(
