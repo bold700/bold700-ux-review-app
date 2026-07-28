@@ -8,6 +8,7 @@ import type { Project } from "@/lib/types"
 export interface PlanItem {
   id: string
   title: string
+  titleEn: string
   category: string
   score: "bad" | "ok"
   severity: string
@@ -15,6 +16,7 @@ export interface PlanItem {
   effort: string
   effortLabel: string
   fix: string
+  fixEn: string
   businessImpact?: string
   notes?: string
   priority: number
@@ -84,6 +86,7 @@ export function buildActionPlan(project: Project): ActionPlan {
     items.push({
       id: check.id,
       title: check.text,
+      titleEn: check.text_en ?? check.text,
       category,
       score: a.score,
       severity,
@@ -91,6 +94,7 @@ export function buildActionPlan(project: Project): ActionPlan {
       effort,
       effortLabel: EFFORT_LABEL[effort] ?? effort,
       fix: check.fix_suggestion_nl ?? "",
+      fixEn: check.fix_suggestion_en ?? check.fix_suggestion_nl ?? "",
       businessImpact: check.business_impact_nl,
       notes: (a.notes ?? "").replace(/\[(Auto|AI|Auto-scan)\]\s*/g, "").trim(),
       priority,

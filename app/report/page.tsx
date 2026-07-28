@@ -13,12 +13,15 @@ import { buildReport } from "@/lib/report"
 import { saveDevStatus, type DevEntry, type DevStatusMap } from "@/lib/dev-status"
 import { BrandLogo } from "@/components/brand-logo"
 import { ReportView } from "@/components/report/report-view"
+import { DevChecklist } from "@/components/report/dev-checklist"
 import { Button } from "@/components/ui/button"
 
 type Status = "loading" | "ok" | "notfound" | "private" | "expired" | "error"
 
 function ReportContent() {
-  const id = useSearchParams().get("id")
+  const params = useSearchParams()
+  const id = params.get("id")
+  const devView = params.get("dev") === "1"
   const [status, setStatus] = useState<Status>("loading")
   const [project, setProject] = useState<Project | null>(null)
   const [devStatus, setDevStatus] = useState<DevStatusMap>({})
@@ -76,9 +79,11 @@ function ReportContent() {
         <Link href="/" className="flex items-center gap-2 font-semibold">
           <BrandLogo className="h-6 w-auto" /> UX Review
         </Link>
-        <Button size="sm" onClick={() => (location.href = "/")}>
-          Zelf een review doen →
-        </Button>
+        {!devView && (
+          <Button size="sm" onClick={() => (location.href = "/")}>
+            Zelf een review doen →
+          </Button>
+        )}
       </header>
 
       {status === "loading" && (
@@ -87,7 +92,29 @@ function ReportContent() {
         </div>
       )}
 
-      {status === "ok" && project && (
+      {status === "ok" && project && devView && (
+        <main className="mx-auto max-w-2xl px-4 py-8">
+          <div className="mb-4 flex items-start gap-3 rounded-xl border bg-background p-4 text-sm shadow-sm">
+            <ListChecks className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+            <div>
+              <div className="font-medium">Developer checklist</div>
+              <p className="text-muted-foreground">
+                Only the action items. Check off what you shipped, flag anything
+                unclear, and leave a note. The reviewer sees it live — no login.
+              </p>
+            </div>
+          </div>
+          <div className="rounded-2xl border bg-background p-6 shadow-sm sm:p-8">
+            <DevChecklist
+              project={project}
+              devStatus={devStatus}
+              onDevUpdate={devUpdate}
+            />
+          </div>
+        </main>
+      )}
+
+      {status === "ok" && project && !devView && (
         <main className="mx-auto max-w-2xl px-4 py-8">
           <div className="mb-4 flex items-start gap-3 rounded-xl border bg-background p-4 text-sm shadow-sm">
             <ListChecks className="mt-0.5 h-5 w-5 shrink-0 text-primary" />

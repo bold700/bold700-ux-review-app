@@ -247,25 +247,54 @@ export function ScorecardScreen({ id }: { id: string }) {
                 <Share2 className="h-4 w-4 text-emerald-500" /> Rapport gedeeld
               </div>
               <p className="text-sm text-muted-foreground">
-                Iedereen met deze link ziet het live rapport — geen login nodig.
-                De link verloopt automatisch na 7 dagen.
+                Twee links, beide zonder login en 7 dagen geldig. Wijzigingen van
+                de developer zie je hier live terug.
               </p>
-              <div className="flex gap-2">
-                <input
-                  readOnly
-                  value={shareLink}
-                  onClick={(e) => e.currentTarget.select()}
-                  className="flex-1 rounded-md border bg-muted px-3 py-2 font-mono text-xs"
-                />
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    navigator.clipboard.writeText(shareLink)
-                    toast.success("Link gekopieerd")
-                  }}
-                >
-                  <Copy className="h-4 w-4" />
-                </Button>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">
+                  Klant / volledig rapport (NL)
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    readOnly
+                    value={shareLink}
+                    onClick={(e) => e.currentTarget.select()}
+                    className="flex-1 rounded-md border bg-muted px-3 py-2 font-mono text-xs"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      navigator.clipboard.writeText(shareLink)
+                      toast.success("Link gekopieerd")
+                    }}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">
+                  Developer — alleen actiepunten (EN)
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    readOnly
+                    value={`${shareLink}&dev=1`}
+                    onClick={(e) => e.currentTarget.select()}
+                    className="flex-1 rounded-md border bg-muted px-3 py-2 font-mono text-xs"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${shareLink}&dev=1`)
+                      toast.success("Developer-link gekopieerd")
+                    }}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
               <div className="flex items-center justify-between gap-2">
                 <Button

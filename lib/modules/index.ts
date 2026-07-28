@@ -10,7 +10,9 @@ export interface ReviewCheck {
   type?: string
   severity?: string
   business_impact_nl?: string
+  business_impact_en?: string
   fix_suggestion_nl?: string
+  fix_suggestion_en?: string
   effort?: string
   auto_tool?: string | null
   auto_rule?: string | null
