@@ -9,7 +9,7 @@ import { Landing } from "@/components/landing"
 import { Dashboard } from "@/components/dashboard"
 
 export default function Page() {
-  const { user, loading } = useAuth()
+  const { authed, loading } = useAuth()
   const [showLogin, setShowLogin] = useState(false)
 
   if (loading) {
@@ -20,7 +20,7 @@ export default function Page() {
     )
   }
 
-  if (user) return <Dashboard />
+  if (authed) return <Dashboard />
   return showLogin ? (
     <LoginForm onBack={() => setShowLogin(false)} />
   ) : (

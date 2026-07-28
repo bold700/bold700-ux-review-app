@@ -7,7 +7,7 @@ import { LoginForm } from "@/components/login-form"
 import { LeadsDashboard } from "@/components/leads-dashboard"
 
 export default function LeadsPage() {
-  const { user, loading } = useAuth()
+  const { authed, loading } = useAuth()
 
   if (loading) {
     return (
@@ -17,5 +17,5 @@ export default function LeadsPage() {
     )
   }
 
-  return user ? <LeadsDashboard /> : <LoginForm />
+  return authed ? <LeadsDashboard /> : <LoginForm />
 }

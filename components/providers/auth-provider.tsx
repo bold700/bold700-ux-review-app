@@ -14,6 +14,9 @@ import type { Role } from "@/lib/types"
 
 interface AuthContextValue {
   user: User | null
+  // Echt ingelogd (Kenny). Anonieme sessies (van landingspagina-aanmeldingen)
+  // tellen NIET als ingelogd, anders zou een bezoeker de tool te zien krijgen.
+  authed: boolean
   role: Role
   loading: boolean
   login: (email: string, password: string) => Promise<void>
@@ -52,8 +55,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await signOut(getFirebaseAuth())
   }
 
+  const authed = !!user && !user.isAnonymous
+
   return (
-    <AuthContext.Provider value={{ user, role, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, authed, role, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
   )
