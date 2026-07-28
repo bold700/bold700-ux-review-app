@@ -1,7 +1,14 @@
 "use client"
 
 import { useState } from "react"
-import { ExternalLink, Monitor, RotateCw, Smartphone, Tablet } from "lucide-react"
+import {
+  ExternalLink,
+  Monitor,
+  RotateCw,
+  Smartphone,
+  Tablet,
+  X,
+} from "lucide-react"
 
 import { ensureProtocol } from "@/lib/url"
 import { Button } from "@/components/ui/button"
@@ -14,7 +21,13 @@ const WIDTHS: Record<Device, number | null> = {
   mobile: 400,
 }
 
-export function LivePreview({ url }: { url: string }) {
+export function LivePreview({
+  url,
+  onClose,
+}: {
+  url: string
+  onClose?: () => void
+}) {
   const src = ensureProtocol(url)
   const [device, setDevice] = useState<Device>("desktop")
   const [reloadKey, setReloadKey] = useState(0)
@@ -23,6 +36,18 @@ export function LivePreview({ url }: { url: string }) {
   return (
     <div className="flex h-full flex-col bg-muted/40">
       <div className="flex items-center gap-1.5 border-b bg-background px-2 py-1.5">
+        {onClose && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 shrink-0"
+            title="Preview sluiten"
+            aria-label="Preview sluiten"
+            onClick={onClose}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        )}
         <div className="flex items-center rounded-md border p-0.5">
           <DevBtn
             active={device === "desktop"}

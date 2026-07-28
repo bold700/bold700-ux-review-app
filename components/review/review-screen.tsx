@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Cloud,
   Loader2,
+  Monitor,
   Sparkles,
 } from "lucide-react"
 import { toast } from "sonner"
@@ -38,6 +39,7 @@ export function ReviewScreen({ id }: { id: string }) {
   const { project, setAnswer, mutate, saving } = useProject(id)
   const [focus, setFocus] = useState(0)
   const [aiBusy, setAiBusy] = useState(false)
+  const [mobilePreview, setMobilePreview] = useState(false)
 
   const steps: ReviewStep[] = useMemo(() => {
     if (!project || project.reviewType === "free-form") return []
@@ -160,10 +162,8 @@ export function ReviewScreen({ id }: { id: string }) {
     }
   }
 
-  const preview =
-    project.url && project.sourceType !== "figma" ? (
-      <LivePreview url={project.url} />
-    ) : undefined
+  const previewUrl =
+    project.url && project.sourceType !== "figma" ? project.url : null
 
   const shell = (children: React.ReactNode) => (
     <AppShell
@@ -181,6 +181,16 @@ export function ReviewScreen({ id }: { id: string }) {
               </>
             )}
           </span>
+          {previewUrl && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="lg:hidden"
+              onClick={() => setMobilePreview(true)}
+            >
+              <Monitor className="mr-1 h-4 w-4" /> Site
+            </Button>
+          )}
           <Button
             size="sm"
             onClick={() => router.push(`/review/${id}/scorecard`)}
@@ -193,29 +203,43 @@ export function ReviewScreen({ id }: { id: string }) {
       <div className="flex flex-1">
         <main
           className={cn(
-            "min-w-0 flex-1 px-4 py-6",
-            preview ? "lg:max-w-2xl" : "mx-auto max-w-3xl",
+            "flex min-w-0 flex-1 flex-col",
+            previewUrl ? "lg:max-w-2xl" : "mx-auto w-full max-w-3xl",
           )}
         >
           {children}
         </main>
-        {preview && (
+        {previewUrl && (
           <aside className="hidden flex-1 border-l lg:block">
-            <div className="sticky top-0 h-svh">{preview}</div>
+            <div className="sticky top-0 h-svh">
+              <LivePreview url={previewUrl} />
+            </div>
           </aside>
         )}
       </div>
+
+      {/* Mobiele preview als sluitbare fullscreen-overlay */}
+      {previewUrl && mobilePreview && (
+        <div className="fixed inset-0 z-50 bg-background pt-[env(safe-area-inset-top)] lg:hidden">
+          <LivePreview
+            url={previewUrl}
+            onClose={() => setMobilePreview(false)}
+          />
+        </div>
+      )}
     </AppShell>
   )
 
   if (project.reviewType === "free-form") {
     return shell(
-      <FreeFormReview
-        projectId={id}
-        answers={answers}
-        setAnswer={setAnswer}
-        mutate={mutate}
-      />,
+      <div className="px-4 py-6">
+        <FreeFormReview
+          projectId={id}
+          answers={answers}
+          setAnswer={setAnswer}
+          mutate={mutate}
+        />
+      </div>,
     )
   }
 
@@ -226,62 +250,66 @@ export function ReviewScreen({ id }: { id: string }) {
   const current = flat[idx]
 
   return shell(
-    <>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/30 p-2.5">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Sparkles className="h-4 w-4 text-primary" /> Vul de checklist in één
-          klik vooraf in
+    <div className="flex h-[calc(100dvh-var(--header-height)-env(safe-area-inset-top))] flex-col">
+      {/* Vaste kop: AI-balk, voortgang, stap-chips */}
+      <div className="shrink-0 space-y-3 px-4 pt-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/30 p-2.5">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Sparkles className="h-4 w-4 text-primary" /> Vul de checklist in één
+            klik vooraf in
+          </div>
+          <Button size="sm" onClick={autoReview} disabled={aiBusy}>
+            {aiBusy ? (
+              <>
+                <Loader2 className="mr-1 h-4 w-4 animate-spin" /> Bezig…
+              </>
+            ) : (
+              <>
+                <Sparkles className="mr-1 h-4 w-4" /> AI Auto-Review
+              </>
+            )}
+          </Button>
         </div>
-        <Button size="sm" onClick={autoReview} disabled={aiBusy}>
-          {aiBusy ? (
-            <>
-              <Loader2 className="mr-1 h-4 w-4 animate-spin" /> Bezig…
-            </>
-          ) : (
-            <>
-              <Sparkles className="mr-1 h-4 w-4" /> AI Auto-Review
-            </>
-          )}
-        </Button>
-      </div>
 
-      <div className="mb-4">
-        <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
-          <span>
-            {answered} / {total} beoordeeld
-          </span>
-          <span>{pct}%</span>
-        </div>
-        <Progress value={pct} />
-      </div>
-
-      {/* Stap-chips */}
-      <div className="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1">
-        {steps.map((s, si) => {
-          const done = s.questions.every((q) => answers[q.id]?.score)
-          const firstIndex = flat.findIndex((f) => f.si === si)
-          return (
-            <button
-              key={s.id}
-              onClick={() => setFocus(firstIndex)}
-              className={cn(
-                "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors",
-                current?.si === si
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : done
-                    ? "border-emerald-500/40 text-emerald-500"
-                    : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {s.shortTitle}
-            </button>
-          )
-        })}
-      </div>
-
-      {current && (
         <div>
-          <div className="mb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
+            <span>
+              {answered} / {total} beoordeeld
+            </span>
+            <span>{pct}%</span>
+          </div>
+          <Progress value={pct} />
+        </div>
+
+        {/* Stap-chips */}
+        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+          {steps.map((s, si) => {
+            const done = s.questions.every((q) => answers[q.id]?.score)
+            const firstIndex = flat.findIndex((f) => f.si === si)
+            return (
+              <button
+                key={s.id}
+                onClick={() => setFocus(firstIndex)}
+                className={cn(
+                  "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors",
+                  current?.si === si
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : done
+                      ? "border-emerald-500/40 text-emerald-500"
+                      : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {s.shortTitle}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Vraag-kaart vult de resterende ruimte */}
+      {current && (
+        <div className="flex min-h-0 flex-1 flex-col px-4 pt-3 pb-3">
+          <div className="mb-2 shrink-0 text-xs font-medium tracking-wide text-muted-foreground uppercase">
             {current.step.title} · vraag {current.qi + 1}/
             {current.step.questions.length}
           </div>
@@ -291,28 +319,29 @@ export function ReviewScreen({ id }: { id: string }) {
             answer={answers[current.q.id] ?? {}}
             setAnswer={setAnswer}
           />
-
-          <div className="mt-6 flex items-center justify-between">
-            <Button
-              variant="outline"
-              onClick={() => setFocus((f) => Math.max(0, f - 1))}
-              disabled={idx === 0}
-            >
-              <ChevronLeft className="mr-1 h-4 w-4" /> Vorige
-            </Button>
-            <div className="text-xs text-muted-foreground">
-              {idx + 1} / {total}
-            </div>
-            <Button
-              onClick={() => setFocus((f) => Math.min(total - 1, f + 1))}
-              disabled={idx >= total - 1}
-            >
-              Volgende <ChevronRight className="ml-1 h-4 w-4" />
-            </Button>
-          </div>
         </div>
       )}
-    </>,
+
+      {/* Sticky navigatie onderaan */}
+      <div className="sticky bottom-0 z-10 flex shrink-0 items-center justify-between gap-2 border-t bg-background/95 px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur">
+        <Button
+          variant="outline"
+          onClick={() => setFocus((f) => Math.max(0, f - 1))}
+          disabled={idx === 0}
+        >
+          <ChevronLeft className="mr-1 h-4 w-4" /> Vorige
+        </Button>
+        <div className="text-xs text-muted-foreground">
+          {idx + 1} / {total}
+        </div>
+        <Button
+          onClick={() => setFocus((f) => Math.min(total - 1, f + 1))}
+          disabled={idx >= total - 1}
+        >
+          Volgende <ChevronRight className="ml-1 h-4 w-4" />
+        </Button>
+      </div>
+    </div>,
   )
 }
 
@@ -329,9 +358,9 @@ function QuestionCard({
 }) {
   const images = answer.screenshotUrls ?? answer.screenshots ?? []
   return (
-    <Card>
-      <CardContent className="space-y-4 py-5">
-        <div className="flex items-start gap-2">
+    <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-4 py-5">
+        <div className="flex shrink-0 items-start gap-2">
           <div className="flex-1 text-base font-medium">{question.text}</div>
           {answer.aiFilled && (
             <Badge variant="secondary" className="shrink-0 gap-1 text-[10px]">
@@ -341,14 +370,16 @@ function QuestionCard({
         </div>
         {question.business_impact_nl &&
           (answer.score === "bad" || answer.score === "ok") && (
-            <p className="text-xs text-muted-foreground">
+            <p className="shrink-0 text-xs text-muted-foreground">
               {question.business_impact_nl}
             </p>
           )}
-        <ScoreButtons
-          value={answer.score}
-          onChange={(s) => setAnswer(question.id, { score: s })}
-        />
+        <div className="shrink-0">
+          <ScoreButtons
+            value={answer.score}
+            onChange={(s) => setAnswer(question.id, { score: s })}
+          />
+        </div>
         <SeverityRow
           score={answer.score}
           value={answer.severity}
@@ -358,16 +389,18 @@ function QuestionCard({
           value={answer.notes ?? ""}
           onChange={(e) => setAnswer(question.id, { notes: e.target.value })}
           placeholder="Notities, bevindingen, aanbevelingen…"
-          className="min-h-24"
+          className="min-h-24 flex-1 resize-none overflow-y-auto"
         />
-        <ScreenshotStrip
-          projectId={projectId}
-          itemKey={question.id}
-          images={images}
-          onChange={(next) =>
-            setAnswer(question.id, { screenshotUrls: next, screenshots: [] })
-          }
-        />
+        <div className="shrink-0">
+          <ScreenshotStrip
+            projectId={projectId}
+            itemKey={question.id}
+            images={images}
+            onChange={(next) =>
+              setAnswer(question.id, { screenshotUrls: next, screenshots: [] })
+            }
+          />
+        </div>
       </CardContent>
     </Card>
   )

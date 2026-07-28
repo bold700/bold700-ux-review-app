@@ -255,17 +255,21 @@ export function NewProjectWizard() {
 
 function Stepper({ step }: { step: number }) {
   return (
-    <div className="mb-8 flex items-center gap-2">
+    <div className="mb-8 flex w-full items-center gap-2">
       {[1, 2, 3].map((n) => (
-        <div key={n} className="flex flex-1 items-center gap-2">
+        <div
+          key={n}
+          className={cn(
+            "flex items-center gap-2",
+            n < 3 && "flex-1",
+          )}
+        >
           <div
             className={cn(
-              "flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold",
-              n < step
+              "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
+              n <= step
                 ? "bg-primary text-primary-foreground"
-                : n === step
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground",
+                : "bg-muted text-muted-foreground",
             )}
           >
             {n < step ? <Check className="h-4 w-4" /> : n}
