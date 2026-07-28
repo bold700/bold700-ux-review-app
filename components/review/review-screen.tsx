@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import {
   ChevronLeft,
@@ -40,6 +40,7 @@ export function ReviewScreen({ id }: { id: string }) {
   const [focus, setFocus] = useState(0)
   const [aiBusy, setAiBusy] = useState(false)
   const [mobilePreview, setMobilePreview] = useState(false)
+  const autoRan = useRef(false)
 
   const steps: ReviewStep[] = useMemo(() => {
     if (!project || project.reviewType === "free-form") return []
@@ -58,6 +59,19 @@ export function ReviewScreen({ id }: { id: string }) {
       ),
     [steps],
   )
+
+  // Slimme scan: start de AI-review automatisch als de wizard ?auto=1 meegaf.
+  useEffect(() => {
+    if (autoRan.current) return
+    if (typeof window === "undefined") return
+    if (new URLSearchParams(window.location.search).get("auto") !== "1") return
+    if (!project || project.reviewType === "free-form") return
+    if (steps.length === 0) return
+    autoRan.current = true
+    window.history.replaceState(null, "", window.location.pathname)
+    void autoReview()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project, steps])
 
   if (project === undefined) {
     return (

@@ -3,7 +3,15 @@
 import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { doc, setDoc } from "firebase/firestore"
-import { ArrowLeft, ArrowRight, Check, Frame, Globe, Loader2 } from "lucide-react"
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  Frame,
+  Globe,
+  Loader2,
+  Sparkles,
+} from "lucide-react"
 import { toast } from "sonner"
 
 import { getDb } from "@/lib/firebase"
@@ -13,6 +21,8 @@ import {
   MODULE_REGISTRY,
   quickScanBundles,
 } from "@/lib/modules"
+import { fetchPageText } from "@/lib/page-fetch"
+import { suggestReview } from "@/lib/suggest-review"
 import { normalizeUrl, projectNameFromUrl } from "@/lib/url"
 import { useAuth } from "@/components/providers/auth-provider"
 import { AppShell } from "@/components/app-shell"
@@ -24,13 +34,14 @@ import { cn } from "@/lib/utils"
 
 type Source = "url" | "figma"
 const FULL_AUDIT = "__full__"
+const AUTO = "__auto__"
 
 export function NewProjectWizard() {
   const router = useRouter()
   const { user } = useAuth()
   const [step, setStep] = useState(1)
   const [source, setSource] = useState<Source>("url")
-  const [template, setTemplate] = useState<string>(FULL_AUDIT)
+  const [template, setTemplate] = useState<string>(AUTO)
   const [url, setUrl] = useState("")
   const [nameEdited, setNameEdited] = useState(false)
   const [name, setName] = useState("")
@@ -52,7 +63,24 @@ export function NewProjectWizard() {
     setBusy(true)
     try {
       const id = `proj_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-      const bundleId = template === FULL_AUDIT ? null : template
+
+      // Slimme scan: laat AI de pagina herkennen en de juiste scan kiezen.
+      let effectiveTemplate = template
+      let autoRun = false
+      if (template === AUTO) {
+        const t = toast.loading("AI analyseert de pagina…")
+        const pageText = await fetchPageText(url.trim())
+        const sug = await suggestReview(url.trim(), pageText)
+        effectiveTemplate = sug.bundleId
+        autoRun = true
+        const b = MODULE_REGISTRY.bundles[sug.bundleId]
+        toast.success(`Herkend: ${b?.name_nl ?? "Review"}`, {
+          id: t,
+          description: sug.reason || undefined,
+        })
+      }
+
+      const bundleId = effectiveTemplate === FULL_AUDIT ? null : effectiveTemplate
       const bundle = bundleId ? MODULE_REGISTRY.bundles[bundleId] : null
       const isFreeForm = !!bundle?.is_free_form
 
@@ -90,8 +118,7 @@ export function NewProjectWizard() {
       }
 
       await setDoc(doc(getDb(), "projects", id), project)
-      toast.success("Project aangemaakt", { description: project.name as string })
-      router.push(`/review/${id}`)
+      router.push(`/review/${id}${autoRun ? "?auto=1" : ""}`)
     } catch (e) {
       console.error(e)
       toast.error("Aanmaken mislukt", {
@@ -122,7 +149,7 @@ export function NewProjectWizard() {
                 active={source === "url"}
                 onClick={() => {
                   setSource("url")
-                  setTemplate(FULL_AUDIT)
+                  setTemplate(AUTO)
                 }}
                 icon={<Globe className="h-5 w-5" />}
                 title="Website URL"
@@ -149,8 +176,19 @@ export function NewProjectWizard() {
             return (
               <Section
                 title="Type review"
-                desc="Vrije review, volledige audit of een gerichte Quick Scan."
+                desc="Laat AI de pagina herkennen, of kies zelf een review."
               >
+                {source === "url" && (
+                  <ChoiceCard
+                    active={template === AUTO}
+                    onClick={() => setTemplate(AUTO)}
+                    icon={<Sparkles className="h-5 w-5" />}
+                    title="Slimme scan"
+                    badge="Aanbevolen"
+                    desc="AI herkent de pagina en kiest automatisch de juiste review + vragen"
+                    className="mb-3"
+                  />
+                )}
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   {freeForm && (
                     <ChoiceCard
@@ -238,7 +276,12 @@ export function NewProjectWizard() {
             <Button onClick={create} disabled={busy || !url.trim()}>
               {busy ? (
                 <>
-                  <Loader2 className="mr-1 h-4 w-4 animate-spin" /> Aanmaken…
+                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />{" "}
+                  {template === AUTO ? "Analyseren…" : "Aanmaken…"}
+                </>
+              ) : template === AUTO ? (
+                <>
+                  <Sparkles className="mr-1 h-4 w-4" /> Analyseren &amp; starten
                 </>
               ) : (
                 <>
@@ -312,12 +355,16 @@ function ChoiceCard({
   icon,
   title,
   desc,
+  badge,
+  className,
 }: {
   active: boolean
   onClick: () => void
   icon?: React.ReactNode
   title: string
   desc?: string
+  badge?: string
+  className?: string
 }) {
   return (
     <Card
@@ -330,12 +377,20 @@ function ChoiceCard({
         active
           ? "border-primary ring-2 ring-primary/30"
           : "hover:border-ring focus-visible:border-ring",
+        className,
       )}
     >
       <div className="flex items-start gap-3">
         {icon && <div className="mt-0.5 text-primary">{icon}</div>}
         <div className="min-w-0">
-          <div className="font-medium">{title}</div>
+          <div className="flex items-center gap-2">
+            <span className="font-medium">{title}</span>
+            {badge && (
+              <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                {badge}
+              </span>
+            )}
+          </div>
           {desc && (
             <div className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
               {desc}
