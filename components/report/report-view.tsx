@@ -347,7 +347,7 @@ function FindingItem({
                     if ((entry?.note ?? "") !== note) update({ note })
                   }}
                   placeholder="Notitie voor de reviewer (bijv. 'opgelost in commit abc123' of 'wat bedoel je hier precies?')"
-                  className="min-h-16 text-sm"
+                  className="min-h-16"
                 />
               )}
             </div>

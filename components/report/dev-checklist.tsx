@@ -191,7 +191,7 @@ function DevRow({
                   if ((entry?.note ?? "") !== note) update({ note })
                 }}
                 placeholder="Note for the reviewer (e.g. 'fixed in commit abc123' or 'what do you mean here?')"
-                className="min-h-16 text-sm"
+                className="min-h-16"
               />
             )}
           </div>

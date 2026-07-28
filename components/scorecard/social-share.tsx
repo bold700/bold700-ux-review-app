@@ -210,7 +210,7 @@ export function SocialShareDialog({
               value={gen && !post ? "" : post}
               onChange={(e) => setPost(e.target.value)}
               placeholder={gen ? "AI schrijft de post…" : "Post-tekst"}
-              className="min-h-40 text-sm"
+              className="min-h-40"
             />
           </div>
 

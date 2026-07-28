@@ -22,6 +22,12 @@ import { buildReport } from "@/lib/report"
 import { translateFindings } from "@/lib/translate"
 import { SocialShareDialog } from "@/components/scorecard/social-share"
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
   devStateOf,
   saveDevStatus,
   type DevEntry,
@@ -186,19 +192,24 @@ export function ScorecardScreen({ id }: { id: string }) {
             >
               <ArrowLeft className="mr-1 h-4 w-4" /> Review
             </Button>
-            <Button variant="outline" size="sm" onClick={() => window.print()}>
-              <FileText className="mr-1 h-4 w-4" /> PDF
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSocial(true)}
-            >
-              <Megaphone className="mr-1 h-4 w-4" /> Social
-            </Button>
-            <Button size="sm" onClick={publish}>
-              <Share2 className="mr-1 h-4 w-4" /> Deel link
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm">
+                  <Share2 className="mr-1 h-4 w-4" /> Deel
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={publish}>
+                  <Share2 className="mr-2 h-4 w-4" /> Deel link
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSocial(true)}>
+                  <Megaphone className="mr-2 h-4 w-4" /> Social (LinkedIn)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => window.print()}>
+                  <FileText className="mr-2 h-4 w-4" /> PDF / print
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </>
         }
       >
