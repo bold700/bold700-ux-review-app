@@ -32,6 +32,11 @@ export function SocialShareDialog({
   const [image, setImage] = useState<string | null>(null)
   const [post, setPost] = useState("")
   const [gen, setGen] = useState(false)
+  const [canShareFiles, setCanShareFiles] = useState(false)
+
+  const fileName = `bold700-scorecard-${(project.name || project.url || "review")
+    .replace(/[^a-z0-9]+/gi, "-")
+    .toLowerCase()}.png`
 
   // Scorecard-afbeelding lokaal renderen zodra het venster opent.
   useEffect(() => {
@@ -41,6 +46,25 @@ export function SocialShareDialog({
       console.error("[scorecard-image]", e)
     }
   }, [project, data])
+
+  // Detecteer of we het bestand via de native share-sheet kunnen delen (mobiel).
+  useEffect(() => {
+    try {
+      const probe = new File([new Blob()], "x.png", { type: "image/png" })
+      setCanShareFiles(
+        typeof navigator !== "undefined" &&
+          !!navigator.canShare &&
+          navigator.canShare({ files: [probe] }),
+      )
+    } catch {
+      setCanShareFiles(false)
+    }
+  }, [])
+
+  async function dataUrlToFile(): Promise<File> {
+    const blob = await (await fetch(image!)).blob()
+    return new File([blob], fileName, { type: "image/png" })
+  }
 
   async function generatePost() {
     setGen(true)
@@ -62,14 +86,47 @@ export function SocialShareDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  function downloadImage() {
+  async function saveOrShareImage() {
     if (!image) return
-    const a = document.createElement("a")
-    a.href = image
-    a.download = `bold700-scorecard-${(project.name || project.url || "review")
-      .replace(/[^a-z0-9]+/gi, "-")
-      .toLowerCase()}.png`
-    a.click()
+    // Mobiel: native share-sheet (naar LinkedIn, Foto's, etc.) met tekst erbij.
+    if (canShareFiles) {
+      try {
+        const file = await dataUrlToFile()
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            text: post || undefined,
+            title: "BOLD700 UX Review",
+          })
+          return
+        }
+      } catch (e) {
+        if ((e as Error)?.name === "AbortError") return
+        // val terug op openen/downloaden
+      }
+    }
+    // Desktop / fallback: download via blob-URL (betrouwbaarder dan data-URL).
+    try {
+      const blob = await (await fetch(image)).blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = fileName
+      a.click()
+      setTimeout(() => URL.revokeObjectURL(url), 4000)
+    } catch {
+      window.open(image, "_blank")
+    }
+  }
+
+  async function openImage() {
+    if (!image) return
+    try {
+      const blob = await (await fetch(image)).blob()
+      window.open(URL.createObjectURL(blob), "_blank")
+    } catch {
+      window.open(image, "_blank")
+    }
   }
 
   return (
@@ -101,9 +158,34 @@ export function SocialShareDialog({
               <img src={image} alt="Scorecard" className="w-full" />
             </div>
           )}
-          <Button variant="outline" size="sm" onClick={downloadImage} className="w-full">
-            <Download className="mr-1 h-4 w-4" /> Download afbeelding
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={saveOrShareImage}
+              className="flex-1"
+              disabled={!image}
+            >
+              {canShareFiles ? (
+                <>
+                  <Share2 className="mr-1 h-4 w-4" /> Deel afbeelding
+                </>
+              ) : (
+                <>
+                  <Download className="mr-1 h-4 w-4" /> Download afbeelding
+                </>
+              )}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={openImage}
+              disabled={!image}
+              title="Open in nieuw tabblad (dan lang indrukken om te bewaren)"
+            >
+              Openen
+            </Button>
+          </div>
 
           {/* Post-tekst */}
           <div className="space-y-1.5">
