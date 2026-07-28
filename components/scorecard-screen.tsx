@@ -10,6 +10,7 @@ import {
   ExternalLink,
   FileText,
   Loader2,
+  Megaphone,
   Share2,
   Sparkles,
 } from "lucide-react"
@@ -18,6 +19,7 @@ import { toast } from "sonner"
 import { getDb } from "@/lib/firebase"
 import type { Project } from "@/lib/types"
 import { buildReport } from "@/lib/report"
+import { SocialShareDialog } from "@/components/scorecard/social-share"
 import {
   devStateOf,
   saveDevStatus,
@@ -44,6 +46,7 @@ export function ScorecardScreen({ id }: { id: string }) {
   const [project, setProject] = useState<Project | null | undefined>(undefined)
   const [genBusy, setGenBusy] = useState(false)
   const [shareLink, setShareLink] = useState<string | null>(null)
+  const [social, setSocial] = useState(false)
   const [devStatus, setDevStatus] = useState<DevStatusMap>({})
 
   useEffect(() => {
@@ -173,6 +176,13 @@ export function ScorecardScreen({ id }: { id: string }) {
             </Button>
             <Button variant="outline" size="sm" onClick={() => window.print()}>
               <FileText className="mr-1 h-4 w-4" /> PDF
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSocial(true)}
+            >
+              <Megaphone className="mr-1 h-4 w-4" /> Social
             </Button>
             <Button size="sm" onClick={publish}>
               <Share2 className="mr-1 h-4 w-4" /> Deel link
@@ -321,6 +331,14 @@ export function ScorecardScreen({ id }: { id: string }) {
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {social && (
+        <SocialShareDialog
+          project={project}
+          data={data}
+          onClose={() => setSocial(false)}
+        />
       )}
     </>
   )
