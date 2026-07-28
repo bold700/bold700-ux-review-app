@@ -264,10 +264,10 @@ function ReviewCard({ p, onClick }: { p: Project; onClick: () => void }) {
     >
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
-          <CardTitle className="truncate text-base">
+          <CardTitle className="min-w-0 truncate text-base">
             {p.name || p.url || "Naamloos project"}
           </CardTitle>
-          <span className={cn("text-lg font-bold", toneClass[tone])}>
+          <span className={cn("shrink-0 text-lg font-bold", toneClass[tone])}>
             {score == null ? "—" : score.toFixed(1)}
           </span>
         </div>
