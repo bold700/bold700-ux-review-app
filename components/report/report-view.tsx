@@ -7,6 +7,7 @@ import type { Project } from "@/lib/types"
 import type { Finding, ReportData } from "@/lib/report"
 import { scoreTone } from "@/lib/score"
 import { markdownToHtml } from "@/lib/markdown"
+import { ActionPlanView } from "@/components/report/action-plan-view"
 import { cn } from "@/lib/utils"
 
 const dot: Record<string, string> = {
@@ -78,7 +79,7 @@ export function ReportView({
       {aiPlan && (
         <section>
           <h2 className="mb-2 text-sm font-semibold tracking-wide uppercase">
-            ✨ Samenvatting &amp; Actieplan
+            ✨ AI-samenvatting
           </h2>
           <div
             className="report-prose rounded-xl border bg-muted/30 p-4 text-sm"
@@ -86,6 +87,8 @@ export function ReportView({
           />
         </section>
       )}
+
+      <ActionPlanView project={project} />
 
       <FindingSection
         title={`Sterke punten (${data.strengths.length})`}

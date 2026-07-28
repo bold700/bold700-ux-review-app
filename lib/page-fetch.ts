@@ -32,18 +32,31 @@ function extractText(doc: Document): string {
   return parts.join("\n")
 }
 
-// Haalt de pagina op via de Worker (/fetch) en geeft de uitgelezen tekst terug.
-export async function fetchPageText(url: string): Promise<string> {
-  if (!PROXY || !url) return ""
-  const base = PROXY.replace(/\/$/, "")
+export interface FetchedPage {
+  url: string
+  html: string
+  text: string
+  doc: Document | null
+}
+
+// Haalt de pagina op via de Worker (/fetch): ruwe HTML, geparste DOM en tekst.
+export async function fetchPage(url: string): Promise<FetchedPage> {
   const withProto = /^https?:\/\//.test(url) ? url : "https://" + url
+  const empty: FetchedPage = { url: withProto, html: "", text: "", doc: null }
+  if (!PROXY || !url) return empty
+  const base = PROXY.replace(/\/$/, "")
   try {
     const resp = await fetch(`${base}/fetch?url=${encodeURIComponent(withProto)}`)
-    if (!resp.ok) return ""
+    if (!resp.ok) return empty
     const html = await resp.text()
     const doc = new DOMParser().parseFromString(html, "text/html")
-    return extractText(doc)
+    return { url: withProto, html, doc, text: extractText(doc) }
   } catch {
-    return ""
+    return empty
   }
+}
+
+// Haalt de pagina op via de Worker (/fetch) en geeft de uitgelezen tekst terug.
+export async function fetchPageText(url: string): Promise<string> {
+  return (await fetchPage(url)).text
 }

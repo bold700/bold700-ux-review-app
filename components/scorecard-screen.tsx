@@ -165,13 +165,17 @@ export function ScorecardScreen({ id }: { id: string }) {
           <Stat label="Sterke punten" value={data.strengths.length} />
         </div>
 
-        {/* AI Actieplan besturing */}
+        {/* AI-samenvatting (optioneel, naast het vaste actieplan hieronder) */}
         <Card className="mb-6 print:hidden">
           <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <Sparkles className="h-4 w-4 text-primary" /> AI Actieplan
+            <div className="flex items-center gap-2 text-sm">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <span className="font-medium">AI-samenvatting</span>
+              <span className="text-muted-foreground">
+                — optionele klantgerichte tekst bovenop het actieplan
+              </span>
             </div>
-            <Button onClick={generate} disabled={genBusy} size="sm">
+            <Button onClick={generate} disabled={genBusy} size="sm" variant="outline">
               {genBusy ? (
                 <>
                   <Loader2 className="mr-1 h-4 w-4 animate-spin" /> Genereren…
@@ -179,7 +183,7 @@ export function ScorecardScreen({ id }: { id: string }) {
               ) : project.aiPlan ? (
                 "Opnieuw genereren"
               ) : (
-                "Genereer AI Actieplan"
+                "Genereer AI-samenvatting"
               )}
             </Button>
           </CardContent>

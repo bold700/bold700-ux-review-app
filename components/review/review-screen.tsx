@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Cloud,
+  Gauge,
   Loader2,
   Monitor,
   Sparkles,
@@ -13,8 +14,9 @@ import {
 import { toast } from "sonner"
 
 import { useProject } from "@/hooks/use-project"
-import { fetchPageText } from "@/lib/page-fetch"
+import { fetchPage } from "@/lib/page-fetch"
 import { runAiReview } from "@/lib/ai-review"
+import { runAutoScan } from "@/lib/auto-scan"
 import {
   buildReviewSteps,
   getDefaultModuleConfig,
@@ -95,51 +97,87 @@ export function ReviewScreen({ id }: { id: string }) {
 
   async function autoReview() {
     if (!project) return
-    const qs = steps
-      .flatMap((s) =>
-        s.questions.map((q) => ({
-          id: q.id,
-          text: q.text,
-          category: s.shortTitle,
-        })),
-      )
-      .filter((q) => {
+    // Vragen die nog open staan of eerder automatisch/AI zijn ingevuld
+    // (handmatige antwoorden blijven onaangeroerd).
+    const openChecks = steps
+      .flatMap((s) => s.questions.map((q) => ({ q, category: s.shortTitle })))
+      .filter(({ q }) => {
         const a = answers[q.id]
-        // sla handmatig beantwoorde vragen over
         return !(a?.score && !a.autoScanned && !a.aiFilled)
       })
-    if (qs.length === 0) {
+    if (openChecks.length === 0) {
       toast.info("Alles is al beantwoord")
       return
     }
     setAiBusy(true)
-    const t = toast.loading("AI Auto-Review — pagina ophalen…")
+    const t = toast.loading("Auto-Review — pagina ophalen…")
     try {
       const cleanUrl = (project.url ?? "").trim()
-      const pageText = await fetchPageText(cleanUrl)
-      if (!pageText || pageText.trim().length < 40) {
+      const page = await fetchPage(cleanUrl)
+      if (!page.text || page.text.trim().length < 40 || !page.doc) {
         toast.error("Pagina kon niet worden opgehaald", {
           id: t,
           description:
-            "Controleer de URL — zonder pagina-inhoud kan de AI niet beoordelen (alles wordt dan N.v.t.).",
+            "Controleer de URL — zonder pagina-inhoud kan er niet beoordeeld worden.",
         })
         setAiBusy(false)
         return
       }
-      const results = await runAiReview(
-        cleanUrl,
-        pageText,
-        qs,
-        (done, total) =>
-          toast.loading(
-            total > 1
-              ? `AI beoordeelt deel ${Math.min(done + 1, total)}/${total}…`
-              : "AI beoordeelt…",
-            { id: t },
-          ),
-      )
+
       const valid = new Set(["good", "ok", "bad", "nvt"])
-      let filled = 0
+
+      // 1) Deterministische scan: objectieve checks direct uit de HTML.
+      const autoResults = runAutoScan(
+        page.doc,
+        page.url,
+        openChecks.map(({ q }) => q),
+      )
+      const autoById = new Map(autoResults.map((r) => [r.id, r]))
+      let autoFilled = 0
+      if (autoResults.length) {
+        mutate((a) => {
+          const next = { ...a }
+          for (const r of autoResults) {
+            if (!valid.has(r.score)) continue
+            const cur = next[r.id]
+            if (cur?.score && !cur.autoScanned && !cur.aiFilled) continue
+            next[r.id] = {
+              ...(cur ?? {}),
+              score: r.score,
+              notes: r.note ? "[Auto] " + r.note : (cur?.notes ?? ""),
+              autoScanned: true,
+              aiFilled: false,
+            }
+            autoFilled++
+          }
+          return next
+        })
+      }
+
+      // 2) AI beoordeelt de rest (subjectief/inhoudelijk).
+      const qs = openChecks
+        .filter(({ q }) => !autoById.has(q.id))
+        .map(({ q, category }) => ({ id: q.id, text: q.text, category }))
+
+      toast.loading(
+        `${autoFilled} automatisch gemeten — AI beoordeelt de rest…`,
+        { id: t },
+      )
+
+      const results = qs.length
+        ? await runAiReview(page.url, page.text, qs, (done, total) =>
+            toast.loading(
+              total > 1
+                ? `AI beoordeelt deel ${Math.min(done + 1, total)}/${total}…`
+                : "AI beoordeelt…",
+              { id: t },
+            ),
+          )
+        : []
+
+      let aiFilled = 0
+      const dist = { good: 0, ok: 0, bad: 0, nvt: 0 }
+      for (const r of autoResults) if (valid.has(r.score)) dist[r.score]++
       mutate((a) => {
         const next = { ...a }
         for (const r of results) {
@@ -151,23 +189,23 @@ export function ReviewScreen({ id }: { id: string }) {
             score: r.score,
             notes: r.note ? "[AI] " + r.note : (cur?.notes ?? ""),
             aiFilled: true,
-            autoScanned: true,
+            autoScanned: false,
           }
-          filled++
+          aiFilled++
+          if (valid.has(r.score)) dist[r.score as keyof typeof dist]++
         }
         return next
       })
-      if (filled) {
-        const d = { good: 0, ok: 0, bad: 0, nvt: 0 }
-        for (const r of results)
-          if (valid.has(r.score)) d[r.score as keyof typeof d]++
-        toast.success(`${filled} vragen vooraf ingevuld`, {
+
+      const total = autoFilled + aiFilled
+      if (total) {
+        toast.success(`${total} checks ingevuld`, {
           id: t,
-          description: `${d.good} goed · ${d.ok} matig · ${d.bad} niet ok · ${d.nvt} nvt. Loop ze na.`,
+          description: `${autoFilled} automatisch gemeten · ${aiFilled} door AI. ${dist.good} goed · ${dist.ok} matig · ${dist.bad} niet ok · ${dist.nvt} nvt. Loop ze na.`,
         })
-      } else toast.error("Geen bruikbaar AI-antwoord ontvangen", { id: t })
+      } else toast.error("Geen bruikbaar resultaat ontvangen", { id: t })
     } catch (e) {
-      toast.error("AI Auto-Review mislukt", {
+      toast.error("Auto-Review mislukt", {
         id: t,
         description: e instanceof Error ? e.message : undefined,
       })
@@ -376,11 +414,15 @@ function QuestionCard({
       <CardContent className="flex min-h-0 flex-1 flex-col gap-4 py-5">
         <div className="flex shrink-0 items-start gap-2">
           <div className="flex-1 text-base font-medium">{question.text}</div>
-          {answer.aiFilled && (
+          {answer.aiFilled ? (
             <Badge variant="secondary" className="shrink-0 gap-1 text-[10px]">
               <Sparkles className="h-3 w-3" /> AI
             </Badge>
-          )}
+          ) : answer.autoScanned ? (
+            <Badge variant="secondary" className="shrink-0 gap-1 text-[10px]">
+              <Gauge className="h-3 w-3" /> Auto
+            </Badge>
+          ) : null}
         </div>
         {question.business_impact_nl &&
           (answer.score === "bad" || answer.score === "ok") && (
