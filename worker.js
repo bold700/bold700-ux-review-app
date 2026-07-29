@@ -160,11 +160,11 @@ async function handleLead(request, env, cors) {
       subject: `We hebben je aanvraag ontvangen`,
       html: `<p>Hoi ${esc(name)},</p>
         <p>Bedankt voor je aanvraag voor een UX-review van
-        <b>${cleanUrl(url)}</b>. We hebben 'm goed ontvangen en gaan er zo snel
-        mogelijk mee aan de slag.</p>
-        <p>Je ontvangt je UX-score en het rapport zo spoedig mogelijk — meestal
-        nog binnen een werkdag — in deze inbox.</p>
-        <p>Tot snel,<br>— BOLD700</p>`,
+        <b>${cleanUrl(url)}</b>. We hebben je aanvraag ontvangen en gaan er snel
+        mee aan de slag.</p>
+        <p>Je UX-score en het rapport ontvang je zo snel mogelijk, meestal nog
+        binnen een werkdag, in deze inbox.</p>
+        <p>Tot snel,<br>BOLD700</p>`,
     });
 
     return new Response(JSON.stringify({ ok: true }), {
@@ -216,16 +216,16 @@ function applicantHtml(env, lead) {
     : `<p>Hoi ${esc(lead.name)}, we hebben je website bekeken.</p>`;
   return `${persoonlijk}
     <p>Je UX-score voor <b>${cleanUrl(lead.url)}</b> is
-    <b style="font-size:20px">${lead.score != null ? Number(lead.score).toFixed(1) : '—'}/10</b>.</p>
+    <b style="font-size:20px">${lead.score != null ? Number(lead.score).toFixed(1) : 'n.v.t.'}/10</b>.</p>
     <p><a href="${esc(lead.reportUrl)}"
       style="display:inline-block;background:#ff5003;color:#fff;padding:10px 18px;
       border-radius:8px;text-decoration:none">Bekijk je rapport</a></p>
     <p>Dit is een snelle scan. Een specialist met enterprise-ervaring kan het
-    rapport met je doornemen, interpretaties corrigeren en context geven — zodat
-    je weet wat écht prioriteit heeft.</p>
+    rapport met je doornemen, interpretaties corrigeren en context geven, zodat
+    je precies weet wat prioriteit heeft.</p>
     <p><a href="${esc(env.BOOK_URL)}">Plan een gesprek met de specialist</a>
     of beantwoord deze mail.</p>
-    <p>— BOLD700</p>`;
+    <p>Groet,<br>BOLD700</p>`;
 }
 
 // ─────────────────────────────────────────────────────────
