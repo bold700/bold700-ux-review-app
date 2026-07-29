@@ -14,6 +14,8 @@ import { ScorecardDeck } from "@/components/scorecard-deck"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
+const BLUE = "#1728C8"
+
 function sample(
   name: string,
   url: string,
@@ -61,7 +63,7 @@ export function Landing({ onLogin }: { onLogin: () => void }) {
   }, [])
 
   return (
-    <div className="min-h-svh bg-[#1728C8] text-white sm:bg-background sm:text-foreground">
+    <div className="min-h-svh bg-[#1728C8] text-white">
       {/* Topbar */}
       <header className="mx-auto flex max-w-6xl items-center justify-between px-5 pb-4 pt-[calc(env(safe-area-inset-top)+1.25rem)]">
         <div className="flex items-center gap-2 font-semibold">
@@ -69,7 +71,7 @@ export function Landing({ onLogin }: { onLogin: () => void }) {
         </div>
         <button
           onClick={onLogin}
-          className="text-sm text-white/80 transition-colors hover:text-white sm:text-muted-foreground sm:hover:text-foreground"
+          className="text-sm text-white/80 transition-colors hover:text-white"
         >
           Inloggen
         </button>
@@ -77,7 +79,7 @@ export function Landing({ onLogin }: { onLogin: () => void }) {
 
       <div className="mx-auto flex max-w-3xl flex-col px-5 pb-12">
         {/* Badge */}
-        <div className="order-1 mx-auto mt-2 inline-flex w-fit items-center gap-2 rounded-full border border-white/25 px-3 py-1 text-xs text-white/85 sm:mt-8 sm:border-border sm:text-muted-foreground">
+        <div className="order-1 mx-auto mt-2 inline-flex w-fit items-center gap-2 rounded-full border border-white/25 px-3 py-1 text-xs text-white/85 sm:mt-8">
           <span className="h-1.5 w-1.5 rounded-full bg-primary" />
           Gratis UX-review voor je website
         </div>
@@ -88,11 +90,11 @@ export function Landing({ onLogin }: { onLogin: () => void }) {
         </div>
 
         {/* Hero */}
-        <div className="order-3 mt-8 text-center sm:order-2 sm:mt-8">
+        <div className="order-3 mt-8 text-center sm:order-2">
           <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
             Weet binnen 24 uur wat er beter kan aan je website
           </h1>
-          <p className="mx-auto mt-4 max-w-xl text-base text-white/80 sm:text-lg sm:text-muted-foreground">
+          <p className="mx-auto mt-4 max-w-xl text-base text-white/80 sm:text-lg">
             Een snelle scan geeft je een heldere UX-score en een concreet
             rapport. Een specialist met enterprise-ervaring valideert de
             bevindingen. Geen vragenlijsten, geen gedoe.
@@ -110,24 +112,24 @@ export function Landing({ onLogin }: { onLogin: () => void }) {
             {(cards.length ? cards : [null, null, null]).map((src, i) => (
               <div
                 key={i}
-                className="overflow-hidden rounded-2xl border bg-card shadow-sm"
+                className="overflow-hidden rounded-2xl shadow-xl ring-1 ring-white/10"
               >
                 {src ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={src} alt="Voorbeeld scorecard" className="w-full" />
                 ) : (
-                  <div className="aspect-[4/5] animate-pulse bg-muted" />
+                  <div className="aspect-[4/5] animate-pulse bg-white/10" />
                 )}
               </div>
             ))}
           </div>
-          <p className="mt-4 text-center text-xs text-muted-foreground">
+          <p className="mt-4 text-center text-xs text-white/60">
             Voorbeelden van scorecards zoals je die ontvangt.
           </p>
         </div>
       </div>
 
-      <footer className="border-t border-white/15 py-8 text-center text-xs text-white/60 sm:border-border sm:text-muted-foreground">
+      <footer className="border-t border-white/15 py-8 text-center text-xs text-white/60">
         BOLD700 · uxreviews.bold700.com
       </footer>
     </div>
@@ -168,20 +170,20 @@ function SignupForm() {
 
   if (done) {
     return (
-      <div className="mx-auto mt-8 flex max-w-md items-center gap-3 rounded-xl border border-white/25 bg-white/10 px-4 py-4 text-left sm:border-primary/30 sm:bg-primary/5">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 text-white sm:bg-primary/15 sm:text-primary">
+      <div className="mx-auto mt-8 flex max-w-md items-center gap-3 rounded-xl border border-white/25 bg-white/10 px-4 py-4 text-left">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 text-white">
           <Check className="h-5 w-5" />
         </div>
-        <p className="text-sm text-white/85 sm:text-muted-foreground">
+        <p className="text-sm text-white/85">
           Bedankt, we gaan aan de slag. Je ontvangt je score en rapport binnen 24
-          uur op <span className="font-medium text-white sm:text-foreground">{email}</span>.
+          uur op <span className="font-medium text-white">{email}</span>.
         </p>
       </div>
     )
   }
 
   const field =
-    "border-white/20 bg-white/10 text-white placeholder:text-white/55 focus-visible:border-white/50 focus-visible:ring-white/20 sm:border-input sm:bg-transparent sm:text-foreground sm:placeholder:text-muted-foreground"
+    "border-white/20 bg-white/10 text-white placeholder:text-white/55 focus-visible:border-white/50 focus-visible:ring-white/20"
 
   return (
     <form
@@ -216,7 +218,8 @@ function SignupForm() {
       <Button
         type="submit"
         disabled={busy}
-        className="shrink-0 bg-white text-[#1728C8] hover:bg-white/90 sm:w-auto sm:bg-primary sm:text-primary-foreground sm:hover:bg-primary/90"
+        style={{ color: BLUE }}
+        className="shrink-0 bg-white hover:bg-white/90 sm:w-auto"
       >
         {busy ? (
           <>
