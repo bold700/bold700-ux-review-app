@@ -149,7 +149,7 @@ function SignupForm() {
     } catch (e) {
       console.error(e)
       toast.error("Aanmelden mislukt", {
-        description: "Probeer het zo nog eens.",
+        description: e instanceof Error ? e.message : "Probeer het zo nog eens.",
       })
     } finally {
       setBusy(false)
