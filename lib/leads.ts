@@ -24,7 +24,7 @@ import { normalizeUrl, projectNameFromUrl } from "@/lib/url"
 import type { Answer, Project, Score } from "@/lib/types"
 
 const PROXY = process.env.NEXT_PUBLIC_AI_PROXY_URL
-const DELAY_MS = 23 * 60 * 60 * 1000 // 23 uur
+const DELAY_MS = 6 * 60 * 60 * 1000 // 6 uur (binnen een werkdag)
 const REPORT_TTL_MS = 60 * 24 * 60 * 60 * 1000 // 60 dagen
 
 export type LeadFollowUp =
