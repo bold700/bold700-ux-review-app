@@ -66,9 +66,8 @@ export function Landing({ onLogin }: { onLogin: () => void }) {
     <div className="min-h-svh bg-[#1728C8] text-white">
       {/* Topbar */}
       <header className="mx-auto flex max-w-6xl items-center justify-between px-5 pb-4 pt-[calc(env(safe-area-inset-top)+1.25rem)]">
-        <div className="flex items-center gap-2 font-semibold">
-          <BrandLogo className="h-6 w-auto" /> BOLD700
-        </div>
+        <BrandLogo fill="#ffffff" className="h-7 w-auto" />
+
         <button
           onClick={onLogin}
           className="text-sm text-white/80 transition-colors hover:text-white"
