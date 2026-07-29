@@ -185,6 +185,12 @@ async function handleLead(request, env, cors) {
 async function deliverDueLeads(env) {
   const token = await getAccessToken(env);
   const now = Date.now();
+
+  // Bewaartermijn afdwingen: leads ouder dan 12 maanden opschonen (AVG).
+  await cleanupOldLeads(env, token, now).catch((e) =>
+    console.error('cleanup fout', e),
+  );
+
   const leads = await queryDueLeads(env, token, now);
 
   for (const lead of leads) {
@@ -260,6 +266,47 @@ async function getAccessToken(env) {
     body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
   });
   return (await res.json()).access_token;
+}
+
+// Verwijdert leads ouder dan 12 maanden (behalve klanten) + hun scan-project.
+async function cleanupOldLeads(env, token, now) {
+  const cutoff = now - 365 * 24 * 60 * 60 * 1000; // ~12 maanden
+  const url = `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:runQuery`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      structuredQuery: {
+        from: [{ collectionId: 'leads' }],
+        where: {
+          fieldFilter: {
+            field: { fieldPath: 'createdAtMs' },
+            op: 'LESS_THAN',
+            value: { integerValue: String(cutoff) },
+          },
+        },
+        limit: 100,
+      },
+    }),
+  });
+  const rows = await res.json();
+  const olds = (rows || [])
+    .filter((r) => r.document)
+    .map((r) => ({ id: r.document.name.split('/').pop(), ...decode(r.document.fields) }));
+
+  for (const lead of olds) {
+    if (lead.status === 'klant') continue; // klanten bewaren
+    await firestoreDelete(env, token, `leads/${lead.id}`);
+    if (lead.projectId) await firestoreDelete(env, token, `projects/${lead.projectId}`);
+  }
+  if (olds.length) console.log(`cleanup: ${olds.length} oude lead(s) beoordeeld`);
+}
+
+async function firestoreDelete(env, token, path) {
+  await fetch(
+    `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/${path}`,
+    { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } },
+  );
 }
 
 async function queryDueLeads(env, token, now) {
