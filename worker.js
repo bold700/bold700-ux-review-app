@@ -296,7 +296,7 @@ async function patchLead(env, token, id, fields) {
 // Resend + helpers
 // ─────────────────────────────────────────────────────────
 async function sendEmail(env, { to, subject, html }) {
-  await fetch('https://api.resend.com/emails', {
+  const r = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${env.RESEND_API_KEY}`,
@@ -304,6 +304,11 @@ async function sendEmail(env, { to, subject, html }) {
     },
     body: JSON.stringify({ from: env.MAIL_FROM, to, subject, html }),
   });
+  if (!r.ok) {
+    const t = await r.text();
+    console.error(`Resend fout (${r.status}) bij mail naar ${to}: ${t}`);
+  }
+  return r.ok;
 }
 
 function decode(fields) {
