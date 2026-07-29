@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 import { cn } from "@/lib/utils"
 
@@ -11,6 +11,11 @@ export function ScorecardDeck({ images }: { images: string[] }) {
   const dragging = useRef(false)
   const startX = useRef(0)
   const [leaving, setLeaving] = useState(false)
+
+  // De afbeeldingen laden asynchroon; sync de stapel zodra ze er zijn.
+  useEffect(() => {
+    setStack(images.map((_, i) => i))
+  }, [images.length])
 
   if (!images.length) {
     return (
