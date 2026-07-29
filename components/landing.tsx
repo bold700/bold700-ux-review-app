@@ -10,6 +10,7 @@ import { drawScorecard } from "@/lib/scorecard-image"
 import { createLead, runLeadScan } from "@/lib/leads"
 import { ensureProtocol } from "@/lib/url"
 import { BrandLogo } from "@/components/brand-logo"
+import { ScorecardDeck } from "@/components/scorecard-deck"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
@@ -91,9 +92,12 @@ export function Landing({ onLogin }: { onLogin: () => void }) {
         <SignupForm />
       </section>
 
-      {/* Scorecard-voorbeelden */}
+      {/* Scorecard-voorbeelden — mobiel: swipebare stapel, desktop: rij */}
       <section className="mx-auto max-w-5xl px-5 pb-16">
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="sm:hidden">
+          <ScorecardDeck images={cards} />
+        </div>
+        <div className="hidden gap-4 sm:grid sm:grid-cols-3">
           {(cards.length ? cards : [null, null, null]).map((src, i) => (
             <div
               key={i}
@@ -108,7 +112,7 @@ export function Landing({ onLogin }: { onLogin: () => void }) {
             </div>
           ))}
         </div>
-        <p className="mt-3 text-center text-xs text-muted-foreground">
+        <p className="mt-4 text-center text-xs text-muted-foreground">
           Voorbeelden van scorecards zoals je die ontvangt.
         </p>
       </section>

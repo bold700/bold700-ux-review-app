@@ -7,7 +7,7 @@
 // 4. scheduled (cron)  → 23u-vertraagde scan-mail + failsafe-alert
 //
 // Secrets (wrangler secret put NAAM):
-//   ANTHROPIC_API_KEY, RESEND_API_KEY, MAIL_FROM, KENNY_EMAIL,
+//   OPENAI_API_KEY, RESEND_API_KEY, MAIL_FROM, KENNY_EMAIL,
 //   FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY, BOOK_URL
 // wrangler.toml:  [triggers]  crons = ["0 * * * *"]
 // ═══════════════════════════════════════════════════════════
@@ -63,7 +63,7 @@ export default {
       }
     }
 
-    // ── POST / → AI API proxy ──
+    // ── POST / → AI API proxy (OpenAI) ──
     if (request.method !== 'POST') {
       return new Response(JSON.stringify({ error: 'Method not allowed' }), {
         status: 405,
@@ -72,18 +72,51 @@ export default {
     }
     try {
       const body = await request.json();
-      const anthropicResp = await fetch('https://api.anthropic.com/v1/messages', {
+      // De app stuurt Anthropic-stijl: { model, max_tokens, system, messages:[{role, content:[blocks]}] }
+      const messages = [];
+      if (body.system) messages.push({ role: 'system', content: String(body.system) });
+      for (const m of body.messages || []) {
+        if (typeof m.content === 'string') {
+          messages.push({ role: m.role, content: m.content });
+          continue;
+        }
+        const parts = [];
+        for (const b of m.content || []) {
+          if (b.type === 'text') parts.push({ type: 'text', text: b.text });
+          else if (b.type === 'image') {
+            const src = b.source || {};
+            const url = src.type === 'base64'
+              ? `data:${src.media_type};base64,${src.data}`
+              : src.url;
+            if (url) parts.push({ type: 'image_url', image_url: { url } });
+          }
+        }
+        messages.push({ role: m.role, content: parts });
+      }
+
+      const oaResp = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': env.ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01',
+          Authorization: `Bearer ${env.OPENAI_API_KEY}`,
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          model: body.model || 'gpt-4o-mini',
+          max_tokens: body.max_tokens || 2000,
+          messages,
+        }),
       });
-      const result = await anthropicResp.text();
-      return new Response(result, {
-        status: anthropicResp.status,
+      const oa = await oaResp.json();
+      if (!oaResp.ok) {
+        return new Response(JSON.stringify({ error: oa?.error?.message || 'OpenAI error' }), {
+          status: oaResp.status,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      // Terug naar Anthropic-stijl zodat de app het onveranderd leest.
+      const text = oa?.choices?.[0]?.message?.content || '';
+      return new Response(JSON.stringify({ content: [{ type: 'text', text }] }), {
+        status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     } catch (err) {
