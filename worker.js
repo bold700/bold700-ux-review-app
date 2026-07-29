@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-// BOLD700 UX Review — Cloudflare Worker
+// BOLD700 UX Review - Cloudflare Worker
 // ═══════════════════════════════════════════════════════════
 // 1. POST /            → AI API proxy (AI Actieplan / Auto-Review)
 // 2. GET  /fetch?url=  → Page fetcher (Auto-Scan)
@@ -198,7 +198,7 @@ async function deliverDueLeads(env) {
     } else if (lead.scanStatus === 'failed') {
       await sendEmail(env, {
         to: env.KENNY_EMAIL,
-        subject: `⚠️ Scan gefaald — handmatig oppakken: ${lead.url}`,
+        subject: `⚠️ Scan gefaald, handmatig oppakken: ${lead.url}`,
         html: `<p>De automatische scan voor <b>${esc(lead.name)}</b>
           (${esc(lead.email)}) op <a href="${esc(lead.url)}">${esc(lead.url)}</a>
           is mislukt. Er is <b>geen</b> mail naar de aanvrager gestuurd. Pak de
