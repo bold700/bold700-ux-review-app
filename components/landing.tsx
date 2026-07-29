@@ -61,63 +61,73 @@ export function Landing({ onLogin }: { onLogin: () => void }) {
   }, [])
 
   return (
-    <div className="min-h-svh bg-background text-foreground">
+    <div className="min-h-svh bg-[#1728C8] text-white sm:bg-background sm:text-foreground">
       {/* Topbar */}
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-5 pb-5 pt-[calc(env(safe-area-inset-top)+1.25rem)]">
+      <header className="mx-auto flex max-w-6xl items-center justify-between px-5 pb-4 pt-[calc(env(safe-area-inset-top)+1.25rem)]">
         <div className="flex items-center gap-2 font-semibold">
           <BrandLogo className="h-6 w-auto" /> BOLD700
         </div>
         <button
           onClick={onLogin}
-          className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+          className="text-sm text-white/80 transition-colors hover:text-white sm:text-muted-foreground sm:hover:text-foreground"
         >
           Inloggen
         </button>
       </header>
 
-      {/* Hero + inline formulier */}
-      <section className="mx-auto max-w-3xl px-5 pt-10 pb-6 text-center sm:pt-16">
-        <div className="mb-5 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs text-muted-foreground">
+      <div className="mx-auto flex max-w-3xl flex-col px-5 pb-12">
+        {/* Badge */}
+        <div className="order-1 mx-auto mt-2 inline-flex w-fit items-center gap-2 rounded-full border border-white/25 px-3 py-1 text-xs text-white/85 sm:mt-8 sm:border-border sm:text-muted-foreground">
           <span className="h-1.5 w-1.5 rounded-full bg-primary" />
           Gratis UX-review voor je website
         </div>
-        <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
-          Weet binnen 24 uur wat er beter kan aan je website
-        </h1>
-        <p className="mx-auto mt-4 max-w-xl text-base text-muted-foreground sm:text-lg">
-          Een snelle scan geeft je een heldere UX-score en een concreet rapport.
-          Een specialist met enterprise-ervaring valideert de bevindingen. Geen
-          vragenlijsten, geen gedoe.
-        </p>
-        <SignupForm />
-      </section>
 
-      {/* Scorecard-voorbeelden — mobiel: swipebare stapel, desktop: rij */}
-      <section className="mx-auto max-w-5xl px-5 pb-16">
-        <div className="sm:hidden">
+        {/* Scorecard-stapel — mobiel boven de hero */}
+        <div className="order-2 mt-7 sm:hidden">
           <ScorecardDeck images={cards} />
         </div>
-        <div className="hidden gap-4 sm:grid sm:grid-cols-3">
-          {(cards.length ? cards : [null, null, null]).map((src, i) => (
-            <div
-              key={i}
-              className="overflow-hidden rounded-2xl border bg-card shadow-sm"
-            >
-              {src ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={src} alt="Voorbeeld scorecard" className="w-full" />
-              ) : (
-                <div className="aspect-[4/5] animate-pulse bg-muted" />
-              )}
-            </div>
-          ))}
-        </div>
-        <p className="mt-4 text-center text-xs text-muted-foreground">
-          Voorbeelden van scorecards zoals je die ontvangt.
-        </p>
-      </section>
 
-      <footer className="border-t py-8 text-center text-xs text-muted-foreground">
+        {/* Hero */}
+        <div className="order-3 mt-8 text-center sm:order-2 sm:mt-8">
+          <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
+            Weet binnen 24 uur wat er beter kan aan je website
+          </h1>
+          <p className="mx-auto mt-4 max-w-xl text-base text-white/80 sm:text-lg sm:text-muted-foreground">
+            Een snelle scan geeft je een heldere UX-score en een concreet
+            rapport. Een specialist met enterprise-ervaring valideert de
+            bevindingen. Geen vragenlijsten, geen gedoe.
+          </p>
+        </div>
+
+        {/* Formulier */}
+        <div className="order-4 sm:order-3">
+          <SignupForm />
+        </div>
+
+        {/* Scorecard-rij — alleen desktop, onder de hero */}
+        <div className="order-5 mt-12 hidden sm:order-4 sm:block">
+          <div className="grid gap-4 sm:grid-cols-3">
+            {(cards.length ? cards : [null, null, null]).map((src, i) => (
+              <div
+                key={i}
+                className="overflow-hidden rounded-2xl border bg-card shadow-sm"
+              >
+                {src ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={src} alt="Voorbeeld scorecard" className="w-full" />
+                ) : (
+                  <div className="aspect-[4/5] animate-pulse bg-muted" />
+                )}
+              </div>
+            ))}
+          </div>
+          <p className="mt-4 text-center text-xs text-muted-foreground">
+            Voorbeelden van scorecards zoals je die ontvangt.
+          </p>
+        </div>
+      </div>
+
+      <footer className="border-t border-white/15 py-8 text-center text-xs text-white/60 sm:border-border sm:text-muted-foreground">
         BOLD700 · uxreviews.bold700.com
       </footer>
     </div>
@@ -158,22 +168,25 @@ function SignupForm() {
 
   if (done) {
     return (
-      <div className="mx-auto mt-7 flex max-w-md items-center justify-center gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-4 text-left">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+      <div className="mx-auto mt-8 flex max-w-md items-center gap-3 rounded-xl border border-white/25 bg-white/10 px-4 py-4 text-left sm:border-primary/30 sm:bg-primary/5">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 text-white sm:bg-primary/15 sm:text-primary">
           <Check className="h-5 w-5" />
         </div>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-white/85 sm:text-muted-foreground">
           Bedankt, we gaan aan de slag. Je ontvangt je score en rapport binnen 24
-          uur op <span className="font-medium text-foreground">{email}</span>.
+          uur op <span className="font-medium text-white sm:text-foreground">{email}</span>.
         </p>
       </div>
     )
   }
 
+  const field =
+    "border-white/20 bg-white/10 text-white placeholder:text-white/55 focus-visible:border-white/50 focus-visible:ring-white/20 sm:border-input sm:bg-transparent sm:text-foreground sm:placeholder:text-muted-foreground"
+
   return (
     <form
       onSubmit={submit}
-      className="mx-auto mt-7 flex w-full max-w-2xl flex-col gap-2 sm:flex-row"
+      className="mx-auto mt-8 flex w-full max-w-2xl flex-col gap-2.5 sm:flex-row sm:gap-2"
     >
       <Input
         value={name}
@@ -181,6 +194,7 @@ function SignupForm() {
         placeholder="Je naam"
         autoComplete="name"
         aria-label="Naam"
+        className={field}
       />
       <Input
         type="email"
@@ -189,6 +203,7 @@ function SignupForm() {
         placeholder="jij@bedrijf.nl"
         autoComplete="email"
         aria-label="E-mailadres"
+        className={field}
       />
       <Input
         value={url}
@@ -196,8 +211,13 @@ function SignupForm() {
         placeholder="jouwwebsite.nl"
         inputMode="url"
         aria-label="Website-URL"
+        className={field}
       />
-      <Button type="submit" disabled={busy} className="shrink-0 sm:w-auto">
+      <Button
+        type="submit"
+        disabled={busy}
+        className="shrink-0 bg-white text-[#1728C8] hover:bg-white/90 sm:w-auto sm:bg-primary sm:text-primary-foreground sm:hover:bg-primary/90"
+      >
         {busy ? (
           <>
             <Loader2 className="mr-1 h-4 w-4 animate-spin" /> …
