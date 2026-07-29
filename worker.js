@@ -139,6 +139,8 @@ export default {
 async function handleLead(request, env, cors) {
   try {
     const { name, email, url, time } = await request.json();
+
+    // 1) Notificatie naar Kenny
     await sendEmail(env, {
       to: env.KENNY_EMAIL,
       subject: `Nieuwe UX-review aanvraag: ${url}`,
@@ -147,10 +149,24 @@ async function handleLead(request, env, cors) {
         <b>E-mail:</b> ${esc(email)}<br>
         <b>Website:</b> <a href="${esc(url)}">${esc(url)}</a><br>
         <b>Aangevraagd:</b> ${esc(time)}</p>
-        <p>De automatische scan draait. De aanvrager krijgt over ~23 uur de
-        scorecard, dus je hebt tijd om de site zelf te bekijken. Zet eventueel een
-        persoonlijke noot in het leads-dashboard om die mee te sturen.</p>`,
+        <p>De automatische scan draait. De aanvrager krijgt de scorecard binnen
+        een werkdag, dus je hebt tijd om de site zelf te bekijken. Zet eventueel
+        een persoonlijke noot in het leads-dashboard om die mee te sturen.</p>`,
     });
+
+    // 2) Ontvangstbevestiging naar de aanvrager
+    await sendEmail(env, {
+      to: email,
+      subject: `We hebben je aanvraag ontvangen`,
+      html: `<p>Hoi ${esc(name)},</p>
+        <p>Bedankt voor je aanvraag voor een UX-review van
+        <b>${cleanUrl(url)}</b>. We hebben 'm goed ontvangen en gaan er zo snel
+        mogelijk mee aan de slag.</p>
+        <p>Je ontvangt je UX-score en het rapport zo spoedig mogelijk — meestal
+        nog binnen een werkdag — in deze inbox.</p>
+        <p>Tot snel,<br>— BOLD700</p>`,
+    });
+
     return new Response(JSON.stringify({ ok: true }), {
       headers: { 'Content-Type': 'application/json', ...cors },
     });
