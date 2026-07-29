@@ -205,6 +205,7 @@ function SignupForm() {
     "border-white/20 bg-white/10 text-white placeholder:text-white/55 focus-visible:border-white/50 focus-visible:ring-white/20"
 
   return (
+    <>
     <form
       onSubmit={submit}
       className="mx-auto mt-8 flex w-full max-w-2xl flex-col gap-2.5 sm:flex-row sm:gap-2"
@@ -251,5 +252,24 @@ function SignupForm() {
         )}
       </Button>
     </form>
+    <PrivacyNote />
+    </>
+  )
+}
+
+function PrivacyNote() {
+  return (
+    <p className="mx-auto mt-3 max-w-2xl text-center text-xs text-white/55">
+      Door te versturen ga je akkoord met onze{" "}
+      <a
+        href="/privacy"
+        target="_blank"
+        rel="noreferrer"
+        className="underline hover:text-white/80"
+      >
+        privacyverklaring
+      </a>
+      . We gebruiken je gegevens alleen voor deze review en het contact daarover.
+    </p>
   )
 }

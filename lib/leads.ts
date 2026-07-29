@@ -1,5 +1,6 @@
 import {
   collection,
+  deleteDoc,
   doc,
   getDocs,
   orderBy,
@@ -249,4 +250,16 @@ export async function updateLead(
   patch: Partial<Lead>,
 ): Promise<void> {
   await updateDoc(doc(getDb(), "leads", id), patch)
+}
+
+/** Verwijdert een lead (recht op vergetelheid) én het bijbehorende scan-project. */
+export async function deleteLead(
+  id: string,
+  projectId?: string | null,
+): Promise<void> {
+  const db = getDb()
+  await deleteDoc(doc(db, "leads", id))
+  if (projectId) {
+    await deleteDoc(doc(db, "projects", projectId)).catch(() => {})
+  }
 }

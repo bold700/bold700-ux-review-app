@@ -2,12 +2,19 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { ExternalLink, Loader2, MessageSquare, RefreshCw } from "lucide-react"
+import {
+  ExternalLink,
+  Loader2,
+  MessageSquare,
+  RefreshCw,
+  Trash2,
+} from "lucide-react"
 import { toast } from "sonner"
 
 import {
   fetchLeads,
   updateLead,
+  deleteLead,
   runLeadScan,
   FOLLOWUP_LABELS,
   SCAN_LABELS,
@@ -15,6 +22,16 @@ import {
   type LeadFollowUp,
   type ScanStatus,
 } from "@/lib/leads"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { scoreTone } from "@/lib/score"
 import { useAuth } from "@/components/providers/auth-provider"
 import { AppShell } from "@/components/app-shell"
@@ -80,6 +97,8 @@ export function LeadsDashboard() {
   const { user, role } = useAuth()
   const [leads, setLeads] = useState<Lead[] | null>(null)
   const [noteLead, setNoteLead] = useState<Lead | null>(null)
+  const [toDelete, setToDelete] = useState<Lead | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   async function load() {
     try {
@@ -130,6 +149,23 @@ export function LeadsDashboard() {
     toast.info("Scan opnieuw gestart")
     await runLeadScan({ ...l }, l.userId ?? user.uid)
     load()
+  }
+
+  async function confirmDelete() {
+    if (!toDelete) return
+    setDeleting(true)
+    try {
+      await deleteLead(toDelete.id, toDelete.projectId)
+      setLeads((prev) => (prev ?? []).filter((x) => x.id !== toDelete.id))
+      toast.success("Lead verwijderd")
+      setToDelete(null)
+    } catch (e) {
+      toast.error("Verwijderen mislukt", {
+        description: e instanceof Error ? e.message : undefined,
+      })
+    } finally {
+      setDeleting(false)
+    }
   }
 
   if (role !== "admin") {
@@ -274,27 +310,40 @@ export function LeadsDashboard() {
                       </Button>
                     </TableCell>
                     <TableCell>
-                      {l.projectId ? (
+                      <div className="flex items-center justify-end">
+                        {l.projectId ? (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() =>
+                              router.push(`/review/${l.projectId}/scorecard`)
+                            }
+                            aria-label="Bekijk rapport"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
+                        ) : l.scanStatus === "failed" ? (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => rescan(l)}
+                            aria-label="Opnieuw scannen"
+                          >
+                            <RefreshCw className="h-4 w-4" />
+                          </Button>
+                        ) : null}
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8"
-                          onClick={() => router.push(`/review/${l.projectId}/scorecard`)}
-                          aria-label="Bekijk rapport"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          onClick={() => setToDelete(l)}
+                          aria-label="Lead verwijderen"
                         >
-                          <ExternalLink className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4" />
                         </Button>
-                      ) : l.scanStatus === "failed" ? (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => rescan(l)}
-                          aria-label="Opnieuw scannen"
-                        >
-                          <RefreshCw className="h-4 w-4" />
-                        </Button>
-                      ) : null}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -313,6 +362,35 @@ export function LeadsDashboard() {
           )
         }}
       />
+
+      <AlertDialog
+        open={toDelete != null}
+        onOpenChange={(o) => !o && setToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Lead verwijderen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              De gegevens van {toDelete?.name} ({toDelete?.email}) en de
+              bijbehorende scan worden permanent verwijderd. Gebruik dit ook voor
+              een verwijderverzoek (AVG). Dit kan niet ongedaan worden gemaakt.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Annuleren</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                confirmDelete()
+              }}
+              disabled={deleting}
+              className="bg-destructive text-white hover:bg-destructive/90"
+            >
+              {deleting ? "Verwijderen…" : "Verwijderen"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppShell>
   )
 }

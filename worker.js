@@ -164,7 +164,8 @@ async function handleLead(request, env, cors) {
         mee aan de slag.</p>
         <p>Je UX-score en het rapport ontvang je zo snel mogelijk, meestal nog
         binnen een werkdag, in deze inbox.</p>
-        <p>Tot snel,<br>BOLD700</p>`,
+        <p>Tot snel,<br>BOLD700</p>
+        ${optOut()}`,
     });
 
     return new Response(JSON.stringify({ ok: true }), {
@@ -225,7 +226,12 @@ function applicantHtml(env, lead) {
     je precies weet wat prioriteit heeft.</p>
     <p><a href="${esc(env.BOOK_URL)}">Plan een gesprek met de specialist</a>
     of beantwoord deze mail.</p>
-    <p>Groet,<br>BOLD700</p>`;
+    <p>Groet,<br>BOLD700</p>
+    ${optOut()}`;
+}
+
+function optOut() {
+  return `<p style="font-size:12px;color:#999;margin-top:16px">Je ontvangt deze mail omdat je een UX-review hebt aangevraagd op uxreviews.bold700.com. Wil je geen mails meer van ons? Beantwoord deze mail met "afmelden".</p>`;
 }
 
 // ─────────────────────────────────────────────────────────
