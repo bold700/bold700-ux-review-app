@@ -63,7 +63,7 @@ export function Landing({ onLogin }: { onLogin: () => void }) {
   return (
     <div className="min-h-svh bg-background text-foreground">
       {/* Topbar */}
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5">
+      <header className="mx-auto flex max-w-6xl items-center justify-between px-5 pb-5 pt-[calc(env(safe-area-inset-top)+1.25rem)]">
         <div className="flex items-center gap-2 font-semibold">
           <BrandLogo className="h-6 w-auto" /> BOLD700
         </div>
