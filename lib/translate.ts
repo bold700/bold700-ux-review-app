@@ -35,9 +35,11 @@ export async function translateFindings(
   project: Project,
 ): Promise<Translations> {
   if (project.reviewType !== "free-form" || !PROXY) return {}
+  const existing = project.findingTranslations ?? {}
   const report = buildReport(project)
-  const items = report.issues
-  if (items.length === 0) return {}
+  // Alleen bevindingen die nog GEEN vertaling hebben (elke bevinding 1x).
+  const items = report.issues.filter((f) => !existing[f.id]?.title)
+  if (items.length === 0) return existing
 
   const list = items
     .map(
@@ -68,12 +70,14 @@ ${list}`
     if (!resp.ok) throw new Error(String(resp.status))
     const j = await resp.json()
     const obj = parseObj(j?.content?.[0]?.text || "")
-    if (!obj) return {}
+    if (!obj) return existing
+    // Samenvoegen met bestaande vertalingen (bestaande blijven staan).
+    const merged = { ...existing, ...obj }
     await updateDoc(doc(getDb(), "projects", project.id), {
-      findingTranslations: obj,
+      findingTranslations: merged,
     })
-    return obj
+    return merged
   } catch {
-    return {}
+    return existing
   }
 }

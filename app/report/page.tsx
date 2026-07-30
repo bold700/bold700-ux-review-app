@@ -10,7 +10,14 @@ import { toast } from "sonner"
 import { getDb } from "@/lib/firebase"
 import type { Project } from "@/lib/types"
 import { buildReport } from "@/lib/report"
-import { saveDevStatus, type DevEntry, type DevStatusMap } from "@/lib/dev-status"
+import {
+  saveDevStatus,
+  notifyDevEvent,
+  devStateOf,
+  type DevEntry,
+  type DevStatusMap,
+} from "@/lib/dev-status"
+import { buildDevItems } from "@/lib/dev-items"
 import { BrandLogo } from "@/components/brand-logo"
 import { ReportView } from "@/components/report/report-view"
 import { DevChecklist } from "@/components/report/dev-checklist"
@@ -67,6 +74,38 @@ function ReportContent() {
     setDevStatus((s) => ({ ...s, [findingId]: merged }))
     try {
       await saveDevStatus(id, findingId, entry)
+
+      // Kenny op de hoogte stellen bij vraag / notitie / alles verwerkt.
+      if (project) {
+        const items = buildDevItems(project)
+        const title =
+          items.find((x) => x.id === findingId)?.fix ||
+          items.find((x) => x.id === findingId)?.title ||
+          ""
+        const base = {
+          projectName: project.name ?? project.url ?? "",
+          url: project.url ?? "",
+          reportUrl: `${location.origin}/report?id=${encodeURIComponent(id)}`,
+          findingTitle: title,
+        }
+        const newStatus = entry.status ?? "open"
+        const noteChanged =
+          (entry.note ?? "").trim() && (entry.note ?? "") !== (prev[findingId]?.note ?? "")
+
+        if (newStatus === "question" && devStateOf(prev[findingId]) !== "question") {
+          notifyDevEvent({ type: "question", text: entry.note, ...base })
+        } else if (noteChanged) {
+          notifyDevEvent({ type: "note", text: entry.note, ...base })
+        }
+
+        const next = { ...prev, [findingId]: merged }
+        if (
+          items.length > 0 &&
+          items.every((it) => devStateOf(next[it.id]) === "done")
+        ) {
+          notifyDevEvent({ type: "all-done", ...base })
+        }
+      }
     } catch {
       setDevStatus(prev)
       toast.error("Kon status niet opslaan", {

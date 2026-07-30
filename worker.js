@@ -31,6 +31,11 @@ export default {
       return handleLead(request, env, corsHeaders);
     }
 
+    // ── POST /dev-event → developer stelt vraag / notitie / alles verwerkt ──
+    if (request.method === 'POST' && url.pathname === '/dev-event') {
+      return handleDevEvent(request, env, corsHeaders);
+    }
+
     // ── GET /fetch?url=... → Page fetcher voor Auto-Scan ──
     if (request.method === 'GET' && url.pathname === '/fetch') {
       const targetUrl = url.searchParams.get('url');
@@ -168,6 +173,49 @@ async function handleLead(request, env, cors) {
         ${optOut()}`,
     });
 
+    return new Response(JSON.stringify({ ok: true }), {
+      headers: { 'Content-Type': 'application/json', ...cors },
+    });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: String(e) }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', ...cors },
+    });
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// Developer-event (vraag / notitie / alles verwerkt)
+// ─────────────────────────────────────────────────────────
+async function handleDevEvent(request, env, cors) {
+  try {
+    const { type, projectName, url, reportUrl, findingTitle, text } =
+      await request.json();
+    const site = esc(projectName || url || '');
+    let subject = '';
+    let intro = '';
+    if (type === 'question') {
+      subject = `Developer heeft een vraag: ${site}`;
+      intro = `De developer snapt een punt niet bij <b>${site}</b>:`;
+    } else if (type === 'note') {
+      subject = `Developer-notitie: ${site}`;
+      intro = `De developer liet een notitie achter bij <b>${site}</b>:`;
+    } else {
+      subject = `Developer heeft alles verwerkt: ${site}`;
+      intro = `De developer heeft <b>alle</b> punten van <b>${site}</b> verwerkt.`;
+    }
+    const detail =
+      type === 'all-done'
+        ? ''
+        : `<p><b>Punt:</b> ${esc(findingTitle || '')}</p>${
+            text ? `<p><b>Opmerking:</b> ${esc(text)}</p>` : ''
+          }`;
+    await sendEmail(env, {
+      to: env.KENNY_EMAIL,
+      subject,
+      html: `<p>${intro}</p>${detail}
+        <p><a href="${esc(reportUrl)}">Bekijk het rapport</a></p>`,
+    });
     return new Response(JSON.stringify({ ok: true }), {
       headers: { 'Content-Type': 'application/json', ...cors },
     });
