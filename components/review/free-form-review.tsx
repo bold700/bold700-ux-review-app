@@ -67,23 +67,18 @@ export function FreeFormReview({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-          Bevindingen ({findings.length})
-          {(() => {
-            const missing = findings.filter((id) => !answers[id]?.score).length
-            return missing > 0 ? (
-              <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
-                {missing} zonder score
-              </span>
-            ) : null
-          })()}
-        </h2>
-        <Button size="sm" onClick={addFinding}>
-          <Plus className="mr-1 h-4 w-4" /> Nieuwe bevinding
-        </Button>
-      </div>
+    <div className="relative space-y-4 pb-4">
+      <h2 className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+        Bevindingen ({findings.length})
+        {(() => {
+          const missing = findings.filter((id) => !answers[id]?.score).length
+          return missing > 0 ? (
+            <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
+              {missing} zonder score
+            </span>
+          ) : null
+        })()}
+      </h2>
 
       {findings.length === 0 && (
         <Card>
@@ -180,6 +175,13 @@ export function FreeFormReview({
           </Card>
         )
       })}
+
+      {/* Sticky knop: altijd zichtbaar tijdens het werken */}
+      <div className="sticky bottom-0 -mx-4 border-t bg-background/95 px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur">
+        <Button className="w-full" onClick={addFinding}>
+          <Plus className="mr-1 h-4 w-4" /> Nieuwe bevinding
+        </Button>
+      </div>
     </div>
   )
 }
