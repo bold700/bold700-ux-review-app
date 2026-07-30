@@ -43,6 +43,13 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Table,
@@ -253,8 +260,47 @@ export function Dashboard() {
                   className="pl-9"
                 />
               </div>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2">
+                {/* Mobiel: compacte dropdowns zodat status, sortering en weergave
+                    samen op één rij passen. */}
+                <Select
+                  value={statusFilter}
+                  onValueChange={(v) => setStatusFilter(v as StatusFilter)}
+                >
+                  <SelectTrigger
+                    size="sm"
+                    className="min-w-0 flex-1 sm:hidden"
+                    aria-label="Status filter"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Alle</SelectItem>
+                    <SelectItem value="open">Open</SelectItem>
+                    <SelectItem value="done">Afgerond</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={sort}
+                  onValueChange={(v) => setSort(v as Sort)}
+                >
+                  <SelectTrigger
+                    size="sm"
+                    className="min-w-0 flex-1 sm:hidden"
+                    aria-label="Sorteren"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="recent">Recent</SelectItem>
+                    <SelectItem value="score">Score</SelectItem>
+                    <SelectItem value="name">Naam</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {/* Desktop: segmented toggles */}
                 <SegGroup
+                  className="hidden sm:inline-flex"
                   value={statusFilter}
                   onChange={setStatusFilter}
                   options={[
@@ -264,6 +310,7 @@ export function Dashboard() {
                   ]}
                 />
                 <SegGroup
+                  className="hidden sm:inline-flex"
                   value={sort}
                   onChange={setSort}
                   options={[
@@ -272,7 +319,7 @@ export function Dashboard() {
                     { v: "name", label: "Naam" },
                   ]}
                 />
-                <div className="inline-flex rounded-lg border p-0.5">
+                <div className="inline-flex shrink-0 rounded-lg border p-0.5">
                   <button
                     onClick={() => setView("cards")}
                     aria-label="Kaarten"
@@ -608,13 +655,15 @@ function SegGroup<T extends string>({
   value,
   onChange,
   options,
+  className,
 }: {
   value: T
   onChange: (v: T) => void
   options: { v: T; label: string }[]
+  className?: string
 }) {
   return (
-    <div className="inline-flex rounded-lg border p-0.5">
+    <div className={cn("inline-flex rounded-lg border p-0.5", className)}>
       {options.map((o) => (
         <button
           key={o.v}
