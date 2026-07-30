@@ -1,12 +1,16 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { collection, getDocs, orderBy, query } from "firebase/firestore"
-import { Loader2, RefreshCw, Sparkles, TrendingDown } from "lucide-react"
+import { Loader2, RefreshCw, Sparkles, Tags, TrendingDown } from "lucide-react"
 import { toast } from "sonner"
 
 import { getDb } from "@/lib/firebase"
 import type { Project } from "@/lib/types"
+import {
+  backfillBranches,
+  projectsMissingBranche,
+} from "@/lib/branche"
 import { scoreTone } from "@/lib/score"
 import {
   brancheOf,
@@ -55,24 +59,52 @@ export function InsightsDashboard() {
   const [gen, setGen] = useState(false)
   const [brancheF, setBrancheF] = useState("all")
   const [siteF, setSiteF] = useState("all")
+  const [backfilling, setBackfilling] = useState(false)
+
+  const loadProjects = useCallback(async () => {
+    try {
+      const snap = await getDocs(
+        query(collection(getDb(), "projects"), orderBy("createdAt", "desc")),
+      )
+      setProjects(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Project))
+    } catch (e) {
+      console.error("[insights] load", e)
+      setProjects([])
+    }
+  }, [])
 
   useEffect(() => {
     if (!user || role !== "admin") return
     ;(async () => {
-      try {
-        const snap = await getDocs(
-          query(collection(getDb(), "projects"), orderBy("createdAt", "desc")),
-        )
-        setProjects(
-          snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Project),
-        )
-      } catch (e) {
-        console.error("[insights] load", e)
-        setProjects([])
-      }
+      await loadProjects()
       setStored(await loadInsightsSummary())
     })()
-  }, [user, role])
+  }, [user, role, loadProjects])
+
+  const missing = useMemo(
+    () => (projects ? projectsMissingBranche(projects) : []),
+    [projects],
+  )
+
+  async function runBackfill() {
+    if (!projects || missing.length === 0) return
+    setBackfilling(true)
+    const t = toast.loading(`Branches herkennen… 0/${missing.length}`)
+    try {
+      const res = await backfillBranches(projects, (done, total) => {
+        toast.loading(`Branches herkennen… ${done}/${total}`, { id: t })
+      })
+      await loadProjects()
+      toast.success(`${res.updated} van ${res.total} reviews getagd`, { id: t })
+    } catch (e) {
+      toast.error("Bijwerken mislukt", {
+        id: t,
+        description: e instanceof Error ? e.message : undefined,
+      })
+    } finally {
+      setBackfilling(false)
+    }
+  }
 
   // Volledige aggregatie (alle projecten) — voor benchmark, segmenten en de
   // globale AI-analyse.
@@ -190,10 +222,27 @@ export function InsightsDashboard() {
                   Filters wissen
                 </Button>
               )}
-              <span className="text-xs text-muted-foreground sm:ml-auto">
-                {insights.scoredCount} van {fullInsights?.scoredCount ?? 0} sites
-                {isFiltered ? " (gefilterd)" : ""}
-              </span>
+              <div className="flex items-center gap-3 sm:ml-auto">
+                {missing.length > 0 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={runBackfill}
+                    disabled={backfilling}
+                  >
+                    {backfilling ? (
+                      <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Tags className="mr-1 h-4 w-4" />
+                    )}
+                    {missing.length} zonder branche taggen
+                  </Button>
+                )}
+                <span className="text-xs text-muted-foreground">
+                  {insights.scoredCount} van {fullInsights?.scoredCount ?? 0}{" "}
+                  sites{isFiltered ? " (gefilterd)" : ""}
+                </span>
+              </div>
             </div>
 
             {insights.scoredCount === 0 ? (

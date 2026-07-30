@@ -1,4 +1,8 @@
+import { doc, updateDoc } from "firebase/firestore"
+
+import { getDb } from "@/lib/firebase"
 import { fetchPageText } from "@/lib/page-fetch"
+import type { Project } from "@/lib/types"
 
 const PROXY = process.env.NEXT_PUBLIC_AI_PROXY_URL
 
@@ -119,4 +123,37 @@ Antwoord UITSLUITEND met JSON: {"branche":"<slug>"}. Kies de best passende branc
   } catch {
     return null
   }
+}
+
+/** Projecten die nog geen (geldige) branche hebben en een URL. */
+export function projectsMissingBranche(projects: Project[]): Project[] {
+  return projects.filter((p) => !isBranche(p.branche) && !!(p.url ?? "").trim())
+}
+
+/**
+ * Tagt bestaande reviews die nog geen branche hebben (sequentieel, zodat we de
+ * proxy niet overbelasten). Zet "overig" als de AI/pagina niks oplevert, zodat
+ * hetzelfde project niet elke keer opnieuw wordt geprobeerd.
+ */
+export async function backfillBranches(
+  projects: Project[],
+  onProgress?: (done: number, total: number) => void,
+): Promise<{ updated: number; total: number }> {
+  const todo = projectsMissingBranche(projects)
+  let updated = 0
+  for (let i = 0; i < todo.length; i++) {
+    const p = todo[i]
+    try {
+      const slug = (await detectBranche((p.url ?? "").trim())) ?? "overig"
+      await updateDoc(doc(getDb(), "projects", p.id), {
+        branche: slug,
+        brancheAuto: true,
+      })
+      updated++
+    } catch {
+      // sla dit project over; blijft in de volgende run staan
+    }
+    onProgress?.(i + 1, todo.length)
+  }
+  return { updated, total: todo.length }
 }
