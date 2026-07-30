@@ -97,7 +97,7 @@ export function Landing({ onLogin }: { onLogin: () => void }) {
 
         {/* Hero */}
         <div
-          className="rise order-3 mt-8 text-center sm:order-2 lg:mt-4"
+          className="rise order-3 mt-8 text-center sm:order-3 lg:mt-6"
           style={{ animationDelay: "160ms" }}
         >
           <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
@@ -112,15 +112,15 @@ export function Landing({ onLogin }: { onLogin: () => void }) {
 
         {/* Formulier */}
         <div
-          className="rise order-4 sm:order-3"
+          className="rise order-4 sm:order-4"
           style={{ animationDelay: "240ms" }}
         >
           <SignupForm />
         </div>
 
-        {/* Scorecard-rij — alleen desktop, onder de hero */}
+        {/* Scorecard-rij — alleen desktop, boven de hero */}
         <div
-          className="rise order-5 mt-10 hidden sm:order-4 sm:block lg:mt-6"
+          className="rise order-5 mt-8 hidden sm:order-2 sm:block lg:mt-6"
           style={{ animationDelay: "320ms" }}
         >
           <div className="grid gap-4 sm:grid-cols-3">
