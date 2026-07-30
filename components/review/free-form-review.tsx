@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Plus, Trash2 } from "lucide-react"
+import { AlertCircle, Plus, Trash2 } from "lucide-react"
 
 import { FF_CATEGORIES } from "@/lib/modules"
 import type { Answer } from "@/lib/types"
@@ -69,8 +69,16 @@ export function FreeFormReview({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-medium text-muted-foreground">
+        <h2 className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
           Bevindingen ({findings.length})
+          {(() => {
+            const missing = findings.filter((id) => !answers[id]?.score).length
+            return missing > 0 ? (
+              <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
+                {missing} zonder score
+              </span>
+            ) : null
+          })()}
         </h2>
         <Button size="sm" onClick={addFinding}>
           <Plus className="mr-1 h-4 w-4" /> Nieuwe bevinding
@@ -90,8 +98,13 @@ export function FreeFormReview({
         const cats = a.findingCategories ?? []
         const images = a.screenshotUrls ?? a.screenshots ?? []
         const activePaste = focusedId ? focusedId === id : i === 0
+        const missingScore = !a.score
         return (
-          <Card key={id} onFocusCapture={() => setFocusedId(id)}>
+          <Card
+            key={id}
+            onFocusCapture={() => setFocusedId(id)}
+            className={cn(missingScore && "border-amber-500/50")}
+          >
             <CardContent className="space-y-4 py-5">
               <div className="flex items-start gap-2">
                 <span className="mt-2 text-sm font-medium text-muted-foreground">
@@ -130,10 +143,19 @@ export function FreeFormReview({
                 ))}
               </div>
 
-              <ScoreButtons
-                value={a.score}
-                onChange={(s) => setAnswer(id, { score: s })}
-              />
+              <div>
+                <ScoreButtons
+                  value={a.score}
+                  onChange={(s) => setAnswer(id, { score: s })}
+                />
+                {missingScore && (
+                  <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400">
+                    <AlertCircle className="h-3.5 w-3.5" />
+                    Kies een score, anders telt deze bevinding niet mee in het
+                    rapport en de developer-link.
+                  </p>
+                )}
+              </div>
               <SeverityRow
                 score={a.score}
                 value={a.severity}
