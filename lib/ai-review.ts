@@ -60,7 +60,9 @@ export async function runAiReview(
 
   const system = `Je bent een senior UX/CRO/SEO-reviewer van BOLD700. Je beoordeelt een webpagina op een checklist op basis van de aangeleverde pagina-inhoud (titel, meta, koppen, teksten, knoppen/links, alt-info).
 Scores: "good" = voldoet, "ok" = kan beter, "bad" = probleem, "nvt" = ALLEEN als de vraag echt niet uit de tekst te beoordelen is (bijv. exacte laadtijd in seconden, precieze kleurcontrast-ratio, of interactief/technisch gedrag dat je niet kunt zien).
-Belangrijk: geef voor UX-, content-, structuur-, navigatie-, vindbaarheids-, vertrouwens- en copy-vragen ALTIJD een inschatting (good/ok/bad) — vermijd "nvt" daar. Wees beslist en concreet, niet voorzichtig. Houd elke notitie kort (1 zin, Nederlands).`
+Belangrijk: geef voor UX-, content-, structuur-, navigatie-, vindbaarheids-, vertrouwens- en copy-vragen ALTIJD een inschatting (good/ok/bad) — vermijd "nvt" daar. Wees beslist en concreet, niet voorzichtig. Houd elke notitie kort (1 zin, Nederlands).
+
+GROUNDING (strikt): baseer je oordeel en notitie UITSLUITEND op de aangeleverde pagina-inhoud. Verzin NOOIT knop- of linkteksten, labels, secties of elementen die niet letterlijk in de inhoud voorkomen. Citeer alleen tekst die echt in de inhoud staat; weet je de exacte tekst niet, blijf dan algemeen ("de primaire CTA", "de hoofdtitel") in plaats van iets te verzinnen. Voorbeelden die tussen haakjes in de vraag staan zijn slechts voorbeelden, GEEN feiten over deze pagina — neem ze niet over als bevinding.`
 
   const CHUNK = 30
   const chunks: AiQuestion[][] = []
@@ -93,6 +95,7 @@ Antwoord UITSLUITEND met een JSON-array, geen tekst eromheen. Gebruik exact de m
         body: JSON.stringify({
           model: "gpt-4o-mini",
           max_tokens: 4000,
+          temperature: 0.2,
           system,
           messages: [{ role: "user", content: [{ type: "text", text: user }] }],
         }),

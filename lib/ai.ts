@@ -38,7 +38,8 @@ export async function generateActionPlan(
       })
       .join("\n") || "- (geen expliciet benoemd)"
 
-  const system = `Je bent een senior UX consultant van BOLD700. Je schrijft in het Nederlands, direct en to-the-point. Geen vakjargon — schrijf alsof je tegen een ondernemer of marketing manager praat. Maak een compleet, helder rapport op basis van ALLES wat de reviewer heeft vastgelegd (sterke punten én verbeterpunten, inclusief notities en bijgevoegde screenshots). Focus op RESULTAAT en BUSINESS IMPACT. Ook wanneer alles goed is schrijf je een volwaardig positief rapport.`
+  const system = `Je bent een senior UX consultant van BOLD700. Je schrijft in het Nederlands, direct en to-the-point. Geen vakjargon — schrijf alsof je tegen een ondernemer of marketing manager praat. Maak een compleet, helder rapport op basis van ALLES wat de reviewer heeft vastgelegd (sterke punten én verbeterpunten, inclusief notities en bijgevoegde screenshots). Focus op RESULTAAT en BUSINESS IMPACT. Ook wanneer alles goed is schrijf je een volwaardig positief rapport.
+GROUNDING (strikt): baseer je op de aangeleverde bevindingen en notities. Verzin GEEN concrete knop-/linkteksten, cijfers, elementen of feiten over de website die niet in de input staan. Blijf algemeen als je de exacte tekst niet kent.`
 
   const user = `Hier zijn de resultaten van een UX review van ${project.url || "een website"}${project.name ? " (" + project.name + ")" : ""}${project.client ? " voor " + project.client : ""}.
 
@@ -102,6 +103,7 @@ Regels: Schrijf in het Nederlands, geen technische termen, focus op wat het OPLE
     body: JSON.stringify({
       model: "gpt-4o-mini",
       max_tokens: 2000,
+      temperature: 0.3,
       system,
       messages: [{ role: "user", content: [{ type: "text", text: user }, ...imageBlocks] }],
     }),

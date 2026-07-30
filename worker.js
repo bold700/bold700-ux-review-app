@@ -113,6 +113,9 @@ export default {
         body: JSON.stringify({
           model: body.model || 'gpt-4o-mini',
           max_tokens: body.max_tokens || 2000,
+          ...(typeof body.temperature === 'number'
+            ? { temperature: body.temperature }
+            : {}),
           messages,
         }),
       });
