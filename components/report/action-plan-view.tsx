@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { ChevronDown, Wrench, Zap } from "lucide-react"
+import { ChevronDown, Clock, Wrench, Zap } from "lucide-react"
 
 import type { PlanItem } from "@/lib/action-plan"
 import { buildActionPlan } from "@/lib/action-plan"
@@ -14,6 +14,33 @@ const sevClass: Record<string, string> = {
   Kritiek: "bg-red-500/15 text-red-500",
   Belangrijk: "bg-amber-500/15 text-amber-500",
   Klein: "bg-muted text-muted-foreground",
+}
+
+const effortMeta: Record<string, { label: string; cls: string }> = {
+  Klein: {
+    label: "Snel te doen",
+    cls: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+  },
+  Middel: {
+    label: "Wat werk",
+    cls: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+  },
+  Groot: {
+    label: "Groter project",
+    cls: "bg-red-500/15 text-red-500",
+  },
+}
+
+function EffortBadge({ effort }: { effort: string }) {
+  const e = effortMeta[effort] ?? {
+    label: effort,
+    cls: "bg-muted text-muted-foreground",
+  }
+  return (
+    <Badge className={cn("gap-1 text-[10px] font-medium", e.cls)}>
+      <Clock className="h-3 w-3" /> {e.label}
+    </Badge>
+  )
 }
 
 export function ActionPlanView({ project }: { project: Project }) {
@@ -104,9 +131,7 @@ function PlanRow({ item, rank }: { item: PlanItem; rank: number }) {
               <Badge variant="outline" className="text-[10px]">
                 {item.score === "bad" ? "Niet OK" : "Matig"}
               </Badge>
-              <Badge variant="outline" className="text-[10px] text-muted-foreground">
-                Inspanning: {item.effortLabel}
-              </Badge>
+              <EffortBadge effort={item.effortLabel} />
             </div>
             {item.businessImpact && (
               <p className="rounded-md bg-emerald-500/10 px-2.5 py-1.5 text-sm text-emerald-700 dark:text-emerald-300">

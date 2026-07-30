@@ -21,6 +21,12 @@ const sevClass: Record<string, string> = {
   Minor: "bg-muted text-muted-foreground",
 }
 
+const effortCls: Record<string, string> = {
+  Low: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+  Medium: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+  High: "bg-red-500/15 text-red-500",
+}
+
 export function DevChecklist({
   project,
   devStatus,
@@ -195,7 +201,12 @@ function DevRow({
                 {sevEn}
               </Badge>
               {effEn && (
-                <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                <Badge
+                  className={cn(
+                    "text-[10px] font-medium",
+                    effortCls[effEn] ?? "bg-muted text-muted-foreground",
+                  )}
+                >
                   Effort: {effEn}
                 </Badge>
               )}
