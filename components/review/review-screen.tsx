@@ -263,7 +263,7 @@ export function ReviewScreen({ id }: { id: string }) {
         </main>
         {previewUrl && (
           <aside className="hidden flex-1 border-l lg:block">
-            <div className="sticky top-0 h-svh">
+            <div className="sticky top-[calc(var(--header-height)+env(safe-area-inset-top))] h-[calc(100svh-var(--header-height)-env(safe-area-inset-top))]">
               <LivePreview url={previewUrl} />
             </div>
           </aside>
