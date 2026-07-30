@@ -5,14 +5,18 @@ import { useRouter } from "next/navigation"
 import { doc, getDoc, updateDoc } from "firebase/firestore"
 import {
   ArrowLeft,
+  ArrowRight,
   Check,
   Copy,
   ExternalLink,
   FileText,
   Loader2,
   Megaphone,
+  RefreshCw,
   Share2,
   Sparkles,
+  TrendingDown,
+  TrendingUp,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -20,6 +24,7 @@ import { getDb } from "@/lib/firebase"
 import type { Project } from "@/lib/types"
 import { buildReport } from "@/lib/report"
 import { translateFindings } from "@/lib/translate"
+import { rescanProject, scanDiff } from "@/lib/scan"
 import { SocialShareDialog } from "@/components/scorecard/social-share"
 import {
   DropdownMenu,
@@ -54,6 +59,7 @@ export function ScorecardScreen({ id }: { id: string }) {
   const [genBusy, setGenBusy] = useState(false)
   const [shareLink, setShareLink] = useState<string | null>(null)
   const [social, setSocial] = useState(false)
+  const [rescanning, setRescanning] = useState(false)
   const [devStatus, setDevStatus] = useState<DevStatusMap>({})
 
   useEffect(() => {
@@ -78,6 +84,7 @@ export function ScorecardScreen({ id }: { id: string }) {
   }, [id])
 
   const data = useMemo(() => (project ? buildReport(project) : null), [project])
+  const diff = useMemo(() => (project ? scanDiff(project) : null), [project])
   const devDone = data
     ? data.issues.filter((f) => devStateOf(devStatus[f.id]) === "done").length
     : 0
@@ -170,6 +177,31 @@ export function ScorecardScreen({ id }: { id: string }) {
     }
   }
 
+  async function rescan() {
+    if (!project || project.reviewType === "free-form") return
+    setRescanning(true)
+    const t = toast.loading("Herscan — pagina ophalen en beoordelen…")
+    try {
+      const newId = await rescanProject(project, (d, total) =>
+        toast.loading(
+          total > 1
+            ? `Beoordeelt deel ${Math.min(d + 1, total)}/${total}…`
+            : "Beoordeelt…",
+          { id: t },
+        ),
+      )
+      toast.success("Herscan klaar", { id: t })
+      router.push(`/review/${newId}/scorecard`)
+    } catch (e) {
+      toast.error("Herscan mislukt", {
+        id: t,
+        description: e instanceof Error ? e.message : undefined,
+      })
+    } finally {
+      setRescanning(false)
+    }
+  }
+
   async function unpublish() {
     if (!project) return
     await updateDoc(doc(getDb(), "projects", id), { public: false })
@@ -209,6 +241,22 @@ export function ScorecardScreen({ id }: { id: string }) {
             >
               <ArrowLeft className="mr-1 h-4 w-4" /> Review
             </Button>
+            {project.reviewType !== "free-form" && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={rescan}
+                disabled={rescanning}
+                title="Opnieuw scannen en met deze vergelijken"
+              >
+                {rescanning ? (
+                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-1 h-4 w-4" />
+                )}
+                Herscan
+              </Button>
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button size="sm">
@@ -231,6 +279,75 @@ export function ScorecardScreen({ id }: { id: string }) {
         }
       >
         <div className="mx-auto max-w-3xl px-4 py-6">
+        {/* Voor/na-vergelijking (herscan) */}
+        {diff && project.previousScore != null && (
+          <Card className="mb-6 border-primary/30 bg-primary/5">
+            <CardContent className="py-5">
+              <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
+                <RefreshCw className="h-4 w-4 text-primary" /> Vergelijking met de
+                vorige scan
+              </div>
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-muted-foreground">
+                      {project.previousScore.toFixed(1)}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">
+                      vorige
+                    </div>
+                  </div>
+                  <ArrowRight className="h-5 w-5 text-muted-foreground" />
+                  <div className="text-center">
+                    <div
+                      className={cn(
+                        "text-3xl font-bold",
+                        scoreColor[scoreTone(data.score)],
+                      )}
+                    >
+                      {data.score == null ? "—" : data.score.toFixed(1)}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">nu</div>
+                  </div>
+                </div>
+                {diff.delta != null && (
+                  <div
+                    className={cn(
+                      "flex items-center gap-1 rounded-full px-3 py-1 text-sm font-semibold",
+                      diff.delta >= 0
+                        ? "bg-emerald-500/15 text-emerald-500"
+                        : "bg-red-500/15 text-red-500",
+                    )}
+                  >
+                    {diff.delta >= 0 ? (
+                      <TrendingUp className="h-4 w-4" />
+                    ) : (
+                      <TrendingDown className="h-4 w-4" />
+                    )}
+                    {diff.delta >= 0 ? "+" : ""}
+                    {diff.delta.toFixed(1)}
+                  </div>
+                )}
+                <div className="ml-auto text-sm">
+                  <span className="font-medium text-emerald-500">
+                    {diff.improved} verbeterd
+                  </span>
+                  {diff.worsened > 0 && (
+                    <span className="text-red-500">
+                      {" "}
+                      · {diff.worsened} verslechterd
+                    </span>
+                  )}
+                  <span className="text-muted-foreground">
+                    {" "}
+                    · {diff.same} gelijk
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Stat-tegels */}
         <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Stat

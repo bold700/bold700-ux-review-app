@@ -54,6 +54,11 @@ export interface Project {
   auditStatus?: string
   assignedTo?: string | null
   assignedToName?: string | null
+  // herscan-vergelijking
+  rescanOf?: string
+  previousScore?: number | null
+  previousAt?: string
+  previousScores?: Record<string, Score>
 }
 
 export interface UserProfile {
