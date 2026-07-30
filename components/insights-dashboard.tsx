@@ -106,7 +106,7 @@ export function InsightsDashboard() {
 
   return (
     <AppShell title="Insights">
-      <div className="mx-auto max-w-5xl px-4 py-6 sm:py-8 lg:px-6">
+      <div className="mx-auto w-full max-w-5xl min-w-0 overflow-x-hidden px-4 py-6 sm:py-8 lg:px-6">
         {!insights ? (
           <div className="space-y-4">
             <Skeleton className="h-28 w-full rounded-xl" />
@@ -236,7 +236,7 @@ export function InsightsDashboard() {
                   <TableBody>
                     {insights.problems.slice(0, 10).map((p) => (
                       <TableRow key={p.id}>
-                        <TableCell className="max-w-[380px]">
+                        <TableCell className="max-w-[180px] sm:max-w-[380px]">
                           <div className="truncate font-medium">{p.text}</div>
                           {p.businessImpact && (
                             <div className="truncate text-xs text-muted-foreground">
@@ -283,7 +283,7 @@ export function InsightsDashboard() {
               <div className="space-y-2">
                 {insights.modules.slice(0, 12).map((m) => (
                   <div key={m.module} className="flex items-center gap-3">
-                    <div className="w-40 shrink-0 truncate text-sm">
+                    <div className="w-28 shrink-0 truncate text-sm sm:w-40">
                       {m.module}
                     </div>
                     <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-muted">
