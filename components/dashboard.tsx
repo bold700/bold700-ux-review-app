@@ -182,7 +182,7 @@ export function Dashboard() {
     return sorted
   }, [projects, q, sort, statusFilter])
 
-  // Groepeer per domein — één kaart per domein
+  // Groepeer per domein — één kaart per domein, gesorteerd volgens de keuze.
   const groups = useMemo(() => {
     const map = new Map<string, Project[]>()
     for (const p of visible) {
@@ -190,11 +190,27 @@ export function Dashboard() {
       if (!map.has(d)) map.set(d, [])
       map.get(d)!.push(p)
     }
-    return [...map.entries()].sort((a, b) => {
-      if (b[1].length !== a[1].length) return b[1].length - a[1].length
-      return (b[1][0]?.createdAt ?? "").localeCompare(a[1][0]?.createdAt ?? "")
-    })
-  }, [visible])
+    const avgOf = (items: Project[]) => {
+      const s = items
+        .map((p) => projectScore(p))
+        .filter((x): x is number => x != null)
+      return s.length ? s.reduce((a, b) => a + b, 0) / s.length : -1
+    }
+    const latestOf = (items: Project[]) =>
+      items.reduce((m, p) => {
+        const c = p.createdAt ?? ""
+        return c > m ? c : m
+      }, "")
+    const entries = [...map.entries()]
+    if (sort === "name") {
+      entries.sort((a, b) => a[0].localeCompare(b[0]))
+    } else if (sort === "score") {
+      entries.sort((a, b) => avgOf(b[1]) - avgOf(a[1]))
+    } else {
+      entries.sort((a, b) => latestOf(b[1]).localeCompare(latestOf(a[1])))
+    }
+    return entries
+  }, [visible, sort])
 
   // Reviews binnen het geopende domein (los van filters, altijd recent)
   const openItems = useMemo(() => {
