@@ -10,6 +10,7 @@ import type { Finding, ReportData } from "@/lib/report"
 import { scoreTone } from "@/lib/score"
 import { markdownToHtml } from "@/lib/markdown"
 import { ActionPlanView } from "@/components/report/action-plan-view"
+import { ReportSummary } from "@/components/report/report-summary"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 
@@ -89,6 +90,8 @@ export function ReportView({
           </div>
         )}
       </div>
+
+      <ReportSummary project={project} data={data} />
 
       {aiPlan && (
         <section>
