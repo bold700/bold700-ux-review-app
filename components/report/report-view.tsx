@@ -115,7 +115,7 @@ export function ReportView({
       {aiPlan && (
         <section>
           <h2 className="mb-2 text-sm font-semibold tracking-wide uppercase">
-            ✨ AI-samenvatting
+            Samenvatting
           </h2>
           <div
             className="report-prose rounded-xl border bg-muted/30 p-4 text-sm"

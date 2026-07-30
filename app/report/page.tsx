@@ -157,23 +157,11 @@ function ReportContent() {
 
       {status === "ok" && project && !devView && (
         <main className="mx-auto max-w-2xl px-4 py-8">
-          <div className="mb-4 flex items-start gap-3 rounded-xl border bg-background p-4 text-sm shadow-sm">
-            <ListChecks className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-            <div>
-              <div className="font-medium">Developer-handoff</div>
-              <p className="text-muted-foreground">
-                Vink hieronder aan wat je hebt verwerkt. De reviewer ziet je
-                voortgang direct, geen login nodig.
-              </p>
-            </div>
-          </div>
           <div className="rounded-2xl border bg-background p-6 shadow-sm sm:p-8">
             <ReportView
               project={project}
               data={buildReport(project)}
               aiPlan={project.aiPlan}
-              devStatus={devStatus}
-              onDevUpdate={devUpdate}
             />
           </div>
           <p className="mt-6 text-center text-sm text-muted-foreground">
