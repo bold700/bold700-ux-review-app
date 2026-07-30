@@ -7,7 +7,8 @@ import type { Project } from "@/lib/types"
 import type { DevEntry, DevStatusMap } from "@/lib/dev-status"
 import { devStateOf } from "@/lib/dev-status"
 import type { Finding, ReportData } from "@/lib/report"
-import { loadBenchmark, type Benchmark } from "@/lib/insights"
+import { brancheOf, loadBenchmark, siteTypeOf, type Benchmark } from "@/lib/insights"
+import { brancheLabel } from "@/lib/branche"
 import { scoreTone } from "@/lib/score"
 import { markdownToHtml } from "@/lib/markdown"
 import { ActionPlanView } from "@/components/report/action-plan-view"
@@ -82,35 +83,69 @@ export function ReportView({
           {project.url}
           {project.client ? ` · ${project.client}` : ""} · {date}
         </div>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {project.branche && (
+            <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+              {brancheLabel(project.branche)}
+            </span>
+          )}
+          <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+            {siteTypeOf(project).label}
+          </span>
+        </div>
       </div>
 
       <ReportSummary project={project} data={data} />
 
-      {bench?.avgScore != null && data.score != null && (
-        <div className="rounded-lg border bg-muted/30 px-4 py-2.5 text-sm">
-          Gemiddeld over{" "}
-          <span className="font-medium text-foreground">{bench.siteCount}</span>{" "}
-          gereviewde sites:{" "}
-          <span className="font-medium text-foreground">
-            {bench.avgScore.toFixed(1)}
-          </span>
-          . Jouw score{" "}
-          <span className={cn("font-semibold", scoreColorText(data.score))}>
-            {data.score.toFixed(1)}
-          </span>{" "}
-          ligt{" "}
-          {data.score >= bench.avgScore ? (
-            <span className="font-medium text-emerald-600 dark:text-emerald-400">
-              boven het gemiddelde
-            </span>
-          ) : (
-            <span className="font-medium text-amber-600 dark:text-amber-400">
-              onder het gemiddelde
-            </span>
-          )}
-          .
-        </div>
-      )}
+      {data.score != null &&
+        (() => {
+          // Voorkeur: vergelijk met de eigen branche (als er genoeg data is),
+          // anders met het algemene gemiddelde over alle sites.
+          const brSlug = brancheOf(project)
+          const br = bench?.branches?.[brSlug]
+          const useBranche = !!br && br.n >= 3
+          const avg = useBranche ? br!.avg : bench?.avgScore
+          const n = useBranche ? br!.n : bench?.siteCount
+          if (avg == null || n == null) return null
+          const above = data.score >= avg
+          return (
+            <div className="rounded-lg border bg-muted/30 px-4 py-2.5 text-sm">
+              {useBranche ? (
+                <>
+                  Vergeleken met{" "}
+                  <span className="font-medium text-foreground">
+                    {brancheLabel(brSlug).toLowerCase()}
+                  </span>{" "}
+                  ({n} {n === 1 ? "site" : "sites"}): gemiddeld{" "}
+                </>
+              ) : (
+                <>
+                  Gemiddeld over{" "}
+                  <span className="font-medium text-foreground">{n}</span>{" "}
+                  gereviewde sites:{" "}
+                </>
+              )}
+              <span className="font-medium text-foreground">
+                {avg.toFixed(1)}
+              </span>
+              . Jouw score{" "}
+              <span className={cn("font-semibold", scoreColorText(data.score))}>
+                {data.score.toFixed(1)}
+              </span>{" "}
+              ligt{" "}
+              {above ? (
+                <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                  hierboven
+                </span>
+              ) : (
+                <span className="font-medium text-amber-600 dark:text-amber-400">
+                  hieronder
+                </span>
+              )}
+              .
+            </div>
+          )
+        })()}
 
       {aiPlan && (
         <section>

@@ -9,10 +9,13 @@ import { getDb } from "@/lib/firebase"
 import type { Project } from "@/lib/types"
 import { scoreTone } from "@/lib/score"
 import {
+  brancheOf,
   computeInsights,
+  computeSegments,
   generateInsightsSummary,
   loadInsightsSummary,
   saveBenchmark,
+  siteTypeOf,
   type StoredInsight,
 } from "@/lib/insights"
 import { useAuth } from "@/components/providers/auth-provider"
@@ -20,6 +23,13 @@ import { AppShell } from "@/components/app-shell"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Table,
@@ -43,6 +53,8 @@ export function InsightsDashboard() {
   const [projects, setProjects] = useState<Project[] | null>(null)
   const [stored, setStored] = useState<StoredInsight | null>(null)
   const [gen, setGen] = useState(false)
+  const [brancheF, setBrancheF] = useState("all")
+  const [siteF, setSiteF] = useState("all")
 
   useEffect(() => {
     if (!user || role !== "admin") return
@@ -62,27 +74,50 @@ export function InsightsDashboard() {
     })()
   }, [user, role])
 
-  const insights = useMemo(
+  // Volledige aggregatie (alle projecten) — voor benchmark, segmenten en de
+  // globale AI-analyse.
+  const fullInsights = useMemo(
     () => (projects ? computeInsights(projects) : null),
     [projects],
   )
+  const segments = useMemo(
+    () => (projects ? computeSegments(projects) : null),
+    [projects],
+  )
 
-  // Benchmark publiek opslaan zodat rapporten 'm kunnen tonen.
+  // Gefilterde subset voor de weergave (branche + sitetype).
+  const filtered = useMemo(() => {
+    if (!projects) return null
+    return projects.filter(
+      (p) =>
+        (brancheF === "all" || brancheOf(p) === brancheF) &&
+        (siteF === "all" || siteTypeOf(p).key === siteF),
+    )
+  }, [projects, brancheF, siteF])
+
+  const insights = useMemo(
+    () => (filtered ? computeInsights(filtered) : null),
+    [filtered],
+  )
+
+  const isFiltered = brancheF !== "all" || siteF !== "all"
+
+  // Benchmark + segmenten publiek opslaan zodat rapporten 'm kunnen tonen.
   useEffect(() => {
-    if (insights && insights.scoredCount > 0) {
-      saveBenchmark(insights).catch(() => {})
+    if (fullInsights && fullInsights.scoredCount > 0) {
+      saveBenchmark(fullInsights, segments ?? undefined).catch(() => {})
     }
-  }, [insights])
+  }, [fullInsights, segments])
 
   async function refresh() {
-    if (!insights) return
+    if (!fullInsights) return
     setGen(true)
     try {
-      const summary = await generateInsightsSummary(insights)
+      const summary = await generateInsightsSummary(fullInsights)
       setStored({
         summary,
         generatedAt: new Date().toISOString(),
-        siteCount: insights.scoredCount,
+        siteCount: fullInsights.scoredCount,
       })
       toast.success("AI-analyse vernieuwd")
     } catch (e) {
@@ -114,6 +149,61 @@ export function InsightsDashboard() {
           </div>
         ) : (
           <div className="space-y-6">
+            {/* Filters: branche + sitetype */}
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <Select value={brancheF} onValueChange={setBrancheF}>
+                <SelectTrigger size="sm" className="w-full sm:w-56">
+                  <SelectValue placeholder="Alle branches" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Alle branches</SelectItem>
+                  {segments?.branches.map((b) => (
+                    <SelectItem key={b.key} value={b.key}>
+                      {b.label} ({b.count})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={siteF} onValueChange={setSiteF}>
+                <SelectTrigger size="sm" className="w-full sm:w-56">
+                  <SelectValue placeholder="Alle sitetypes" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Alle sitetypes</SelectItem>
+                  {segments?.siteTypes.map((t) => (
+                    <SelectItem key={t.key} value={t.key}>
+                      {t.label} ({t.count})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {isFiltered && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setBrancheF("all")
+                    setSiteF("all")
+                  }}
+                  className="text-muted-foreground"
+                >
+                  Filters wissen
+                </Button>
+              )}
+              <span className="text-xs text-muted-foreground sm:ml-auto">
+                {insights.scoredCount} van {fullInsights?.scoredCount ?? 0} sites
+                {isFiltered ? " (gefilterd)" : ""}
+              </span>
+            </div>
+
+            {insights.scoredCount === 0 ? (
+              <Card>
+                <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                  Geen gescoorde sites in deze selectie.
+                </CardContent>
+              </Card>
+            ) : null}
+
             {/* Benchmark */}
             <div className="grid gap-4 sm:grid-cols-3">
               <Card>
@@ -209,6 +299,70 @@ export function InsightsDashboard() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Benchmark per branche */}
+            {segments && segments.branches.length > 0 && (
+              <div>
+                <h2 className="mb-1 text-lg font-semibold">
+                  Benchmark per branche
+                </h2>
+                <p className="mb-3 text-sm text-muted-foreground">
+                  Gemiddelde UX-score per sector. Klik om te filteren. Sectoren
+                  met minder dan 3 sites zijn indicatief (te weinig data).
+                </p>
+                <div className="space-y-1.5">
+                  {segments.branches.map((b) => {
+                    const active = brancheF === b.key
+                    const thin = b.count < 3
+                    return (
+                      <button
+                        key={b.key}
+                        onClick={() =>
+                          setBrancheF(active ? "all" : b.key)
+                        }
+                        className={cn(
+                          "flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left transition-colors hover:border-ring",
+                          active && "border-primary bg-primary/5",
+                        )}
+                      >
+                        <div className="w-24 shrink-0 truncate text-sm font-medium sm:w-40">
+                          {b.label}
+                        </div>
+                        <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-muted">
+                          <div
+                            className={cn(
+                              "h-full rounded-full",
+                              scoreTone(b.avgScore) === "good"
+                                ? "bg-emerald-500"
+                                : scoreTone(b.avgScore) === "ok"
+                                  ? "bg-amber-500"
+                                  : "bg-red-500",
+                            )}
+                            style={{ width: `${(b.avgScore / 10) * 100}%` }}
+                          />
+                        </div>
+                        <div
+                          className={cn(
+                            "w-9 shrink-0 text-right text-sm font-semibold tabular-nums",
+                            toneText[scoreTone(b.avgScore)],
+                          )}
+                        >
+                          {b.avgScore.toFixed(1)}
+                        </div>
+                        <div
+                          className={cn(
+                            "w-14 shrink-0 text-right text-xs tabular-nums text-muted-foreground",
+                            thin && "italic",
+                          )}
+                        >
+                          {b.count} {b.count === 1 ? "site" : "sites"}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Meest voorkomende problemen */}
             <div>

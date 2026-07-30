@@ -1,12 +1,35 @@
 import { doc, getDoc, setDoc } from "firebase/firestore"
 
 import { getDb } from "@/lib/firebase"
-import { buildReviewSteps, getDefaultModuleConfig } from "@/lib/modules"
+import {
+  buildReviewSteps,
+  getDefaultModuleConfig,
+  MODULE_REGISTRY,
+} from "@/lib/modules"
+import { brancheLabel, isBranche } from "@/lib/branche"
 import { projectScore } from "@/lib/score"
 import type { Project, Score } from "@/lib/types"
 
 const PROXY = process.env.NEXT_PUBLIC_AI_PROXY_URL
 const RANK: Record<string, number> = { good: 10, ok: 6, bad: 3 }
+
+/** Genormaliseerd sitetype van een project (voor segmentatie). */
+export function siteTypeOf(p: Project): { key: string; label: string } {
+  if (p.reviewType === "free-form")
+    return { key: "free-form", label: "Vrije review" }
+  if (p.selectedTemplate) {
+    const b = MODULE_REGISTRY.bundles[p.selectedTemplate]
+    const key = b?.page_type || p.selectedTemplate
+    const label = (b?.name_nl ?? "Quick Scan").replace(" Quick Scan", "")
+    return { key, label }
+  }
+  return { key: "full-audit", label: "Volledige audit" }
+}
+
+/** Branche-slug van een project, met terugval op "overig". */
+export function brancheOf(p: Project): string {
+  return isBranche(p.branche) ? p.branche! : "overig"
+}
 
 export interface ProblemStat {
   id: string
@@ -145,24 +168,98 @@ export function computeInsights(projects: Project[], minSample = 5): Insights {
   }
 }
 
+export interface SegmentStat {
+  key: string
+  label: string
+  avgScore: number
+  count: number
+}
+
+export interface Segments {
+  branches: SegmentStat[]
+  siteTypes: SegmentStat[]
+}
+
+/**
+ * Gemiddelde UX-score per branche en per sitetype. Basis voor de
+ * benchmark-vergelijking ("installatiebedrijven scoren gemiddeld 5.8").
+ */
+export function computeSegments(projects: Project[]): Segments {
+  const bAcc = new Map<string, { sum: number; n: number }>()
+  const tAcc = new Map<string, { sum: number; n: number; label: string }>()
+
+  for (const p of projects) {
+    const s = projectScore(p)
+    if (s == null) continue
+
+    const b = brancheOf(p)
+    const ba = bAcc.get(b) ?? { sum: 0, n: 0 }
+    ba.sum += s
+    ba.n++
+    bAcc.set(b, ba)
+
+    const t = siteTypeOf(p)
+    const ta = tAcc.get(t.key) ?? { sum: 0, n: 0, label: t.label }
+    ta.sum += s
+    ta.n++
+    tAcc.set(t.key, ta)
+  }
+
+  const branches: SegmentStat[] = [...bAcc.entries()]
+    .map(([key, v]) => ({
+      key,
+      label: brancheLabel(key),
+      avgScore: v.sum / v.n,
+      count: v.n,
+    }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+
+  const siteTypes: SegmentStat[] = [...tAcc.entries()]
+    .map(([key, v]) => ({
+      key,
+      label: v.label,
+      avgScore: v.sum / v.n,
+      count: v.n,
+    }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+
+  return { branches, siteTypes }
+}
+
 export interface Benchmark {
   avgScore: number | null
   siteCount: number
   generatedAt: string
   checks: Record<string, { r: number; s: number }>
+  // gemiddelde score + n per branche/sitetype (voor de rapport-benchmark)
+  branches?: Record<string, { avg: number; n: number }>
+  siteTypes?: Record<string, { avg: number; n: number }>
 }
 
 /** Slaat de benchmark op in een publiek leesbaar doc (voor in het rapport). */
-export async function saveBenchmark(ins: Insights): Promise<void> {
+export async function saveBenchmark(
+  ins: Insights,
+  seg?: Segments,
+): Promise<void> {
   const checks: Record<string, { r: number; s: number }> = {}
   for (const [id, v] of Object.entries(ins.checkRates)) {
     if (v.samples >= 3) checks[id] = { r: v.failRate, s: v.samples }
+  }
+  const branches: Record<string, { avg: number; n: number }> = {}
+  const siteTypes: Record<string, { avg: number; n: number }> = {}
+  for (const b of seg?.branches ?? []) {
+    branches[b.key] = { avg: b.avgScore, n: b.count }
+  }
+  for (const t of seg?.siteTypes ?? []) {
+    siteTypes[t.key] = { avg: t.avgScore, n: t.count }
   }
   await setDoc(doc(getDb(), "benchmarks", "global"), {
     avgScore: ins.avgScore,
     siteCount: ins.scoredCount,
     generatedAt: new Date().toISOString(),
     checks,
+    branches,
+    siteTypes,
   })
 }
 
