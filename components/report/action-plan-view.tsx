@@ -52,6 +52,7 @@ export function ActionPlanView({
   benchmark?: Benchmark | null
 }) {
   const plan = buildActionPlan(project)
+  const plain = project.plainActions ?? {}
   const [open, setOpen] = useState(false)
 
   if (plan.total === 0) return null
@@ -83,8 +84,12 @@ export function ActionPlanView({
                 <li key={it.id} className="flex items-start gap-2 text-sm">
                   <Wrench className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
                   <span>
-                    <span className="font-medium">{it.title}</span>{" "}
-                    <span className="text-muted-foreground">— {it.fix}</span>
+                    <span className="font-medium">
+                      {plain[it.id]?.title || it.title}
+                    </span>{" "}
+                    <span className="text-muted-foreground">
+                      {plain[it.id]?.action || it.fix}
+                    </span>
                   </span>
                 </li>
               ))}
@@ -100,6 +105,7 @@ export function ActionPlanView({
             item={it}
             rank={i + 1}
             benchmark={benchmark}
+            plain={plain[it.id]}
           />
         ))}
       </div>
@@ -125,13 +131,17 @@ function PlanRow({
   item,
   rank,
   benchmark,
+  plain,
 }: {
   item: PlanItem
   rank: number
   benchmark?: Benchmark | null
+  plain?: { title: string; action: string }
 }) {
   const bm = benchmark?.checks?.[item.id]
   const alsoPct = bm && bm.r > 0 ? Math.round(bm.r * 100) : null
+  const title = plain?.title || item.title
+  const fix = plain?.action || item.fix
   return (
     <Card>
       <CardContent className="py-3">
@@ -141,7 +151,7 @@ function PlanRow({
           </div>
           <div className="min-w-0 flex-1 space-y-1.5">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="font-medium">{item.title}</span>
+              <span className="font-medium">{title}</span>
               <Badge
                 className={cn(
                   "text-[10px]",
@@ -169,10 +179,10 @@ function PlanRow({
                 {item.businessImpact}
               </p>
             )}
-            {item.fix && (
+            {fix && (
               <p className="text-sm">
-                <span className="font-medium text-foreground">Aanpak: </span>
-                <span className="text-muted-foreground">{item.fix}</span>
+                <span className="font-medium text-foreground">Doe dit: </span>
+                <span className="text-muted-foreground">{fix}</span>
               </p>
             )}
             {item.notes && (

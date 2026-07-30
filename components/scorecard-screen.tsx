@@ -24,6 +24,7 @@ import type { Project } from "@/lib/types"
 import { buildReport } from "@/lib/report"
 import { buildActionPlan } from "@/lib/action-plan"
 import { translateFindings } from "@/lib/translate"
+import { generatePlainActions } from "@/lib/plain-language"
 import { rescanProject, scanDiff } from "@/lib/scan"
 import { SocialShareDialog } from "@/components/scorecard/social-share"
 import {
@@ -120,6 +121,26 @@ export function ScorecardScreen({ id }: { id: string }) {
     if (project.aiPlan) return
     autoGen.current = true
     generate()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project, data])
+
+  // Verbeterpunten naar gewone taal herschrijven (voor het klant-rapport).
+  const plainGen = useRef(false)
+  useEffect(() => {
+    if (!project || project.reviewType === "free-form" || !data) return
+    const plain = project.plainActions ?? {}
+    const missing = data.issues.some((f) => !plain[f.id])
+    if (!missing || plainGen.current) return
+    plainGen.current = true
+    generatePlainActions(project)
+      .then((res) => {
+        if (Object.keys(res).length) {
+          setProject((p) => (p ? { ...p, plainActions: res } : p))
+        }
+      })
+      .finally(() => {
+        plainGen.current = false
+      })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project, data])
 

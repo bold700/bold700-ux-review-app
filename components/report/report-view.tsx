@@ -153,10 +153,11 @@ export function ReportView({
         title={`Verbeterpunten (${data.issues.length})`}
         color="text-red-500"
         findings={data.issues}
-        empty="Geen verbeterpunten — netjes!"
+        empty="Geen verbeterpunten, netjes!"
         onImage={setPreview}
         devStatus={devStatus}
         onDevUpdate={onDevUpdate}
+        plain={project.plainActions}
       />
       <FindingSection
         title={`Sterke punten (${data.strengths.length})`}
@@ -201,6 +202,7 @@ function FindingSection({
   onImage,
   devStatus,
   onDevUpdate,
+  plain,
 }: {
   title: string
   color: string
@@ -209,6 +211,7 @@ function FindingSection({
   onImage: (src: string) => void
   devStatus?: DevStatusMap
   onDevUpdate?: (id: string, entry: DevEntry) => void
+  plain?: Record<string, { title: string; action: string }>
 }) {
   return (
     <section>
@@ -226,6 +229,8 @@ function FindingSection({
               onImage={onImage}
               entry={devStatus?.[f.id]}
               onDevUpdate={onDevUpdate}
+              plainTitle={plain?.[f.id]?.title}
+              plainAction={plain?.[f.id]?.action}
             />
           ))}
         </div>
@@ -239,11 +244,15 @@ function FindingItem({
   onImage,
   entry,
   onDevUpdate,
+  plainTitle,
+  plainAction,
 }: {
   f: Finding
   onImage: (src: string) => void
   entry?: DevEntry
   onDevUpdate?: (id: string, entry: DevEntry) => void
+  plainTitle?: string
+  plainAction?: string
 }) {
   const state = devStateOf(entry)
   const done = state === "done"
@@ -299,7 +308,7 @@ function FindingItem({
                 done && "text-muted-foreground line-through",
               )}
             >
-              {f.question}
+              {plainTitle || f.question}
             </span>
             <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
               {f.category}
@@ -318,6 +327,12 @@ function FindingItem({
           {f.notes && (
             <p className="mt-1.5 text-sm whitespace-pre-wrap text-muted-foreground">
               {f.notes}
+            </p>
+          )}
+          {plainAction && (
+            <p className="mt-1.5 text-sm">
+              <span className="font-medium text-foreground">Doe dit: </span>
+              <span className="text-muted-foreground">{plainAction}</span>
             </p>
           )}
           {f.images.length > 0 && (

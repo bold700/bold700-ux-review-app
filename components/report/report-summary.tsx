@@ -41,9 +41,11 @@ export function ReportSummary({
   // Belangrijkste kans: checklist gebruikt het geprioriteerde actieplan,
   // vrije review pakt het eerste verbeterpunt.
   const plan = buildActionPlan(project)
+  const plain = project.plainActions ?? {}
   const top = plan.priorities[0]
   const topFallback = data.issues[0]
-  const topTitle = top?.title || topFallback?.question
+  const topTitle =
+    (top && plain[top.id]?.title) || top?.title || topFallback?.question
   const topImpact = top?.businessImpact || topFallback?.notes
 
   const issues = data.issues.length
@@ -98,8 +100,8 @@ export function ReportSummary({
                 {topTitle}
                 {topImpact ? (
                   <span className="text-emerald-700/80 dark:text-emerald-300/80">
-                    {" "}
-                    — {topImpact}
+                    {". "}
+                    {topImpact}
                   </span>
                 ) : null}
               </p>

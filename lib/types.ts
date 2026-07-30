@@ -50,6 +50,8 @@ export interface Project {
   devMode?: boolean
   // Engelse vertaling van vrije-review-bevindingen (voor de developer-link)
   findingTranslations?: Record<string, { title?: string; note?: string }>
+  // Verbeterpunten in gewone taal (zonder jargon) voor het klant-rapport
+  plainActions?: Record<string, { title: string; action: string }>
   // professional/audit
   auditStatus?: string
   assignedTo?: string | null
