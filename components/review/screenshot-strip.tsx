@@ -76,8 +76,10 @@ export function ScreenshotStrip({
     return () => window.removeEventListener("paste", onPaste)
   }, [active])
 
-  // Leg het huidige tabblad/scherm vast (desktop). Op mobiel niet beschikbaar:
-  // val terug op de fotokiezer (waar de OS-screenshot in staat).
+  // Leg het huidige tabblad vast en snijd bij tot het preview-vlak (de site
+  // rechts). De preview is een cross-origin iframe, dus canvas-kopie kan niet;
+  // tab-capture + croppen op de iframe-positie geeft wél het gewenste beeld.
+  // Op mobiel niet beschikbaar: val terug op de fotokiezer.
   async function capture() {
     if (!canCapture) {
       inputRef.current?.click()
@@ -85,17 +87,54 @@ export function ScreenshotStrip({
     }
     try {
       const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
+        video: { frameRate: 1 },
         audio: false,
-      })
+        // Chrome: pre-selecteer het huidige tabblad
+        preferCurrentTab: true,
+        selfBrowserSurface: "include",
+      } as MediaStreamConstraints & Record<string, unknown>)
       const video = document.createElement("video")
       video.srcObject = stream
       await video.play()
       await new Promise((r) => requestAnimationFrame(() => r(null)))
+      await new Promise((r) => setTimeout(r, 60))
+
+      const vw = video.videoWidth
+      const vh = video.videoHeight
       const canvas = document.createElement("canvas")
-      canvas.width = video.videoWidth
-      canvas.height = video.videoHeight
-      canvas.getContext("2d")?.drawImage(video, 0, 0)
+      const ctx = canvas.getContext("2d")!
+
+      const target = document.querySelector(
+        '[data-capture-target="preview"]',
+      ) as HTMLElement | null
+
+      if (target && vw && vh) {
+        // Verhouding tussen video-pixels en CSS-pixels van het tabblad.
+        const sx = vw / window.innerWidth
+        const sy = vh / window.innerHeight
+        const rect = target.getBoundingClientRect()
+        const cx = Math.max(0, rect.left)
+        const cy = Math.max(0, rect.top)
+        const cw = Math.min(rect.right, window.innerWidth) - cx
+        const ch = Math.min(rect.bottom, window.innerHeight) - cy
+        canvas.width = Math.max(1, Math.round(cw * sx))
+        canvas.height = Math.max(1, Math.round(ch * sy))
+        ctx.drawImage(
+          video,
+          cx * sx,
+          cy * sy,
+          cw * sx,
+          ch * sy,
+          0,
+          0,
+          canvas.width,
+          canvas.height,
+        )
+      } else {
+        canvas.width = vw
+        canvas.height = vh
+        ctx.drawImage(video, 0, 0)
+      }
       stream.getTracks().forEach((t) => t.stop())
       setAnnotate({ src: canvas.toDataURL("image/jpeg", 0.92) })
     } catch {

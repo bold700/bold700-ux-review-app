@@ -106,6 +106,7 @@ export function LivePreview({
             key={reloadKey}
             src={src}
             title="Live preview"
+            data-capture-target="preview"
             className="h-full w-full"
             style={width ? { minHeight: "100%" } : undefined}
             sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
