@@ -183,7 +183,17 @@ async function handleLead(request, env, cors) {
 // Cron: due leads afhandelen
 // ─────────────────────────────────────────────────────────
 async function deliverDueLeads(env) {
-  const token = await getAccessToken(env);
+  let token;
+  try {
+    token = await getAccessToken(env);
+  } catch (e) {
+    console.error('CRON: kon geen Firestore-token krijgen (check FIREBASE_* secrets):', e);
+    return;
+  }
+  if (!token) {
+    console.error('CRON: geen access token (leeg). Check FIREBASE_CLIENT_EMAIL/PRIVATE_KEY.');
+    return;
+  }
   const now = Date.now();
 
   // Bewaartermijn afdwingen: leads ouder dan 12 maanden opschonen (AVG).
@@ -192,10 +202,12 @@ async function deliverDueLeads(env) {
   );
 
   const leads = await queryDueLeads(env, token, now);
+  console.log(`CRON: ${leads.length} lead(s) met deliverAtMs <= nu gevonden.`);
 
   for (const lead of leads) {
     if (lead.emailedAtMs) continue;
     if (lead.scanStatus === 'done') {
+      console.log(`CRON: resultaten-mail naar ${lead.email} (${lead.url})`);
       await sendEmail(env, {
         to: lead.email,
         subject: `Je UX-review van ${cleanUrl(lead.url)} is klaar`,
