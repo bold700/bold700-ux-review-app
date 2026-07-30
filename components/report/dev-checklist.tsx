@@ -58,6 +58,10 @@ export function DevChecklist({
           {project.name || project.url} · {items.length} item
           {items.length !== 1 ? "s" : ""} to fix, ordered by priority.
         </p>
+        <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Check className="h-3.5 w-3.5 rounded-[3px] border border-current p-px" />
+          Tick the box on the left when a fix is shipped.
+        </p>
       </div>
 
       <div className="rounded-xl border bg-muted/30 p-3 text-sm">
@@ -157,17 +161,28 @@ function DevRow({
           <button
             onClick={() => update({ status: done ? "open" : "done" })}
             aria-label={done ? "Mark as open" : "Mark as done"}
+            title={done ? "Mark as open" : "Mark as done"}
             className={cn(
-              "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
+              "group/cb mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md border-2 transition-colors",
               done
                 ? "border-emerald-500 bg-emerald-500 text-white"
-                : "border-input hover:border-emerald-500",
+                : "border-input hover:border-emerald-500 hover:bg-emerald-500/10",
             )}
           >
-            {done ? <Check className="h-4 w-4" /> : <span className="text-xs font-semibold text-muted-foreground">{rank}</span>}
+            <Check
+              className={cn(
+                "h-4 w-4 transition-opacity",
+                done
+                  ? "opacity-100"
+                  : "text-emerald-500 opacity-0 group-hover/cb:opacity-60",
+              )}
+            />
           </button>
           <div className="min-w-0 flex-1 space-y-1.5">
             <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold text-muted-foreground">
+                {rank}.
+              </span>
               <span
                 className={cn(
                   "font-medium",
