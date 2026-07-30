@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Check, HelpCircle, MessageSquarePlus } from "lucide-react"
+import { Check, HelpCircle, MessageSquarePlus, X } from "lucide-react"
 
 import type { Project } from "@/lib/types"
 import { buildDevItems, type DevItem } from "@/lib/dev-items"
@@ -32,6 +32,14 @@ export function DevChecklist({
 }) {
   const items = buildDevItems(project)
   const done = items.filter((i) => devStateOf(devStatus[i.id]) === "done").length
+  const [preview, setPreview] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!preview) return
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setPreview(null)
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [preview])
 
   if (items.length === 0) {
     return (
@@ -75,9 +83,34 @@ export function DevChecklist({
             rank={i + 1}
             entry={devStatus[it.id]}
             onDevUpdate={onDevUpdate}
+            onImage={setPreview}
           />
         ))}
       </div>
+
+      {preview && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setPreview(null)}
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={preview}
+            alt="Screenshot"
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-full max-w-full rounded-lg object-contain shadow-2xl"
+          />
+          <button
+            onClick={() => setPreview(null)}
+            aria-label="Sluiten"
+            className="absolute top-4 right-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -87,11 +120,13 @@ function DevRow({
   rank,
   entry,
   onDevUpdate,
+  onImage,
 }: {
   item: DevItem
   rank: number
   entry?: DevEntry
   onDevUpdate: (id: string, entry: DevEntry) => void
+  onImage: (src: string) => void
 }) {
   const state = devStateOf(entry)
   const done = state === "done"
@@ -159,6 +194,21 @@ function DevRow({
               <p className="text-xs text-muted-foreground">
                 Context: {item.title}
               </p>
+            )}
+
+            {item.images.length > 0 && (
+              <div className="flex flex-wrap gap-2 pt-1">
+                {item.images.map((src, i) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={i}
+                    src={src}
+                    alt="Screenshot"
+                    onClick={() => onImage(src)}
+                    className="h-24 w-32 cursor-zoom-in rounded-md border object-cover"
+                  />
+                ))}
+              </div>
             )}
 
             <div className="flex flex-wrap items-center gap-2 pt-1">

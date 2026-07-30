@@ -9,6 +9,19 @@ export interface DevItem {
   severity: string // English label: Critical | Important | Minor
   effort: string // English label: Low | Medium | High | ""
   category: string
+  images: string[]
+}
+
+function imagesOf(a?: {
+  screenshotUrls?: string[]
+  screenshots?: string[]
+  screenshot?: string
+}): string[] {
+  if (!a) return []
+  if (a.screenshotUrls?.length) return a.screenshotUrls
+  if (a.screenshots?.length) return a.screenshots
+  if (a.screenshot) return [a.screenshot]
+  return []
 }
 
 const SEV_EN: Record<string, string> = {
@@ -28,6 +41,8 @@ const EFFORT_EN: Record<string, string> = {
  * AI-vertaling (findingTranslations), met terugval op de NL-tekst.
  */
 export function buildDevItems(project: Project): DevItem[] {
+  const answers = project.answers ?? {}
+
   if (project.reviewType === "free-form") {
     const tr = project.findingTranslations ?? {}
     const report = buildReport(project)
@@ -38,6 +53,7 @@ export function buildDevItems(project: Project): DevItem[] {
       severity: f.severity === "high" ? "Important" : "Minor",
       effort: "",
       category: f.category,
+      images: f.images,
     }))
   }
 
@@ -48,5 +64,6 @@ export function buildDevItems(project: Project): DevItem[] {
     severity: SEV_EN[it.severityLabel] ?? it.severityLabel,
     effort: EFFORT_EN[it.effortLabel] ?? it.effortLabel,
     category: it.category,
+    images: imagesOf(answers[it.id]),
   }))
 }
