@@ -3,10 +3,12 @@
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import {
+  Check,
   ExternalLink,
   Loader2,
   MessageSquare,
   RefreshCw,
+  Send,
   Trash2,
 } from "lucide-react"
 import { toast } from "sonner"
@@ -15,6 +17,7 @@ import {
   fetchLeads,
   updateLead,
   deleteLead,
+  sendLeadResult,
   runLeadScan,
   FOLLOWUP_LABELS,
   SCAN_LABELS,
@@ -99,6 +102,7 @@ export function LeadsDashboard() {
   const [noteLead, setNoteLead] = useState<Lead | null>(null)
   const [toDelete, setToDelete] = useState<Lead | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [sendingId, setSendingId] = useState<string | null>(null)
 
   async function load() {
     try {
@@ -149,6 +153,27 @@ export function LeadsDashboard() {
     toast.info("Scan opnieuw gestart")
     await runLeadScan({ ...l }, l.userId ?? user.uid)
     load()
+  }
+
+  async function sendNow(l: Lead) {
+    setSendingId(l.id)
+    try {
+      await sendLeadResult(l)
+      setLeads((prev) =>
+        (prev ?? []).map((x) =>
+          x.id === l.id
+            ? { ...x, scanStatus: "sent", emailedAtMs: Date.now() }
+            : x,
+        ),
+      )
+      toast.success("Resultaten-mail verstuurd", { description: l.email })
+    } catch (e) {
+      toast.error("Versturen mislukt", {
+        description: e instanceof Error ? e.message : undefined,
+      })
+    } finally {
+      setSendingId(null)
+    }
   }
 
   async function confirmDelete() {
@@ -223,6 +248,7 @@ export function LeadsDashboard() {
                   </TableHead>
                   <TableHead>Scan</TableHead>
                   <TableHead className="text-right">Score</TableHead>
+                  <TableHead>Mail</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Noot</TableHead>
                   <TableHead />
@@ -273,6 +299,37 @@ export function LeadsDashboard() {
                       )}
                     >
                       {l.score == null ? "—" : l.score.toFixed(1)}
+                    </TableCell>
+                    <TableCell>
+                      {l.scanStatus === "sent" ? (
+                        <span
+                          className="inline-flex items-center gap-1 text-xs font-medium text-emerald-500"
+                          title={
+                            l.emailedAtMs
+                              ? `Verstuurd op ${new Date(l.emailedAtMs).toLocaleString("nl-NL")}`
+                              : "Verstuurd"
+                          }
+                        >
+                          <Check className="h-3.5 w-3.5" /> Verstuurd
+                        </span>
+                      ) : l.scanStatus === "done" ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7"
+                          disabled={sendingId === l.id}
+                          onClick={() => sendNow(l)}
+                        >
+                          {sendingId === l.id ? (
+                            <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Send className="mr-1 h-3.5 w-3.5" />
+                          )}
+                          Verstuur
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>

@@ -36,6 +36,11 @@ export default {
       return handleDevEvent(request, env, corsHeaders);
     }
 
+    // ── POST /send-result → handmatig de resultaten-mail sturen ──
+    if (request.method === 'POST' && url.pathname === '/send-result') {
+      return handleSendResult(request, env, corsHeaders);
+    }
+
     // ── GET /fetch?url=... → Page fetcher voor Auto-Scan ──
     if (request.method === 'GET' && url.pathname === '/fetch') {
       const targetUrl = url.searchParams.get('url');
@@ -215,6 +220,28 @@ async function handleDevEvent(request, env, cors) {
       subject,
       html: `<p>${intro}</p>${detail}
         <p><a href="${esc(reportUrl)}">Bekijk het rapport</a></p>`,
+    });
+    return new Response(JSON.stringify({ ok: true }), {
+      headers: { 'Content-Type': 'application/json', ...cors },
+    });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: String(e) }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', ...cors },
+    });
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// Handmatig: resultaten-mail sturen (vanuit het leads-dashboard)
+// ─────────────────────────────────────────────────────────
+async function handleSendResult(request, env, cors) {
+  try {
+    const lead = await request.json(); // {email,name,url,score,reportUrl,note}
+    await sendEmail(env, {
+      to: lead.email,
+      subject: `Je UX-review van ${cleanUrl(lead.url)} is klaar`,
+      html: applicantHtml(env, lead),
     });
     return new Response(JSON.stringify({ ok: true }), {
       headers: { 'Content-Type': 'application/json', ...cors },

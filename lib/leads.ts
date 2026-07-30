@@ -252,6 +252,29 @@ export async function updateLead(
   await updateDoc(doc(getDb(), "leads", id), patch)
 }
 
+/**
+ * Verstuurt handmatig de resultaten-mail naar de aanvrager (via de Worker) en
+ * markeert de lead als verstuurd. Gebruik dit vanuit het leads-dashboard.
+ */
+export async function sendLeadResult(lead: Lead): Promise<void> {
+  if (!PROXY) throw new Error("Mailservice niet ingesteld (proxy ontbreekt).")
+  const base = PROXY.replace(/\/$/, "")
+  const resp = await fetch(`${base}/send-result`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      email: lead.email,
+      name: lead.name,
+      url: lead.url,
+      score: lead.score,
+      reportUrl: lead.reportUrl,
+      note: lead.note ?? "",
+    }),
+  })
+  if (!resp.ok) throw new Error(`Verzenden mislukt (${resp.status})`)
+  await updateLead(lead.id, { scanStatus: "sent", emailedAtMs: Date.now() })
+}
+
 /** Verwijdert een lead (recht op vergetelheid) én het bijbehorende scan-project. */
 export async function deleteLead(
   id: string,
