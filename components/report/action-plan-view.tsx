@@ -27,10 +27,11 @@ export function ActionPlanView({ project }: { project: Project }) {
   return (
     <section className="space-y-4">
       <div>
-        <h2 className="text-lg font-semibold">Actieplan</h2>
+        <h2 className="text-lg font-semibold">Wat je hiermee wint</h2>
         <p className="text-sm text-muted-foreground">
-          {plan.total} verbeterpunt{plan.total !== 1 ? "en" : ""}, geprioriteerd
-          op impact en benodigde inspanning, met een concrete fix per punt.
+          {plan.total} kans{plan.total !== 1 ? "en" : ""} om meer uit je website
+          te halen — geprioriteerd op wat het oplevert versus de moeite. Per punt
+          zie je wat je ermee wint en hoe je het aanpakt.
         </p>
       </div>
 
@@ -107,9 +108,15 @@ function PlanRow({ item, rank }: { item: PlanItem; rank: number }) {
                 Inspanning: {item.effortLabel}
               </Badge>
             </div>
+            {item.businessImpact && (
+              <p className="rounded-md bg-emerald-500/10 px-2.5 py-1.5 text-sm text-emerald-700 dark:text-emerald-300">
+                <span className="font-semibold">Wat het oplevert: </span>
+                {item.businessImpact}
+              </p>
+            )}
             {item.fix && (
               <p className="text-sm">
-                <span className="font-medium text-foreground">Fix: </span>
+                <span className="font-medium text-foreground">Aanpak: </span>
                 <span className="text-muted-foreground">{item.fix}</span>
               </p>
             )}
