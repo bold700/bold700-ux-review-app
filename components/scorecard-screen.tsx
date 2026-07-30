@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { doc, getDoc, updateDoc } from "firebase/firestore"
 import {
@@ -82,6 +82,26 @@ export function ScorecardScreen({ id }: { id: string }) {
     ? data.issues.filter((f) => devStateOf(devStatus[f.id]) === "done").length
     : 0
 
+  // Vrije review: vertaal (nieuwe) bevindingen naar Engels voor de developer-link.
+  const translating = useRef(false)
+  useEffect(() => {
+    if (!project || project.reviewType !== "free-form" || !data) return
+    const tr = project.findingTranslations ?? {}
+    const missing = data.issues.some((f) => !tr[f.id]?.title)
+    if (!missing || translating.current) return
+    translating.current = true
+    translateFindings(project)
+      .then((res) => {
+        if (Object.keys(res).length) {
+          setProject((p) => (p ? { ...p, findingTranslations: res } : p))
+        }
+      })
+      .finally(() => {
+        translating.current = false
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project, data])
+
   async function devUpdate(findingId: string, entry: DevEntry) {
     const prev = devStatus
     const merged: DevEntry = {
@@ -136,11 +156,8 @@ export function ScorecardScreen({ id }: { id: string }) {
       await navigator.clipboard.writeText(link).catch(() => {})
       setShareLink(link)
 
-      // Vrije review: bevindingen naar Engels vertalen voor de developer-link.
-      if (
-        project.reviewType === "free-form" &&
-        !project.findingTranslations
-      ) {
+      // Vrije review: (opnieuw) vertalen zodat ook nieuwe bevindingen meegaan.
+      if (project.reviewType === "free-form") {
         const tr = await translateFindings(project)
         if (Object.keys(tr).length) {
           setProject((p) => (p ? { ...p, findingTranslations: tr } : p))
