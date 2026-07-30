@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { doc, setDoc } from "firebase/firestore"
 import {
@@ -21,6 +21,7 @@ import {
   MODULE_REGISTRY,
   quickScanBundles,
 } from "@/lib/modules"
+import { BRANCHES, detectBranche } from "@/lib/branche"
 import { fetchPageText } from "@/lib/page-fetch"
 import { suggestReview } from "@/lib/suggest-review"
 import { normalizeUrl, projectNameFromUrl } from "@/lib/url"
@@ -30,6 +31,13 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 
 type Source = "url" | "figma"
@@ -45,14 +53,51 @@ export function NewProjectWizard() {
   const [url, setUrl] = useState("")
   const [nameEdited, setNameEdited] = useState(false)
   const [name, setName] = useState("")
+  const [branche, setBranche] = useState("")
+  const [brancheEdited, setBrancheEdited] = useState(false)
+  const [brancheBusy, setBrancheBusy] = useState(false)
   const [busy, setBusy] = useState(false)
 
   const bundles = useMemo(() => quickScanBundles(source), [source])
+
+  // Pagina-tekst cachen per URL zodat branche-detectie én de slimme scan
+  // dezelfde fetch hergebruiken (geen dubbele calls).
+  const pageCache = useRef<{ url: string; text: string } | null>(null)
+  async function getPageText(u: string): Promise<string> {
+    const key = u.trim()
+    if (pageCache.current?.url === key) return pageCache.current.text
+    const text = await fetchPageText(key)
+    pageCache.current = { url: key, text }
+    return text
+  }
 
   function onUrlChange(v: string) {
     setUrl(v)
     if (!nameEdited) setName(projectNameFromUrl(v))
   }
+
+  // Branche automatisch voorstellen zodra stap 3 in beeld komt met een URL.
+  const detectedFor = useRef<string>("")
+  useEffect(() => {
+    if (source !== "url") return
+    if (step !== 3) return
+    const key = url.trim()
+    if (!key || brancheEdited || detectedFor.current === key) return
+    detectedFor.current = key
+    setBrancheBusy(true)
+    ;(async () => {
+      try {
+        const text = await getPageText(key)
+        const slug = await detectBranche(key, text)
+        if (slug && !brancheEdited) setBranche(slug)
+      } catch {
+        // stil: gebruiker kiest desnoods handmatig
+      } finally {
+        setBrancheBusy(false)
+      }
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, url, source, brancheEdited])
 
   async function create() {
     if (!user) return
@@ -67,18 +112,24 @@ export function NewProjectWizard() {
       // Slimme scan: laat AI de pagina herkennen en de juiste scan kiezen.
       let effectiveTemplate = template
       let autoRun = false
+      let brancheSlug = branche
       if (template === AUTO) {
         const t = toast.loading("AI analyseert de pagina…")
-        const pageText = await fetchPageText(url.trim())
+        const pageText = await getPageText(url.trim())
         const sug = await suggestReview(url.trim(), pageText)
         effectiveTemplate = sug.bundleId
         autoRun = true
+        // Branche nog niet bekend? Detecteer 'm nu op dezelfde pagina-tekst.
+        if (!brancheSlug) {
+          brancheSlug = (await detectBranche(url.trim(), pageText)) ?? ""
+        }
         const b = MODULE_REGISTRY.bundles[sug.bundleId]
         toast.success(`Herkend: ${b?.name_nl ?? "Review"}`, {
           id: t,
           description: sug.reason || undefined,
         })
       }
+      if (!brancheSlug) brancheSlug = "overig"
 
       const bundleId = effectiveTemplate === FULL_AUDIT ? null : effectiveTemplate
       const bundle = bundleId ? MODULE_REGISTRY.bundles[bundleId] : null
@@ -98,6 +149,8 @@ export function NewProjectWizard() {
         currentStep: 0,
         createdAt: new Date().toISOString(),
         selectedTemplate: bundleId,
+        branche: brancheSlug,
+        brancheAuto: !brancheEdited,
         moduleConfig: bundleId
           ? getBundleConfig(bundleId)
           : getDefaultModuleConfig(),
@@ -253,6 +306,41 @@ export function NewProjectWizard() {
                     Domein: {normalizeUrl(url)}
                   </p>
                 )}
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="np-branche" className="flex items-center gap-2">
+                  Branche
+                  {brancheBusy ? (
+                    <span className="flex items-center gap-1 text-xs font-normal text-muted-foreground">
+                      <Loader2 className="h-3 w-3 animate-spin" /> AI herkent…
+                    </span>
+                  ) : branche && !brancheEdited ? (
+                    <span className="flex items-center gap-1 text-xs font-normal text-primary">
+                      <Sparkles className="h-3 w-3" /> AI-voorstel
+                    </span>
+                  ) : null}
+                </Label>
+                <Select
+                  value={branche}
+                  onValueChange={(v) => {
+                    setBranche(v)
+                    setBrancheEdited(true)
+                  }}
+                >
+                  <SelectTrigger id="np-branche" className="w-full">
+                    <SelectValue placeholder="Kies een branche…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BRANCHES.map((b) => (
+                      <SelectItem key={b.slug} value={b.slug}>
+                        {b.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Waar het bedrijf in zit. Gebruikt voor de branche-benchmark.
+                </p>
               </div>
             </div>
           </Section>

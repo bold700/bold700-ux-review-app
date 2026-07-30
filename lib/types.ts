@@ -32,6 +32,9 @@ export interface Project {
   sourceType?: "url" | "figma"
   reviewType?: "free-form"
   selectedTemplate?: string | null
+  // branche/sector uit de vaste taxonomie (lib/branche.ts) — voor benchmarks
+  branche?: string
+  brancheAuto?: boolean // true = door AI gezet, false = handmatig bevestigd
   moduleConfig?: unknown
   answers?: Record<string, Answer>
   currentStep?: number

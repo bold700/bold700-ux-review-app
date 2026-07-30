@@ -17,6 +17,7 @@ import {
   MODULE_REGISTRY,
 } from "@/lib/modules"
 import { fetchPage } from "@/lib/page-fetch"
+import { detectBranche } from "@/lib/branche"
 import { suggestReview } from "@/lib/suggest-review"
 import { runAutoScan } from "@/lib/auto-scan"
 import { runAiReview } from "@/lib/ai-review"
@@ -185,6 +186,7 @@ export async function runLeadScan(
     const sug = await suggestReview(url, page.text)
     const bundleId = sug.bundleId
     const bundle = MODULE_REGISTRY.bundles[bundleId]
+    const brancheSlug = (await detectBranche(url, page.text)) ?? "overig"
 
     const now = Date.now()
     const projectId = `proj_${now}_${Math.random().toString(36).slice(2, 8)}`
@@ -202,6 +204,8 @@ export async function runLeadScan(
       currentStep: 0,
       createdAt: new Date(now).toISOString(),
       selectedTemplate: bundleId,
+      branche: brancheSlug,
+      brancheAuto: true,
       moduleConfig: getBundleConfig(bundleId),
       public: true,
       sharedAt: new Date(now).toISOString(),
