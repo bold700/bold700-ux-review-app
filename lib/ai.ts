@@ -50,32 +50,7 @@ ${strengthsSummary}
 
 ${hasIssues ? `VERBETERPUNTEN (${data.issues.length}):\n${issuesSummary}` : "VERBETERPUNTEN: geen — alle beoordeelde punten zijn positief."}
 
-Maak een klantgericht rapport met deze structuur:
-
-## Samenvatting
-2-3 zinnen over de staat van de website. Begin positief${hasIssues ? ", benoem daarna wat er beter kan" : ""}.
-
-## Wat gaat goed
-Benoem de sterke punten concreet en koppel ze aan wat het de business oplevert.
-${hasIssues ? `
-## Top Prioriteiten
-De 3-5 belangrijkste acties. Per actie:
-### [Korte titel]
-**Wat:** (1 zin)
-**Waarom:** (business impact)
-**Impact:** Hoog/Midden/Laag
-**Effort:** Klein/Middel/Groot
-
-## Quick Wins
-Snel te fixen met groot effect. Max 5 bullets.
-
-## Overige Aanbevelingen
-De rest, gegroepeerd en kort.`
-    : `
-## Kansen om nog beter te worden
-2-4 optionele, subtiele suggesties. Houd het licht en positief.`}
-
-Regels: Schrijf in het Nederlands, geen technische termen, focus op wat het OPLEVERT, wees concreet maar kort, gebruik Markdown.`
+Schrijf een KORTE klantgerichte samenvatting: 3 tot 5 zinnen, één alinea, geen koppen, geen opsomming. Begin positief${hasIssues ? ", benoem daarna de belangrijkste kans en wat het oplevert (meer conversie/leads/vertrouwen)" : " en benoem waarom de site sterk staat"}. Schrijf in het Nederlands, geen vakjargon, focus op wat het OPLEVERT. Maximaal ~80 woorden.`
 
   const imageBlocks: Block[] = []
   for (const it of [...data.issues, ...data.strengths]) {

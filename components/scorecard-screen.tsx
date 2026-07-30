@@ -14,7 +14,6 @@ import {
   Megaphone,
   RefreshCw,
   Share2,
-  Sparkles,
   TrendingDown,
   TrendingUp,
 } from "lucide-react"
@@ -106,6 +105,16 @@ export function ScorecardScreen({ id }: { id: string }) {
       .finally(() => {
         translating.current = false
       })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project, data])
+
+  // AI-samenvatting automatisch genereren als die er nog niet is.
+  const autoGen = useRef(false)
+  useEffect(() => {
+    if (!project || !data || genBusy || autoGen.current) return
+    if (project.aiPlan) return
+    autoGen.current = true
+    generate()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project, data])
 
@@ -348,47 +357,24 @@ export function ScorecardScreen({ id }: { id: string }) {
           </Card>
         )}
 
-        {/* Stat-tegels */}
-        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {/* Stat-tegels (score staat in de samenvatting hieronder) */}
+        <div className="mb-6 grid grid-cols-3 gap-3">
           <Stat
-            label="Totaalscore"
-            value={data.score == null ? "—" : data.score.toFixed(1)}
-            className={scoreColor[scoreTone(data.score)]}
-          />
-          <Stat label="Verbeterpunten" value={data.issues.length} />
-          <Stat
-            label="Verwerkt door dev"
-            value={
-              data.issues.length ? `${devDone}/${data.issues.length}` : "—"
+            label="Verbeterpunten"
+            value={data.issues.length}
+            sub={
+              data.issues.length
+                ? `${devDone}/${data.issues.length} verwerkt door dev`
+                : undefined
             }
+          />
+          <Stat
+            label="Quick wins"
+            value={data.counts.quickWins}
             className="text-emerald-500"
           />
           <Stat label="Sterke punten" value={data.strengths.length} />
         </div>
-
-        {/* AI-samenvatting (optioneel, naast het vaste actieplan hieronder) */}
-        <Card className="mb-6 print:hidden">
-          <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
-            <div className="flex items-center gap-2 text-sm">
-              <Sparkles className="h-4 w-4 text-primary" />
-              <span className="font-medium">AI-samenvatting</span>
-              <span className="text-muted-foreground">
-                — optionele klantgerichte tekst bovenop het actieplan
-              </span>
-            </div>
-            <Button onClick={generate} disabled={genBusy} size="sm" variant="outline">
-              {genBusy ? (
-                <>
-                  <Loader2 className="mr-1 h-4 w-4 animate-spin" /> Genereren…
-                </>
-              ) : project.aiPlan ? (
-                "Opnieuw genereren"
-              ) : (
-                "Genereer AI-samenvatting"
-              )}
-            </Button>
-          </CardContent>
-        </Card>
 
         <ReportView
           project={project}
@@ -505,16 +491,21 @@ function Stat({
   label,
   value,
   className,
+  sub,
 }: {
   label: string
   value: string | number
   className?: string
+  sub?: string
 }) {
   return (
     <Card>
       <CardContent className="py-4">
         <div className={cn("text-2xl font-bold", className)}>{value}</div>
         <div className="text-xs text-muted-foreground">{label}</div>
+        {sub && (
+          <div className="mt-0.5 text-[11px] text-emerald-500">{sub}</div>
+        )}
       </CardContent>
     </Card>
   )

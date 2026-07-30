@@ -150,11 +150,6 @@ export function Dashboard() {
     }
   }
 
-  const stats = useMemo(() => {
-    const list = projects ?? []
-    return { total: list.length, done: list.filter(isDone).length }
-  }, [projects])
-
   const visible = useMemo(() => {
     let list = projects ?? []
     const term = q.trim().toLowerCase()
@@ -248,11 +243,6 @@ export function Dashboard() {
           />
         ) : (
           <>
-            <div className="mb-6 grid grid-cols-2 gap-4 sm:max-w-md">
-              <StatCard label="Reviews" value={projects ? stats.total : null} />
-              <StatCard label="Afgerond" value={projects ? stats.done : null} />
-            </div>
-
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="relative sm:max-w-xs">
                 <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -643,15 +633,3 @@ function SegGroup<T extends string>({
   )
 }
 
-function StatCard({ label, value }: { label: string; value: number | null }) {
-  return (
-    <Card>
-      <CardContent className="py-4">
-        <div className="text-2xl font-bold">
-          {value == null ? <Skeleton className="h-7 w-10" /> : value}
-        </div>
-        <div className="text-xs text-muted-foreground">{label}</div>
-      </CardContent>
-    </Card>
-  )
-}

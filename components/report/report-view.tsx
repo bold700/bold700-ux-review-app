@@ -7,7 +7,6 @@ import type { Project } from "@/lib/types"
 import type { DevEntry, DevStatusMap } from "@/lib/dev-status"
 import { devStateOf } from "@/lib/dev-status"
 import type { Finding, ReportData } from "@/lib/report"
-import { scoreTone } from "@/lib/score"
 import { markdownToHtml } from "@/lib/markdown"
 import { ActionPlanView } from "@/components/report/action-plan-view"
 import { ReportSummary } from "@/components/report/report-summary"
@@ -19,12 +18,6 @@ const dot: Record<string, string> = {
   ok: "bg-amber-500",
   bad: "bg-red-500",
   nvt: "bg-muted-foreground",
-}
-const scoreColor: Record<string, string> = {
-  good: "text-emerald-500",
-  ok: "text-amber-500",
-  bad: "text-red-500",
-  na: "text-muted-foreground",
 }
 
 export function ReportView({
@@ -61,34 +54,17 @@ export function ReportView({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4 border-b pb-4">
-        <div className="min-w-0">
-          <div className="text-xs tracking-wide text-muted-foreground uppercase">
-            UX Review rapport
-          </div>
-          <h1 className="truncate text-2xl font-semibold">
-            {project.name || project.url || "UX Review"}
-          </h1>
-          <div className="mt-1 truncate text-sm text-muted-foreground">
-            {project.url}
-            {project.client ? ` · ${project.client}` : ""} · {date}
-          </div>
+      <div className="border-b pb-4">
+        <div className="text-xs tracking-wide text-muted-foreground uppercase">
+          UX Review rapport
         </div>
-        {data.score != null && (
-          <div className="text-center">
-            <div
-              className={cn(
-                "text-4xl font-bold",
-                scoreColor[scoreTone(data.score)],
-              )}
-            >
-              {data.score.toFixed(1)}
-            </div>
-            <div className="text-xs tracking-wide text-muted-foreground uppercase">
-              Score
-            </div>
-          </div>
-        )}
+        <h1 className="truncate text-2xl font-semibold">
+          {project.name || project.url || "UX Review"}
+        </h1>
+        <div className="mt-1 truncate text-sm text-muted-foreground">
+          {project.url}
+          {project.client ? ` · ${project.client}` : ""} · {date}
+        </div>
       </div>
 
       <ReportSummary project={project} data={data} />
