@@ -47,7 +47,7 @@ export function ReportSummary({
   const topImpact = top?.businessImpact || topFallback?.notes
 
   const issues = data.issues.length
-  const quick = data.counts.quickWins
+  const quick = plan.quickWins.length
   const strengths = data.strengths.length
 
   return (

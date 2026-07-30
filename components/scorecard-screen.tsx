@@ -22,6 +22,7 @@ import { toast } from "sonner"
 import { getDb } from "@/lib/firebase"
 import type { Project } from "@/lib/types"
 import { buildReport } from "@/lib/report"
+import { buildActionPlan } from "@/lib/action-plan"
 import { translateFindings } from "@/lib/translate"
 import { rescanProject, scanDiff } from "@/lib/scan"
 import { SocialShareDialog } from "@/components/scorecard/social-share"
@@ -83,6 +84,10 @@ export function ScorecardScreen({ id }: { id: string }) {
   }, [id])
 
   const data = useMemo(() => (project ? buildReport(project) : null), [project])
+  const quickWins = useMemo(
+    () => (project ? buildActionPlan(project).quickWins.length : 0),
+    [project],
+  )
   const diff = useMemo(() => (project ? scanDiff(project) : null), [project])
   const devDone = data
     ? data.issues.filter((f) => devStateOf(devStatus[f.id]) === "done").length
@@ -370,7 +375,7 @@ export function ScorecardScreen({ id }: { id: string }) {
           />
           <Stat
             label="Quick wins"
-            value={data.counts.quickWins}
+            value={quickWins}
             className="text-emerald-500"
           />
           <Stat label="Sterke punten" value={data.strengths.length} />
