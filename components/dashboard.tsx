@@ -9,6 +9,7 @@ import {
   getDocs,
   orderBy,
   query,
+  updateDoc,
   where,
 } from "firebase/firestore"
 import {
@@ -24,6 +25,7 @@ import { toast } from "sonner"
 
 import { getDb } from "@/lib/firebase"
 import { MODULE_REGISTRY } from "@/lib/modules"
+import { BRANCHES, brancheLabel } from "@/lib/branche"
 import type { Project } from "@/lib/types"
 import { projectScore, scoreTone } from "@/lib/score"
 import { normalizeUrl } from "@/lib/url"
@@ -137,6 +139,24 @@ export function Dashboard() {
     }
   }, [user, role])
 
+  async function updateBranche(projectId: string, slug: string) {
+    // optimistisch bijwerken
+    setProjects((prev) =>
+      (prev ?? []).map((p) =>
+        p.id === projectId ? { ...p, branche: slug, brancheAuto: false } : p,
+      ),
+    )
+    try {
+      await updateDoc(doc(getDb(), "projects", projectId), {
+        branche: slug,
+        brancheAuto: false,
+      })
+    } catch (e) {
+      console.error("[dashboard] branche", e)
+      toast.error("Branche opslaan mislukt")
+    }
+  }
+
   async function confirmDelete() {
     if (!toDelete) return
     setDeleting(true)
@@ -247,6 +267,7 @@ export function Dashboard() {
             onBack={() => setOpenDomain(null)}
             onOpen={(id) => router.push(`/review/${id}`)}
             onDelete={setToDelete}
+            onSetBranche={updateBranche}
           />
         ) : (
           <>
@@ -366,6 +387,7 @@ export function Dashboard() {
                 showDomain
                 onOpen={(id) => router.push(`/review/${id}`)}
                 onDelete={setToDelete}
+                onSetBranche={updateBranche}
               />
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -518,12 +540,14 @@ function DomainDetail({
   onBack,
   onOpen,
   onDelete,
+  onSetBranche,
 }: {
   domain: string
   items: Project[]
   onBack: () => void
   onOpen: (id: string) => void
   onDelete: (p: Project) => void
+  onSetBranche?: (id: string, slug: string) => void
 }) {
   return (
     <div>
@@ -539,7 +563,12 @@ function DomainDetail({
           </Badge>
         </div>
       </div>
-      <ProjectsTable rows={items} onOpen={onOpen} onDelete={onDelete} />
+      <ProjectsTable
+        rows={items}
+        onOpen={onOpen}
+        onDelete={onDelete}
+        onSetBranche={onSetBranche}
+      />
     </div>
   )
 }
@@ -549,11 +578,13 @@ function ProjectsTable({
   showDomain,
   onOpen,
   onDelete,
+  onSetBranche,
 }: {
   rows: Project[]
   showDomain?: boolean
   onOpen: (id: string) => void
   onDelete: (p: Project) => void
+  onSetBranche?: (id: string, slug: string) => void
 }) {
   return (
     <div className="overflow-x-auto rounded-xl border">
@@ -566,6 +597,9 @@ function ProjectsTable({
             )}
             <TableHead>Status</TableHead>
             <TableHead>Scan type</TableHead>
+            {onSetBranche && (
+              <TableHead className="hidden lg:table-cell">Branche</TableHead>
+            )}
             <TableHead className="hidden sm:table-cell">Datum</TableHead>
             <TableHead className="text-right">Score</TableHead>
             <TableHead className="w-10" />
@@ -615,6 +649,37 @@ function ProjectsTable({
                 <TableCell className="text-muted-foreground">
                   {typeLabel(p)}
                 </TableCell>
+                {onSetBranche && (
+                  <TableCell
+                    className="hidden lg:table-cell"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Select
+                      value={p.branche || ""}
+                      onValueChange={(v) => onSetBranche(p.id, v)}
+                    >
+                      <SelectTrigger
+                        size="sm"
+                        className={cn(
+                          "h-8 w-44 border-transparent bg-transparent px-2 text-xs shadow-none hover:border-input",
+                          !p.branche && "text-muted-foreground",
+                        )}
+                        aria-label="Branche"
+                      >
+                        <SelectValue placeholder="Kies…">
+                          {p.branche ? brancheLabel(p.branche) : "Kies…"}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {BRANCHES.map((b) => (
+                          <SelectItem key={b.slug} value={b.slug}>
+                            {b.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                )}
                 <TableCell className="hidden text-muted-foreground sm:table-cell">
                   {p.createdAt
                     ? new Date(p.createdAt).toLocaleDateString("nl-NL")
