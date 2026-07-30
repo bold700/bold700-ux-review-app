@@ -137,25 +137,27 @@ export function InsightsDashboard() {
               </Card>
               <Card>
                 <CardContent className="py-5">
-                  <div className="flex h-10 items-end gap-1">
-                    <Bar
-                      n={insights.distribution.good}
-                      total={insights.scoredCount}
-                      cls="bg-emerald-500"
-                    />
-                    <Bar
-                      n={insights.distribution.ok}
-                      total={insights.scoredCount}
-                      cls="bg-amber-500"
-                    />
-                    <Bar
-                      n={insights.distribution.bad}
-                      total={insights.scoredCount}
-                      cls="bg-red-500"
-                    />
+                  <div className="mb-2 flex h-3 overflow-hidden rounded-full bg-muted">
+                    {(["good", "ok", "bad"] as const).map((k) => {
+                      const n = insights.distribution[k]
+                      const pct = insights.scoredCount
+                        ? (n / insights.scoredCount) * 100
+                        : 0
+                      const cls =
+                        k === "good"
+                          ? "bg-emerald-500"
+                          : k === "ok"
+                            ? "bg-amber-500"
+                            : "bg-red-500"
+                      return n ? (
+                        <div key={k} className={cls} style={{ width: `${pct}%` }} />
+                      ) : null
+                    })}
                   </div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    Verdeling (goed / matig / zwak)
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <Legend cls="bg-emerald-500" label="goed" n={insights.distribution.good} />
+                    <Legend cls="bg-amber-500" label="matig" n={insights.distribution.ok} />
+                    <Legend cls="bg-red-500" label="zwak" n={insights.distribution.bad} />
                   </div>
                 </CardContent>
               </Card>
@@ -313,12 +315,11 @@ export function InsightsDashboard() {
   )
 }
 
-function Bar({ n, total, cls }: { n: number; total: number; cls: string }) {
-  const h = total ? Math.max(6, (n / total) * 100) : 6
+function Legend({ cls, label, n }: { cls: string; label: string; n: number }) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-end">
-      <div className={cn("w-full rounded-t", cls)} style={{ height: `${h}%` }} />
-      <span className="mt-0.5 text-[10px] text-muted-foreground">{n}</span>
-    </div>
+    <span className="flex items-center gap-1">
+      <span className={cn("h-2 w-2 rounded-full", cls)} />
+      {label} <span className="font-medium text-foreground">{n}</span>
+    </span>
   )
 }
