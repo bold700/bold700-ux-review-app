@@ -1,9 +1,9 @@
 "use client"
 
-import { Suspense, useEffect, useState } from "react"
+import { Suspense, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
-import { doc, getDoc } from "firebase/firestore"
+import { doc, onSnapshot } from "firebase/firestore"
 import { Clock, ListChecks, Loader2, Lock, SearchX } from "lucide-react"
 import { toast } from "sonner"
 
@@ -25,32 +25,34 @@ function ReportContent() {
   const [status, setStatus] = useState<Status>("loading")
   const [project, setProject] = useState<Project | null>(null)
   const [devStatus, setDevStatus] = useState<DevStatusMap>({})
+  const devInited = useRef(false)
 
   useEffect(() => {
     if (!id) {
       setStatus("notfound")
       return
     }
-    let cancelled = false
-    ;(async () => {
-      try {
-        const snap = await getDoc(doc(getDb(), "projects", id))
-        if (cancelled) return
+    // Live meeluisteren: nieuwe/aangepaste bevindingen verschijnen direct.
+    const unsub = onSnapshot(
+      doc(getDb(), "projects", id),
+      (snap) => {
         if (!snap.exists()) return setStatus("notfound")
         const p = { id: snap.id, ...snap.data() } as Project
         if (!p.public) return setStatus("private")
         if (p.shareExpiresAtMs && Date.now() > p.shareExpiresAtMs)
           return setStatus("expired")
         setProject(p)
-        setDevStatus(p.devStatus ?? {})
+        // devStatus alleen bij de eerste keer overnemen, daarna lokaal
+        // beheren zodat het afvinken door de developer niet wordt overschreven.
+        if (!devInited.current) {
+          setDevStatus(p.devStatus ?? {})
+          devInited.current = true
+        }
         setStatus("ok")
-      } catch {
-        if (!cancelled) setStatus("error")
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
+      },
+      () => setStatus("error"),
+    )
+    return () => unsub()
   }, [id])
 
   async function devUpdate(findingId: string, entry: DevEntry) {
