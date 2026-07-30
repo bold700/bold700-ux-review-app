@@ -414,7 +414,7 @@ function DomainCard({
       tabIndex={0}
       onClick={onOpen}
       onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onOpen()}
-      className="flex cursor-pointer flex-col gap-0 overflow-hidden py-0 outline-none transition-colors hover:border-ring focus-visible:border-ring"
+      className="flex cursor-pointer flex-col gap-0 py-0 outline-none transition-colors hover:border-ring focus-visible:border-ring"
     >
       <CardHeader className="gap-0 border-b p-4">
         <div className="flex items-start justify-between gap-2">
