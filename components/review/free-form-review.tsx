@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { AlertCircle, Plus, Trash2 } from "lucide-react"
 
 import { FF_CATEGORIES } from "@/lib/modules"
@@ -25,16 +25,32 @@ export function FreeFormReview({
   mutate: (fn: (a: Record<string, Answer>) => Record<string, Answer>) => void
 }) {
   const [focusedId, setFocusedId] = useState<string | null>(null)
+  const [pendingScroll, setPendingScroll] = useState<string | null>(null)
   const findings = Object.keys(answers)
     .filter((k) => k.startsWith("ff-"))
     .sort(
       (a, b) => (answers[a].findingOrder ?? 0) - (answers[b].findingOrder ?? 0),
     )
 
+  // Scroll naar (en focus) een net toegevoegde bevinding.
+  useEffect(() => {
+    if (!pendingScroll) return
+    const el = document.querySelector(
+      `[data-finding="${pendingScroll}"]`,
+    ) as HTMLElement | null
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" })
+      const input = el.querySelector("input") as HTMLInputElement | null
+      input?.focus({ preventScroll: true })
+      setPendingScroll(null)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [findings.length, pendingScroll])
+
   function addFinding() {
+    const id = `ff-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
     mutate((a) => {
       const order = Object.keys(a).filter((k) => k.startsWith("ff-")).length
-      const id = `ff-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
       return {
         ...a,
         [id]: {
@@ -48,6 +64,7 @@ export function FreeFormReview({
         },
       }
     })
+    setPendingScroll(id)
   }
 
   function removeFinding(id: string) {
@@ -97,6 +114,7 @@ export function FreeFormReview({
         return (
           <Card
             key={id}
+            data-finding={id}
             onFocusCapture={() => setFocusedId(id)}
             className={cn(missingScore && "border-amber-500/50")}
           >
