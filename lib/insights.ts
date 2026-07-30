@@ -33,6 +33,8 @@ export interface Insights {
   distribution: { good: number; ok: number; bad: number }
   modules: ModuleStat[]
   problems: ProblemStat[]
+  // alle checks (ook zonder min. steekproef), voor de per-site benchmark
+  checkRates: Record<string, { failRate: number; samples: number }>
 }
 
 /**
@@ -108,21 +110,27 @@ export function computeInsights(projects: Project[], minSample = 5): Insights {
     .map(([module, v]) => ({ module, avg: v.sum / v.count, count: v.count }))
     .sort((a, b) => a.avg - b.avg)
 
-  const problems: ProblemStat[] = [...checks.entries()]
-    .map(([id, c]) => {
-      const samples = c.good + c.notGood
-      return {
-        id,
-        text: c.text,
-        category: c.category,
-        module: c.module,
-        severity: c.severity,
-        businessImpact: c.businessImpact,
-        samples,
-        failing: c.notGood,
-        failRate: samples ? c.notGood / samples : 0,
-      }
-    })
+  const allProblems: ProblemStat[] = [...checks.entries()].map(([id, c]) => {
+    const samples = c.good + c.notGood
+    return {
+      id,
+      text: c.text,
+      category: c.category,
+      module: c.module,
+      severity: c.severity,
+      businessImpact: c.businessImpact,
+      samples,
+      failing: c.notGood,
+      failRate: samples ? c.notGood / samples : 0,
+    }
+  })
+
+  const checkRates: Record<string, { failRate: number; samples: number }> = {}
+  for (const p of allProblems) {
+    checkRates[p.id] = { failRate: p.failRate, samples: p.samples }
+  }
+
+  const problems = allProblems
     .filter((p) => p.samples >= minSample)
     .sort((a, b) => b.failRate - a.failRate || b.failing - a.failing)
 
@@ -133,6 +141,37 @@ export function computeInsights(projects: Project[], minSample = 5): Insights {
     distribution: dist,
     modules,
     problems,
+    checkRates,
+  }
+}
+
+export interface Benchmark {
+  avgScore: number | null
+  siteCount: number
+  generatedAt: string
+  checks: Record<string, { r: number; s: number }>
+}
+
+/** Slaat de benchmark op in een publiek leesbaar doc (voor in het rapport). */
+export async function saveBenchmark(ins: Insights): Promise<void> {
+  const checks: Record<string, { r: number; s: number }> = {}
+  for (const [id, v] of Object.entries(ins.checkRates)) {
+    if (v.samples >= 3) checks[id] = { r: v.failRate, s: v.samples }
+  }
+  await setDoc(doc(getDb(), "benchmarks", "global"), {
+    avgScore: ins.avgScore,
+    siteCount: ins.scoredCount,
+    generatedAt: new Date().toISOString(),
+    checks,
+  })
+}
+
+export async function loadBenchmark(): Promise<Benchmark | null> {
+  try {
+    const snap = await getDoc(doc(getDb(), "benchmarks", "global"))
+    return snap.exists() ? (snap.data() as Benchmark) : null
+  } catch {
+    return null
   }
 }
 

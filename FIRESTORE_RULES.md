@@ -79,6 +79,14 @@ service cloud.firestore {
       allow read, write: if request.auth != null;
     }
 
+    // ── Benchmarks (publiek leesbaar, voor de per-site vergelijking in rapporten) ──
+    match /benchmarks/{id} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
     // ── Config collection ──
     match /config/{configId} {
       allow read: if request.auth != null;

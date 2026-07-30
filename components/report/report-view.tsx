@@ -7,6 +7,8 @@ import type { Project } from "@/lib/types"
 import type { DevEntry, DevStatusMap } from "@/lib/dev-status"
 import { devStateOf } from "@/lib/dev-status"
 import type { Finding, ReportData } from "@/lib/report"
+import { loadBenchmark, type Benchmark } from "@/lib/insights"
+import { scoreTone } from "@/lib/score"
 import { markdownToHtml } from "@/lib/markdown"
 import { ActionPlanView } from "@/components/report/action-plan-view"
 import { ReportSummary } from "@/components/report/report-summary"
@@ -18,6 +20,17 @@ const dot: Record<string, string> = {
   ok: "bg-amber-500",
   bad: "bg-red-500",
   nvt: "bg-muted-foreground",
+}
+
+function scoreColorText(s: number | null): string {
+  const t = scoreTone(s)
+  return t === "good"
+    ? "text-emerald-500"
+    : t === "ok"
+      ? "text-amber-500"
+      : t === "bad"
+        ? "text-red-500"
+        : "text-muted-foreground"
 }
 
 export function ReportView({
@@ -41,6 +54,10 @@ export function ReportView({
         .length
     : 0
   const [preview, setPreview] = useState<string | null>(null)
+  const [bench, setBench] = useState<Benchmark | null>(null)
+  useEffect(() => {
+    loadBenchmark().then(setBench)
+  }, [])
   useEffect(() => {
     if (!preview) return
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setPreview(null)
@@ -69,6 +86,32 @@ export function ReportView({
 
       <ReportSummary project={project} data={data} />
 
+      {bench?.avgScore != null && data.score != null && (
+        <div className="rounded-lg border bg-muted/30 px-4 py-2.5 text-sm">
+          Gemiddeld over{" "}
+          <span className="font-medium text-foreground">{bench.siteCount}</span>{" "}
+          gereviewde sites:{" "}
+          <span className="font-medium text-foreground">
+            {bench.avgScore.toFixed(1)}
+          </span>
+          . Jouw score{" "}
+          <span className={cn("font-semibold", scoreColorText(data.score))}>
+            {data.score.toFixed(1)}
+          </span>{" "}
+          ligt{" "}
+          {data.score >= bench.avgScore ? (
+            <span className="font-medium text-emerald-600 dark:text-emerald-400">
+              boven het gemiddelde
+            </span>
+          ) : (
+            <span className="font-medium text-amber-600 dark:text-amber-400">
+              onder het gemiddelde
+            </span>
+          )}
+          .
+        </div>
+      )}
+
       {aiPlan && (
         <section>
           <h2 className="mb-2 text-sm font-semibold tracking-wide uppercase">
@@ -81,7 +124,7 @@ export function ReportView({
         </section>
       )}
 
-      <ActionPlanView project={project} />
+      <ActionPlanView project={project} benchmark={bench} />
 
       {onDevUpdate && data.issues.length > 0 && (
         <div className="rounded-xl border bg-muted/30 p-3 text-sm">

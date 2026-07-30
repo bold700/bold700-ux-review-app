@@ -5,6 +5,7 @@ import { ChevronDown, Clock, Wrench, Zap } from "lucide-react"
 
 import type { PlanItem } from "@/lib/action-plan"
 import { buildActionPlan } from "@/lib/action-plan"
+import type { Benchmark } from "@/lib/insights"
 import type { Project } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -43,7 +44,13 @@ function EffortBadge({ effort }: { effort: string }) {
   )
 }
 
-export function ActionPlanView({ project }: { project: Project }) {
+export function ActionPlanView({
+  project,
+  benchmark,
+}: {
+  project: Project
+  benchmark?: Benchmark | null
+}) {
   const plan = buildActionPlan(project)
   const [open, setOpen] = useState(false)
 
@@ -88,7 +95,12 @@ export function ActionPlanView({ project }: { project: Project }) {
 
       <div className="space-y-2">
         {rest.map((it, i) => (
-          <PlanRow key={it.id} item={it} rank={i + 1} />
+          <PlanRow
+            key={it.id}
+            item={it}
+            rank={i + 1}
+            benchmark={benchmark}
+          />
         ))}
       </div>
 
@@ -109,7 +121,17 @@ export function ActionPlanView({ project }: { project: Project }) {
   )
 }
 
-function PlanRow({ item, rank }: { item: PlanItem; rank: number }) {
+function PlanRow({
+  item,
+  rank,
+  benchmark,
+}: {
+  item: PlanItem
+  rank: number
+  benchmark?: Benchmark | null
+}) {
+  const bm = benchmark?.checks?.[item.id]
+  const alsoPct = bm && bm.r > 0 ? Math.round(bm.r * 100) : null
   return (
     <Card>
       <CardContent className="py-3">
@@ -132,6 +154,14 @@ function PlanRow({ item, rank }: { item: PlanItem; rank: number }) {
                 {item.score === "bad" ? "Niet OK" : "Matig"}
               </Badge>
               <EffortBadge effort={item.effortLabel} />
+              {alsoPct != null && (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] text-muted-foreground"
+                >
+                  {alsoPct}% van de sites heeft dit ook
+                </Badge>
+              )}
             </div>
             {item.businessImpact && (
               <p className="rounded-md bg-emerald-500/10 px-2.5 py-1.5 text-sm text-emerald-700 dark:text-emerald-300">

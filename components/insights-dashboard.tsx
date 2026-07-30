@@ -12,6 +12,7 @@ import {
   computeInsights,
   generateInsightsSummary,
   loadInsightsSummary,
+  saveBenchmark,
   type StoredInsight,
 } from "@/lib/insights"
 import { useAuth } from "@/components/providers/auth-provider"
@@ -65,6 +66,13 @@ export function InsightsDashboard() {
     () => (projects ? computeInsights(projects) : null),
     [projects],
   )
+
+  // Benchmark publiek opslaan zodat rapporten 'm kunnen tonen.
+  useEffect(() => {
+    if (insights && insights.scoredCount > 0) {
+      saveBenchmark(insights).catch(() => {})
+    }
+  }, [insights])
 
   async function refresh() {
     if (!insights) return
