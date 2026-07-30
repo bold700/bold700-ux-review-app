@@ -103,7 +103,8 @@ export function ReportView({
           // anders met het algemene gemiddelde over alle sites.
           const brSlug = brancheOf(project)
           const br = bench?.branches?.[brSlug]
-          const useBranche = !!br && br.n >= 3
+          // "overig" is een restgroep, geen zinvolle vergelijking → algemeen.
+          const useBranche = brSlug !== "overig" && !!br && br.n >= 3
           const avg = useBranche ? br!.avg : bench?.avgScore
           const n = useBranche ? br!.n : bench?.siteCount
           if (avg == null || n == null) return null
