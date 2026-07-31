@@ -9,6 +9,11 @@ import { devStateOf } from "@/lib/dev-status"
 import type { Finding, ReportData } from "@/lib/report"
 import { brancheOf, loadBenchmark, siteTypeOf, type Benchmark } from "@/lib/insights"
 import { brancheLabel } from "@/lib/branche"
+import {
+  audienceLabel,
+  deviceLabel,
+  pageGoalLabel,
+} from "@/lib/review-context"
 import { scoreTone } from "@/lib/score"
 import { markdownToHtml } from "@/lib/markdown"
 import { ActionPlanView } from "@/components/report/action-plan-view"
@@ -84,14 +89,22 @@ export function ReportView({
           {project.client ? ` · ${project.client}` : ""} · {date}
         </div>
         <div className="mt-2 flex flex-wrap gap-1.5">
-          {project.branche && (
-            <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
-              {brancheLabel(project.branche)}
-            </span>
-          )}
-          <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
-            {siteTypeOf(project).label}
-          </span>
+          {[
+            project.branche && brancheLabel(project.branche),
+            siteTypeOf(project).label,
+            pageGoalLabel(project.pageGoal),
+            audienceLabel(project.audience),
+            deviceLabel(project.device),
+          ]
+            .filter(Boolean)
+            .map((label, i) => (
+              <span
+                key={i}
+                className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground"
+              >
+                {label}
+              </span>
+            ))}
         </div>
       </div>
 

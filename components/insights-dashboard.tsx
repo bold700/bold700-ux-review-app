@@ -27,6 +27,7 @@ import {
   computeSegments,
   generateInsightsSummary,
   loadInsightsSummary,
+  pageGoalOf,
   saveBenchmark,
   siteTypeOf,
   type StoredInsight,
@@ -69,6 +70,7 @@ export function InsightsDashboard() {
   const [gen, setGen] = useState(false)
   const [brancheF, setBrancheF] = useState("all")
   const [siteF, setSiteF] = useState("all")
+  const [goalF, setGoalF] = useState("all")
   const [backfilling, setBackfilling] = useState(false)
   const [genReport, setGenReport] = useState(false)
 
@@ -134,16 +136,17 @@ export function InsightsDashboard() {
     return projects.filter(
       (p) =>
         (brancheF === "all" || brancheOf(p) === brancheF) &&
-        (siteF === "all" || siteTypeOf(p).key === siteF),
+        (siteF === "all" || siteTypeOf(p).key === siteF) &&
+        (goalF === "all" || pageGoalOf(p) === goalF),
     )
-  }, [projects, brancheF, siteF])
+  }, [projects, brancheF, siteF, goalF])
 
   const insights = useMemo(
     () => (filtered ? computeInsights(filtered) : null),
     [filtered],
   )
 
-  const isFiltered = brancheF !== "all" || siteF !== "all"
+  const isFiltered = brancheF !== "all" || siteF !== "all" || goalF !== "all"
 
   // Benchmark + segmenten publiek opslaan zodat rapporten 'm kunnen tonen.
   useEffect(() => {
@@ -237,6 +240,19 @@ export function InsightsDashboard() {
                   ))}
                 </SelectContent>
               </Select>
+              <Select value={goalF} onValueChange={setGoalF}>
+                <SelectTrigger size="sm" className="w-full sm:w-56">
+                  <SelectValue placeholder="Alle doelen" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Alle doelen</SelectItem>
+                  {segments?.pageGoals.map((g) => (
+                    <SelectItem key={g.key} value={g.key}>
+                      {g.label} ({g.count})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               {isFiltered && (
                 <Button
                   variant="ghost"
@@ -244,6 +260,7 @@ export function InsightsDashboard() {
                   onClick={() => {
                     setBrancheF("all")
                     setSiteF("all")
+                    setGoalF("all")
                   }}
                   className="text-muted-foreground"
                 >

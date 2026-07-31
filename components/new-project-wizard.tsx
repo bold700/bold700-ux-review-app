@@ -21,7 +21,14 @@ import {
   MODULE_REGISTRY,
   quickScanBundles,
 } from "@/lib/modules"
-import { BRANCHES, detectBranche } from "@/lib/branche"
+import { BRANCHES } from "@/lib/branche"
+import {
+  analyzePage,
+  AUDIENCES,
+  DEVICES,
+  JOURNEY_STAGES,
+  PAGE_GOALS,
+} from "@/lib/review-context"
 import { fetchPageText } from "@/lib/page-fetch"
 import { suggestReview } from "@/lib/suggest-review"
 import { normalizeUrl, projectNameFromUrl } from "@/lib/url"
@@ -54,9 +61,18 @@ export function NewProjectWizard() {
   const [nameEdited, setNameEdited] = useState(false)
   const [name, setName] = useState("")
   const [branche, setBranche] = useState("")
-  const [brancheEdited, setBrancheEdited] = useState(false)
-  const [brancheBusy, setBrancheBusy] = useState(false)
+  const [pageGoal, setPageGoal] = useState("")
+  const [journeyStage, setJourneyStage] = useState("")
+  const [audience, setAudience] = useState("")
+  const [device, setDevice] = useState("mobiel")
+  // welke velden de gebruiker handmatig heeft aangepast (blijven onaangeraakt)
+  const [touched, setTouched] = useState<Set<string>>(new Set())
+  const [analyzing, setAnalyzing] = useState(false)
   const [busy, setBusy] = useState(false)
+
+  function markTouched(field: string) {
+    setTouched((prev) => new Set(prev).add(field))
+  }
 
   const bundles = useMemo(() => quickScanBundles(source), [source])
 
@@ -76,28 +92,33 @@ export function NewProjectWizard() {
     if (!nameEdited) setName(projectNameFromUrl(v))
   }
 
-  // Branche automatisch voorstellen zodra stap 3 in beeld komt met een URL.
+  // Branche + reviewcontext automatisch voorstellen zodra stap 3 in beeld komt.
   const detectedFor = useRef<string>("")
   useEffect(() => {
     if (source !== "url") return
     if (step !== 3) return
     const key = url.trim()
-    if (!key || brancheEdited || detectedFor.current === key) return
+    if (!key || detectedFor.current === key) return
     detectedFor.current = key
-    setBrancheBusy(true)
+    setAnalyzing(true)
     ;(async () => {
       try {
         const text = await getPageText(key)
-        const slug = await detectBranche(key, text)
-        if (slug && !brancheEdited) setBranche(slug)
+        const a = await analyzePage(key, text)
+        // vul alleen velden die de gebruiker nog niet zelf heeft aangeraakt
+        if (a.branche && !touched.has("branche")) setBranche(a.branche)
+        if (a.pageGoal && !touched.has("pageGoal")) setPageGoal(a.pageGoal)
+        if (a.journeyStage && !touched.has("journeyStage"))
+          setJourneyStage(a.journeyStage)
+        if (a.audience && !touched.has("audience")) setAudience(a.audience)
       } catch {
         // stil: gebruiker kiest desnoods handmatig
       } finally {
-        setBrancheBusy(false)
+        setAnalyzing(false)
       }
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, url, source, brancheEdited])
+  }, [step, url, source])
 
   async function create() {
     if (!user) return
@@ -113,15 +134,22 @@ export function NewProjectWizard() {
       let effectiveTemplate = template
       let autoRun = false
       let brancheSlug = branche
+      let goal = pageGoal
+      let stage = journeyStage
+      let aud = audience
       if (template === AUTO) {
         const t = toast.loading("AI analyseert de pagina…")
         const pageText = await getPageText(url.trim())
         const sug = await suggestReview(url.trim(), pageText)
         effectiveTemplate = sug.bundleId
         autoRun = true
-        // Branche nog niet bekend? Detecteer 'm nu op dezelfde pagina-tekst.
-        if (!brancheSlug) {
-          brancheSlug = (await detectBranche(url.trim(), pageText)) ?? ""
+        // Context nog niet compleet? Analyseer nu op dezelfde pagina-tekst.
+        if (!brancheSlug || !goal || !stage || !aud) {
+          const a = await analyzePage(url.trim(), pageText)
+          brancheSlug = brancheSlug || a.branche || ""
+          goal = goal || a.pageGoal || ""
+          stage = stage || a.journeyStage || ""
+          aud = aud || a.audience || ""
         }
         const b = MODULE_REGISTRY.bundles[sug.bundleId]
         toast.success(`Herkend: ${b?.name_nl ?? "Review"}`, {
@@ -150,7 +178,15 @@ export function NewProjectWizard() {
         createdAt: new Date().toISOString(),
         selectedTemplate: bundleId,
         branche: brancheSlug,
-        brancheAuto: !brancheEdited,
+        brancheAuto: !touched.has("branche"),
+        pageGoal: goal,
+        journeyStage: stage,
+        audience: aud,
+        device,
+        contextAuto:
+          !touched.has("pageGoal") &&
+          !touched.has("journeyStage") &&
+          !touched.has("audience"),
         moduleConfig: bundleId
           ? getBundleConfig(bundleId)
           : getDefaultModuleConfig(),
@@ -307,39 +343,76 @@ export function NewProjectWizard() {
                   </p>
                 )}
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="np-branche" className="flex items-center gap-2">
-                  Branche
-                  {brancheBusy ? (
-                    <span className="flex items-center gap-1 text-xs font-normal text-muted-foreground">
-                      <Loader2 className="h-3 w-3 animate-spin" /> AI herkent…
+              <div className="rounded-xl border bg-muted/20 p-4">
+                <div className="mb-3 flex items-center gap-2">
+                  <span className="text-sm font-medium">Context</span>
+                  {analyzing ? (
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Loader2 className="h-3 w-3 animate-spin" /> AI analyseert…
                     </span>
-                  ) : branche && !brancheEdited ? (
-                    <span className="flex items-center gap-1 text-xs font-normal text-primary">
+                  ) : (branche || pageGoal) && touched.size === 0 ? (
+                    <span className="flex items-center gap-1 text-xs text-primary">
                       <Sparkles className="h-3 w-3" /> AI-voorstel
                     </span>
                   ) : null}
-                </Label>
-                <Select
-                  value={branche}
-                  onValueChange={(v) => {
-                    setBranche(v)
-                    setBrancheEdited(true)
-                  }}
-                >
-                  <SelectTrigger id="np-branche" className="w-full">
-                    <SelectValue placeholder="Kies een branche…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {BRANCHES.map((b) => (
-                      <SelectItem key={b.slug} value={b.slug}>
-                        {b.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  Waar het bedrijf in zit. Gebruikt voor de branche-benchmark.
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <CtxSelect
+                    id="np-branche"
+                    label="Branche"
+                    value={branche}
+                    onChange={(v) => {
+                      setBranche(v)
+                      markTouched("branche")
+                    }}
+                    options={BRANCHES}
+                    placeholder="Kies een branche…"
+                  />
+                  <CtxSelect
+                    id="np-goal"
+                    label="Doel van de pagina"
+                    value={pageGoal}
+                    onChange={(v) => {
+                      setPageGoal(v)
+                      markTouched("pageGoal")
+                    }}
+                    options={PAGE_GOALS}
+                    placeholder="Wat moet de pagina doen?"
+                  />
+                  <CtxSelect
+                    id="np-audience"
+                    label="Doelgroep"
+                    value={audience}
+                    onChange={(v) => {
+                      setAudience(v)
+                      markTouched("audience")
+                    }}
+                    options={AUDIENCES}
+                    placeholder="Voor wie?"
+                  />
+                  <CtxSelect
+                    id="np-stage"
+                    label="Fase van de bezoeker"
+                    value={journeyStage}
+                    onChange={(v) => {
+                      setJourneyStage(v)
+                      markTouched("journeyStage")
+                    }}
+                    options={JOURNEY_STAGES}
+                    placeholder="Waar in de reis?"
+                  />
+                  <CtxSelect
+                    id="np-device"
+                    label="Bekeken op"
+                    value={device}
+                    onChange={setDevice}
+                    options={DEVICES}
+                    placeholder="Apparaat"
+                  />
+                </div>
+                <p className="mt-3 text-xs text-muted-foreground">
+                  Bepaalt waartegen je beoordeelt en maakt de benchmarks
+                  waardevoller. AI vult voor, jij past aan.
                 </p>
               </div>
             </div>
@@ -381,6 +454,42 @@ export function NewProjectWizard() {
         </div>
       </div>
     </AppShell>
+  )
+}
+
+function CtxSelect({
+  id,
+  label,
+  value,
+  onChange,
+  options,
+  placeholder,
+}: {
+  id: string
+  label: string
+  value: string
+  onChange: (v: string) => void
+  options: { slug: string; label: string }[]
+  placeholder?: string
+}) {
+  return (
+    <div className="grid gap-1.5">
+      <Label htmlFor={id} className="text-xs text-muted-foreground">
+        {label}
+      </Label>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger id={id} className="w-full">
+          <SelectValue placeholder={placeholder} />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((o) => (
+            <SelectItem key={o.slug} value={o.slug}>
+              {o.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   )
 }
 

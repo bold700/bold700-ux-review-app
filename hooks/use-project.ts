@@ -77,5 +77,17 @@ export function useProject(id: string) {
     [persist],
   )
 
-  return { project, setAnswer, mutate, saving }
+  // Projectvelden bijwerken (bv. reviewcontext). Direct opgeslagen.
+  const setFields = useCallback(
+    (patch: Partial<Project>) => {
+      setProject((p) => (p ? { ...p, ...patch } : p))
+      updateDoc(doc(getDb(), "projects", id), {
+        ...patch,
+        updatedAt: new Date().toISOString(),
+      }).catch((e) => console.error("[useProject:setFields]", e))
+    },
+    [id],
+  )
+
+  return { project, setAnswer, mutate, setFields, saving }
 }

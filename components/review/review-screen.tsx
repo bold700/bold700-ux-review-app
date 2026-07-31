@@ -34,11 +34,12 @@ import { ScreenshotStrip } from "@/components/review/screenshot-strip"
 import { FreeFormReview } from "@/components/review/free-form-review"
 import { ScoreButtons, SeverityRow } from "@/components/review/score-controls"
 import { LivePreview } from "@/components/review/live-preview"
+import { ContextEditor } from "@/components/review/context-editor"
 import { cn } from "@/lib/utils"
 
 export function ReviewScreen({ id }: { id: string }) {
   const router = useRouter()
-  const { project, setAnswer, mutate, saving } = useProject(id)
+  const { project, setAnswer, mutate, setFields, saving } = useProject(id)
   const [focus, setFocus] = useState(0)
   const [aiBusy, setAiBusy] = useState(false)
   const [mobilePreview, setMobilePreview] = useState(false)
@@ -233,6 +234,7 @@ export function ReviewScreen({ id }: { id: string }) {
               </>
             )}
           </span>
+          <ContextEditor project={project} setFields={setFields} />
           {previewUrl && (
             <Button
               variant="outline"

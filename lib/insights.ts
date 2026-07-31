@@ -7,6 +7,7 @@ import {
   MODULE_REGISTRY,
 } from "@/lib/modules"
 import { brancheLabel, isBranche } from "@/lib/branche"
+import { isPageGoal, pageGoalLabel } from "@/lib/review-context"
 import { projectScore } from "@/lib/score"
 import type { Project, Score } from "@/lib/types"
 
@@ -29,6 +30,11 @@ export function siteTypeOf(p: Project): { key: string; label: string } {
 /** Branche-slug van een project, met terugval op "overig". */
 export function brancheOf(p: Project): string {
   return isBranche(p.branche) ? p.branche! : "overig"
+}
+
+/** Doel-slug van een project, of null als niet gezet. */
+export function pageGoalOf(p: Project): string | null {
+  return isPageGoal(p.pageGoal) ? p.pageGoal! : null
 }
 
 export interface ProblemStat {
@@ -178,6 +184,7 @@ export interface SegmentStat {
 export interface Segments {
   branches: SegmentStat[]
   siteTypes: SegmentStat[]
+  pageGoals: SegmentStat[]
 }
 
 /**
@@ -187,6 +194,7 @@ export interface Segments {
 export function computeSegments(projects: Project[]): Segments {
   const bAcc = new Map<string, { sum: number; n: number }>()
   const tAcc = new Map<string, { sum: number; n: number; label: string }>()
+  const gAcc = new Map<string, { sum: number; n: number }>()
 
   for (const p of projects) {
     const s = projectScore(p)
@@ -203,6 +211,14 @@ export function computeSegments(projects: Project[]): Segments {
     ta.sum += s
     ta.n++
     tAcc.set(t.key, ta)
+
+    const g = pageGoalOf(p)
+    if (g) {
+      const ga = gAcc.get(g) ?? { sum: 0, n: 0 }
+      ga.sum += s
+      ga.n++
+      gAcc.set(g, ga)
+    }
   }
 
   const branches: SegmentStat[] = [...bAcc.entries()]
@@ -223,7 +239,16 @@ export function computeSegments(projects: Project[]): Segments {
     }))
     .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
 
-  return { branches, siteTypes }
+  const pageGoals: SegmentStat[] = [...gAcc.entries()]
+    .map(([key, v]) => ({
+      key,
+      label: pageGoalLabel(key),
+      avgScore: v.sum / v.n,
+      count: v.n,
+    }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+
+  return { branches, siteTypes, pageGoals }
 }
 
 export interface Benchmark {

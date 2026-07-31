@@ -35,6 +35,12 @@ export interface Project {
   // branche/sector uit de vaste taxonomie (lib/branche.ts) — voor benchmarks
   branche?: string
   brancheAuto?: boolean // true = door AI gezet, false = handmatig bevestigd
+  // reviewcontext (lib/review-context.ts) — doel/fase/doelgroep/apparaat
+  pageGoal?: string
+  journeyStage?: string
+  audience?: string
+  device?: string
+  contextAuto?: boolean // true = door AI voorgesteld, false = handmatig bevestigd
   moduleConfig?: unknown
   answers?: Record<string, Answer>
   currentStep?: number
