@@ -425,7 +425,7 @@ export function Dashboard() {
                 confirmDelete()
               }}
               disabled={deleting}
-              className="bg-destructive text-white hover:bg-destructive/90"
+              className="bg-destructive text-white hover:bg-destructive/90 dark:bg-destructive/60 dark:hover:bg-destructive/70"
             >
               {deleting ? "Verwijderen…" : "Verwijderen"}
             </AlertDialogAction>

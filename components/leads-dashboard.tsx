@@ -127,15 +127,6 @@ export function LeadsDashboard() {
     })
   }, [leads])
 
-  const stats = useMemo(() => {
-    const list = leads ?? []
-    return {
-      total: list.length,
-      action: list.filter(needsAction).length,
-      klant: list.filter((l) => l.status === "klant").length,
-    }
-  }, [leads])
-
   async function setStatus(l: Lead, status: LeadFollowUp) {
     setLeads((prev) =>
       (prev ?? []).map((x) => (x.id === l.id ? { ...x, status } : x)),
@@ -213,20 +204,6 @@ export function LeadsDashboard() {
       }
     >
       <div className="px-4 py-6 sm:py-8 lg:px-6">
-        <div className="mb-6 grid grid-cols-3 gap-4 sm:max-w-lg">
-          <Stat label="Leads" value={leads ? stats.total : null} />
-          <Stat
-            label="Actie nodig"
-            value={leads ? stats.action : null}
-            className="text-primary"
-          />
-          <Stat
-            label="Klant"
-            value={leads ? stats.klant : null}
-            className="text-emerald-500"
-          />
-        </div>
-
         {!leads ? (
           <Skeleton className="h-64 w-full rounded-xl" />
         ) : sorted.length === 0 ? (
@@ -441,7 +418,7 @@ export function LeadsDashboard() {
                 confirmDelete()
               }}
               disabled={deleting}
-              className="bg-destructive text-white hover:bg-destructive/90"
+              className="bg-destructive text-white hover:bg-destructive/90 dark:bg-destructive/60 dark:hover:bg-destructive/70"
             >
               {deleting ? "Verwijderen…" : "Verwijderen"}
             </AlertDialogAction>
@@ -508,26 +485,5 @@ function NoteDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
-}
-
-function Stat({
-  label,
-  value,
-  className,
-}: {
-  label: string
-  value: number | null
-  className?: string
-}) {
-  return (
-    <Card>
-      <CardContent className="py-4">
-        <div className={cn("text-2xl font-bold", className)}>
-          {value == null ? <Skeleton className="h-7 w-10" /> : value}
-        </div>
-        <div className="text-xs text-muted-foreground">{label}</div>
-      </CardContent>
-    </Card>
   )
 }
