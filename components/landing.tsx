@@ -84,7 +84,7 @@ export function Landing({ onLogin }: { onLogin: () => void }) {
           style={{ animationDelay: "80ms" }}
         >
           <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-          Gratis UX-review voor je website
+          Gratis check voor je website
         </div>
 
         {/* Scorecard-stapel — mobiel boven de hero */}
@@ -104,9 +104,9 @@ export function Landing({ onLogin }: { onLogin: () => void }) {
             Weet binnen 24 uur wat er beter kan aan je website
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-base text-white/80 sm:text-lg">
-            Een snelle scan geeft je een heldere UX-score en een concreet
-            rapport. Een specialist met enterprise-ervaring valideert de
-            bevindingen. Geen vragenlijsten, geen gedoe.
+            Een snelle check geeft je een helder rapportcijfer en concrete tips
+            om je website te verbeteren. Een specialist met enterprise-ervaring
+            kijkt het na. Geen vragenlijsten, geen gedoe.
           </p>
         </div>
 
@@ -143,13 +143,19 @@ export function Landing({ onLogin }: { onLogin: () => void }) {
             ))}
           </div>
           <p className="mt-4 text-center text-xs text-white/60">
-            Voorbeelden van scorecards zoals je die ontvangt.
+            Voorbeelden van het rapport dat je ontvangt.
           </p>
         </div>
       </main>
 
       <footer className="shrink-0 border-t border-white/15 py-6 text-center text-xs text-white/60">
-        BOLD700 · uxreviews.bold700.com
+        <a
+          href="/rapport"
+          className="underline transition-colors hover:text-white/90"
+        >
+          Bekijk het onderzoek: hoe goed zijn websites van ondernemers?
+        </a>
+        <div className="mt-2">BOLD700 · uxreviews.bold700.com</div>
       </footer>
     </div>
   )
@@ -194,8 +200,9 @@ function SignupForm() {
           <Check className="h-5 w-5" />
         </div>
         <p className="text-sm text-white/85">
-          Bedankt, we gaan aan de slag. Je ontvangt je score en rapport binnen 24
-          uur op <span className="font-medium text-white">{email}</span>.
+          Bedankt, we gaan aan de slag. Je ontvangt je rapportcijfer en tips
+          binnen 24 uur op{" "}
+          <span className="font-medium text-white">{email}</span>.
         </p>
       </div>
     )
@@ -269,7 +276,7 @@ function PrivacyNote() {
       >
         privacyverklaring
       </a>
-      . We gebruiken je gegevens alleen voor deze review en het contact daarover.
+      . We gebruiken je gegevens alleen voor deze check en het contact daarover.
     </p>
   )
 }
