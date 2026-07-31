@@ -14,6 +14,7 @@ export interface Answer {
   screenshot?: string // legacy
   autoScanned?: boolean
   aiFilled?: boolean
+  confidence?: number // 1-5: hoe zeker is de reviewer van deze inschatting
   // free-form velden
   findingTitle?: string
   findingCategory?: string | null

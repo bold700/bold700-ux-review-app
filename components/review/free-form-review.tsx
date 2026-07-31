@@ -10,7 +10,11 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { ScreenshotStrip } from "@/components/review/screenshot-strip"
-import { ScoreButtons, SeverityRow } from "@/components/review/score-controls"
+import {
+  ConfidenceRow,
+  ScoreButtons,
+  SeverityRow,
+} from "@/components/review/score-controls"
 import { cn } from "@/lib/utils"
 
 export function FreeFormReview({
@@ -173,6 +177,11 @@ export function FreeFormReview({
                 score={a.score}
                 value={a.severity}
                 onChange={(sev) => setAnswer(id, { severity: sev })}
+              />
+              <ConfidenceRow
+                score={a.score}
+                value={a.confidence}
+                onChange={(n) => setAnswer(id, { confidence: n })}
               />
               <Textarea
                 value={a.notes ?? ""}
