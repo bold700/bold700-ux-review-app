@@ -44,6 +44,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -114,6 +115,9 @@ export function Dashboard() {
   const [openDomain, setOpenDomain] = useState<string | null>(null)
   const [toDelete, setToDelete] = useState<Project | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [bulkOpen, setBulkOpen] = useState(false)
+  const [bulkDeleting, setBulkDeleting] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -154,6 +158,53 @@ export function Dashboard() {
     } catch (e) {
       console.error("[dashboard] branche", e)
       toast.error("Branche opslaan mislukt")
+    }
+  }
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function toggleSelectAll(ids: string[]) {
+    setSelected((prev) => {
+      const allSelected = ids.length > 0 && ids.every((id) => prev.has(id))
+      const next = new Set(prev)
+      if (allSelected) ids.forEach((id) => next.delete(id))
+      else ids.forEach((id) => next.add(id))
+      return next
+    })
+  }
+
+  async function confirmBulkDelete() {
+    if (selected.size === 0) return
+    setBulkDeleting(true)
+    const ids = [...selected]
+    try {
+      const results = await Promise.allSettled(
+        ids.map((id) => deleteDoc(doc(getDb(), "projects", id))),
+      )
+      const okIds = new Set(
+        ids.filter((_, i) => results[i].status === "fulfilled"),
+      )
+      const failed = ids.length - okIds.size
+      setProjects((prev) => (prev ?? []).filter((p) => !okIds.has(p.id)))
+      setSelected(new Set())
+      setBulkOpen(false)
+      if (failed > 0) {
+        toast.warning(`${okIds.size} verwijderd, ${failed} mislukt`)
+      } else {
+        toast.success(`${okIds.size} review${okIds.size !== 1 ? "s" : ""} verwijderd`)
+      }
+    } catch (e) {
+      console.error("[dashboard] bulk delete", e)
+      toast.error("Verwijderen mislukt")
+    } finally {
+      setBulkDeleting(false)
     }
   }
 
@@ -382,13 +433,41 @@ export function Dashboard() {
                 </CardContent>
               </Card>
             ) : view === "table" ? (
-              <ProjectsTable
-                rows={visible}
-                showDomain
-                onOpen={(id) => router.push(`/review/${id}`)}
-                onDelete={setToDelete}
-                onSetBranche={updateBranche}
-              />
+              <div className="space-y-3">
+                {selected.size > 0 && (
+                  <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
+                    <span className="font-medium">
+                      {selected.size} geselecteerd
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setSelected(new Set())}
+                      >
+                        Deselecteren
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => setBulkOpen(true)}
+                      >
+                        <Trash2 className="mr-1 h-4 w-4" /> Verwijderen
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                <ProjectsTable
+                  rows={visible}
+                  showDomain
+                  onOpen={(id) => router.push(`/review/${id}`)}
+                  onDelete={setToDelete}
+                  onSetBranche={updateBranche}
+                  selected={selected}
+                  onToggle={toggleSelect}
+                  onToggleAll={toggleSelectAll}
+                />
+              </div>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {groups.map(([domain, items]) => (
@@ -428,6 +507,37 @@ export function Dashboard() {
               className="bg-destructive text-white hover:bg-destructive/90 dark:bg-destructive/60 dark:hover:bg-destructive/70"
             >
               {deleting ? "Verwijderen…" : "Verwijderen"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={bulkOpen} onOpenChange={(o) => !o && setBulkOpen(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {selected.size} review{selected.size !== 1 ? "s" : ""} verwijderen?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              De geselecteerde reviews worden permanent verwijderd. Dit kan niet
+              ongedaan worden gemaakt.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleting}>
+              Annuleren
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                confirmBulkDelete()
+              }}
+              disabled={bulkDeleting}
+              className="bg-destructive text-white hover:bg-destructive/90 dark:bg-destructive/60 dark:hover:bg-destructive/70"
+            >
+              {bulkDeleting
+                ? "Verwijderen…"
+                : `${selected.size} verwijderen`}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -579,18 +689,38 @@ function ProjectsTable({
   onOpen,
   onDelete,
   onSetBranche,
+  selected,
+  onToggle,
+  onToggleAll,
 }: {
   rows: Project[]
   showDomain?: boolean
   onOpen: (id: string) => void
   onDelete: (p: Project) => void
   onSetBranche?: (id: string, slug: string) => void
+  selected?: Set<string>
+  onToggle?: (id: string) => void
+  onToggleAll?: (ids: string[]) => void
 }) {
+  const allIds = rows.map((r) => r.id)
+  const allSelected =
+    !!onToggle && allIds.length > 0 && allIds.every((id) => selected?.has(id))
+  const someSelected =
+    !!onToggle && allIds.some((id) => selected?.has(id)) && !allSelected
   return (
     <div className="overflow-x-auto rounded-xl border">
       <Table>
         <TableHeader>
           <TableRow>
+            {onToggle && (
+              <TableHead className="w-10">
+                <Checkbox
+                  checked={allSelected ? true : someSelected ? "indeterminate" : false}
+                  onCheckedChange={() => onToggleAll?.(allIds)}
+                  aria-label="Alles selecteren"
+                />
+              </TableHead>
+            )}
             <TableHead>Project</TableHead>
             {showDomain && (
               <TableHead className="hidden md:table-cell">Domein</TableHead>
@@ -614,8 +744,20 @@ function ProjectsTable({
               <TableRow
                 key={p.id}
                 onClick={() => onOpen(p.id)}
-                className="cursor-pointer"
+                className={cn(
+                  "cursor-pointer",
+                  selected?.has(p.id) && "bg-muted/50",
+                )}
               >
+                {onToggle && (
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={selected?.has(p.id) ?? false}
+                      onCheckedChange={() => onToggle(p.id)}
+                      aria-label="Selecteer review"
+                    />
+                  </TableCell>
+                )}
                 <TableCell className="max-w-[260px] font-medium">
                   <div className="truncate">
                     {p.name || p.url || "Naamloos project"}
