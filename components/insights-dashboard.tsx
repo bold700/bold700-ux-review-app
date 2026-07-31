@@ -1,8 +1,17 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 import { collection, getDocs, orderBy, query } from "firebase/firestore"
-import { Loader2, RefreshCw, Sparkles, Tags, TrendingDown } from "lucide-react"
+import {
+  ExternalLink,
+  FileText,
+  Loader2,
+  RefreshCw,
+  Sparkles,
+  Tags,
+  TrendingDown,
+} from "lucide-react"
 import { toast } from "sonner"
 
 import { getDb } from "@/lib/firebase"
@@ -22,6 +31,7 @@ import {
   siteTypeOf,
   type StoredInsight,
 } from "@/lib/insights"
+import { generateStateReport } from "@/lib/state-report"
 import { useAuth } from "@/components/providers/auth-provider"
 import { AppShell } from "@/components/app-shell"
 import { Badge } from "@/components/ui/badge"
@@ -60,6 +70,7 @@ export function InsightsDashboard() {
   const [brancheF, setBrancheF] = useState("all")
   const [siteF, setSiteF] = useState("all")
   const [backfilling, setBackfilling] = useState(false)
+  const [genReport, setGenReport] = useState(false)
 
   const loadProjects = useCallback(async () => {
     try {
@@ -140,6 +151,23 @@ export function InsightsDashboard() {
       saveBenchmark(fullInsights, segments ?? undefined).catch(() => {})
     }
   }, [fullInsights, segments])
+
+  async function buildPublicReport() {
+    if (!fullInsights || !segments) return
+    setGenReport(true)
+    const t = toast.loading("Publiek rapport genereren…")
+    try {
+      await generateStateReport(fullInsights, segments)
+      toast.success("Publiek rapport bijgewerkt", { id: t })
+    } catch (e) {
+      toast.error("Genereren mislukt", {
+        id: t,
+        description: e instanceof Error ? e.message : undefined,
+      })
+    } finally {
+      setGenReport(false)
+    }
+  }
 
   async function refresh() {
     if (!fullInsights) return
@@ -346,6 +374,43 @@ export function InsightsDashboard() {
                     over alle sites te laten samenvatten.
                   </p>
                 )}
+              </CardContent>
+            </Card>
+
+            {/* Publiek rapport */}
+            <Card>
+              <CardContent className="flex flex-col gap-3 py-5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-2">
+                  <FileText className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <div>
+                    <div className="text-sm font-semibold">Publiek rapport</div>
+                    <p className="text-sm text-muted-foreground">
+                      Deelbare pagina in gewone taal (“Hoe goed zijn websites
+                      van Nederlandse ondernemers?”). Genereer opnieuw na nieuwe
+                      reviews.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={buildPublicReport}
+                    disabled={genReport}
+                  >
+                    {genReport ? (
+                      <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="mr-1 h-4 w-4" />
+                    )}
+                    Genereren
+                  </Button>
+                  <Button size="sm" variant="ghost" asChild>
+                    <Link href="/rapport" target="_blank">
+                      Bekijk <ExternalLink className="ml-1 h-4 w-4" />
+                    </Link>
+                  </Button>
+                </div>
               </CardContent>
             </Card>
 
