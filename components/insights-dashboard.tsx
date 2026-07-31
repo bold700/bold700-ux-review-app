@@ -10,6 +10,7 @@ import {
   RefreshCw,
   Sparkles,
   Tags,
+  Target,
   TrendingDown,
 } from "lucide-react"
 import { toast } from "sonner"
@@ -33,6 +34,7 @@ import {
   type StoredInsight,
 } from "@/lib/insights"
 import { generateStateReport } from "@/lib/state-report"
+import { outcomeStats } from "@/lib/outcomes"
 import { useAuth } from "@/components/providers/auth-provider"
 import { AppShell } from "@/components/app-shell"
 import { Badge } from "@/components/ui/badge"
@@ -147,6 +149,26 @@ export function InsightsDashboard() {
   )
 
   const isFiltered = brancheF !== "all" || siteF !== "all" || goalF !== "all"
+
+  // Leerlus: hoe vaak was mijn inschatting raak, over alle reviews.
+  const learn = useMemo(() => {
+    const list = projects ?? []
+    let evaluated = 0
+    let hits = 0
+    let proven = 0
+    for (const p of list) {
+      const s = outcomeStats(p)
+      evaluated += s.evaluated
+      hits += s.hits
+      proven += s.proven
+    }
+    return {
+      evaluated,
+      hits,
+      proven,
+      hitRate: evaluated ? hits / evaluated : null,
+    }
+  }, [projects])
 
   // Benchmark + segmenten publiek opslaan zodat rapporten 'm kunnen tonen.
   useEffect(() => {
@@ -429,6 +451,45 @@ export function InsightsDashboard() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Leerlus */}
+            {learn.evaluated > 0 && (
+              <Card>
+                <CardContent className="py-5">
+                  <div className="flex items-center gap-2 text-sm font-semibold">
+                    <Target className="h-4 w-4 text-primary" /> Jouw leerlus
+                  </div>
+                  <div className="mt-3 grid grid-cols-3 gap-4">
+                    <div>
+                      <div className="text-2xl font-bold tabular-nums">
+                        {learn.evaluated}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        bevindingen geëvalueerd
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold tabular-nums text-emerald-500">
+                        {learn.hitRate != null
+                          ? `${Math.round(learn.hitRate * 100)}%`
+                          : "—"}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        was raak (terecht)
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold tabular-nums text-emerald-500">
+                        {learn.proven}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        met aantoonbaar resultaat
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Benchmark per branche */}
             {segments && segments.branches.length > 0 && (

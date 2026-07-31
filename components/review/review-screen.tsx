@@ -32,11 +32,7 @@ import { Progress } from "@/components/ui/progress"
 import { Textarea } from "@/components/ui/textarea"
 import { ScreenshotStrip } from "@/components/review/screenshot-strip"
 import { FreeFormReview } from "@/components/review/free-form-review"
-import {
-  ConfidenceRow,
-  ScoreButtons,
-  SeverityRow,
-} from "@/components/review/score-controls"
+import { ScoreButtons, SeverityRow } from "@/components/review/score-controls"
 import { LivePreview } from "@/components/review/live-preview"
 import { ContextEditor } from "@/components/review/context-editor"
 import { cn } from "@/lib/utils"
@@ -446,11 +442,6 @@ function QuestionCard({
           score={answer.score}
           value={answer.severity}
           onChange={(sev) => setAnswer(question.id, { severity: sev })}
-        />
-        <ConfidenceRow
-          score={answer.score}
-          value={answer.confidence}
-          onChange={(n) => setAnswer(question.id, { confidence: n })}
         />
         <Textarea
           value={answer.notes ?? ""}

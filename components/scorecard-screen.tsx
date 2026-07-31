@@ -20,7 +20,7 @@ import {
 import { toast } from "sonner"
 
 import { getDb } from "@/lib/firebase"
-import type { Project } from "@/lib/types"
+import type { Answer, Project } from "@/lib/types"
 import { buildReport } from "@/lib/report"
 import { buildActionPlan } from "@/lib/action-plan"
 import { translateFindings } from "@/lib/translate"
@@ -43,6 +43,7 @@ import { generateActionPlan } from "@/lib/ai"
 import { scoreTone } from "@/lib/score"
 import { AppShell } from "@/components/app-shell"
 import { ReportView } from "@/components/report/report-view"
+import { OutcomePanel } from "@/components/report/outcome-panel"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
@@ -83,6 +84,24 @@ export function ScorecardScreen({ id }: { id: string }) {
       cancelled = true
     }
   }, [id])
+
+  // Resultaat-loop: outcome per bevinding opslaan (nested update, raakt andere
+  // velden van het antwoord niet aan).
+  async function setOutcome(fid: string, patch: Partial<Answer>) {
+    setProject((p) => {
+      if (!p) return p
+      const answers = { ...(p.answers ?? {}) }
+      answers[fid] = { ...(answers[fid] ?? {}), ...patch }
+      return { ...p, answers }
+    })
+    const upd: Record<string, unknown> = { updatedAt: new Date().toISOString() }
+    for (const [k, v] of Object.entries(patch)) upd[`answers.${fid}.${k}`] = v
+    try {
+      await updateDoc(doc(getDb(), "projects", id), upd)
+    } catch (e) {
+      console.error("[scorecard:setOutcome]", e)
+    }
+  }
 
   const data = useMemo(() => (project ? buildReport(project) : null), [project])
   const quickWins = useMemo(
@@ -400,6 +419,14 @@ export function ScorecardScreen({ id }: { id: string }) {
             className="text-emerald-500"
           />
           <Stat label="Sterke punten" value={data.strengths.length} />
+        </div>
+
+        <div className="mb-6">
+          <OutcomePanel
+            issues={data.issues}
+            answers={project.answers ?? {}}
+            onSet={setOutcome}
+          />
         </div>
 
         <ReportView

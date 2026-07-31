@@ -14,7 +14,10 @@ export interface Answer {
   screenshot?: string // legacy
   autoScanned?: boolean
   aiFilled?: boolean
-  confidence?: number // 1-5: hoe zeker is de reviewer van deze inschatting
+  // resultaat-loop: was de inschatting correct? (lib/outcomes.ts)
+  outcome?: string
+  outcomeNote?: string
+  outcomeAt?: string
   // free-form velden
   findingTitle?: string
   findingCategory?: string | null
