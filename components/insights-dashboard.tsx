@@ -386,8 +386,7 @@ export function InsightsDashboard() {
                     <div className="text-sm font-semibold">Publiek rapport</div>
                     <p className="text-sm text-muted-foreground">
                       Deelbare pagina in gewone taal (“Hoe goed zijn websites
-                      van Nederlandse ondernemers?”). Genereer opnieuw na nieuwe
-                      reviews.
+                      van ondernemers?”). Genereer opnieuw na nieuwe reviews.
                     </p>
                   </div>
                 </div>

@@ -76,9 +76,9 @@ export async function generateStateReport(
     )
     .join("\n")
 
-  const system = `Je schrijft voor Nederlandse ondernemers zonder technische kennis. Vermijd ALLE vakjargon en Engelse woorden (UX, review, CTA, above the fold, conversie, bounce rate). Gebruik gewone, alledaagse taal, bijvoorbeeld "je website verbeteren" of "bezoekers helpen". Antwoord uitsluitend met JSON.`
+  const system = `Je schrijft in het Nederlands voor ondernemers zonder technische kennis. Vermijd ALLE vakjargon en Engelse woorden (UX, review, CTA, above the fold, conversie, bounce rate). Gebruik gewone, alledaagse taal, bijvoorbeeld "je website verbeteren" of "bezoekers helpen". Ga er NIET vanuit dat alle websites uit Nederland komen. Antwoord uitsluitend met JSON.`
 
-  const user = `We bekeken ${ins.scoredCount} websites van Nederlandse MKB-ondernemers en gaven ze een cijfer (gemiddeld ${ins.avgScore != null ? ins.avgScore.toFixed(1) : "?"} op 10) voor hoe goed ze bezoekers helpen.
+  const user = `We bekeken ${ins.scoredCount} websites van ondernemers en gaven ze een cijfer (gemiddeld ${ins.avgScore != null ? ins.avgScore.toFixed(1) : "?"} op 10) voor hoe goed ze bezoekers helpen.
 
 DE MEEST VOORKOMENDE PROBLEMEN (met nummer):
 ${problemLines || "- (te weinig data)"}

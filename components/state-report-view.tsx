@@ -80,10 +80,10 @@ export function StateReportView() {
         <header className="mb-10">
           <BrandLogo className="mb-8 h-7 w-auto" />
           <p className="text-sm font-medium text-primary">
-            Onderzoek onder {report.siteCount} Nederlandse MKB-websites
+            Onderzoek onder {report.siteCount} MKB-websites
           </p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
-            Hoe goed zijn websites van Nederlandse ondernemers?
+            Hoe goed zijn websites van ondernemers?
           </h1>
           <p className="mt-4 text-lg text-muted-foreground">
             We bekeken {report.siteCount} websites en gaven ze een rapportcijfer

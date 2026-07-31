@@ -102,7 +102,7 @@ export async function detectBranche(
   if (!text || text.trim().length < 40) return null
 
   const list = BRANCHES.map((b) => `${b.slug} = ${b.label}`).join("\n")
-  const system = `Je bepaalt in welke branche/sector een Nederlands MKB-bedrijf zit op basis van de website-inhoud. Kies UITSLUITEND een slug uit de vaste lijst. Antwoord uitsluitend met JSON.`
+  const system = `Je bepaalt in welke branche/sector een MKB-bedrijf zit op basis van de website-inhoud. Kies UITSLUITEND een slug uit de vaste lijst. Antwoord uitsluitend met JSON.`
   const user = `URL: ${url}
 
 PAGINA-INHOUD (ingekort):
