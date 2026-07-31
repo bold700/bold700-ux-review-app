@@ -17,9 +17,9 @@ import { toast } from "sonner"
 import { getDb } from "@/lib/firebase"
 import type { Project } from "@/lib/types"
 import {
-  backfillBranches,
-  projectsMissingBranche,
-} from "@/lib/branche"
+  backfillContext,
+  projectsMissingContext,
+} from "@/lib/review-context"
 import { scoreTone } from "@/lib/score"
 import {
   brancheOf,
@@ -95,17 +95,17 @@ export function InsightsDashboard() {
   }, [user, role, loadProjects])
 
   const missing = useMemo(
-    () => (projects ? projectsMissingBranche(projects) : []),
+    () => (projects ? projectsMissingContext(projects) : []),
     [projects],
   )
 
   async function runBackfill() {
     if (!projects || missing.length === 0) return
     setBackfilling(true)
-    const t = toast.loading(`Branches herkennen… 0/${missing.length}`)
+    const t = toast.loading(`Context herkennen… 0/${missing.length}`)
     try {
-      const res = await backfillBranches(projects, (done, total) => {
-        toast.loading(`Branches herkennen… ${done}/${total}`, { id: t })
+      const res = await backfillContext(projects, (done, total) => {
+        toast.loading(`Context herkennen… ${done}/${total}`, { id: t })
       })
       await loadProjects()
       toast.success(`${res.updated} van ${res.total} reviews getagd`, { id: t })
@@ -280,7 +280,7 @@ export function InsightsDashboard() {
                     ) : (
                       <Tags className="mr-1 h-4 w-4" />
                     )}
-                    {missing.length} zonder branche taggen
+                    {missing.length} zonder context taggen
                   </Button>
                 )}
                 <span className="text-xs text-muted-foreground">

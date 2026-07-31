@@ -1,5 +1,9 @@
+import { doc, updateDoc } from "firebase/firestore"
+
 import { BRANCHES, isBranche } from "@/lib/branche"
+import { getDb } from "@/lib/firebase"
 import { fetchPageText } from "@/lib/page-fetch"
+import type { Project } from "@/lib/types"
 
 const PROXY = process.env.NEXT_PUBLIC_AI_PROXY_URL
 
@@ -182,4 +186,61 @@ Antwoord UITSLUITEND met JSON:
   } catch {
     return empty
   }
+}
+
+/**
+ * Projecten die nog geen volledige basis-context hebben (branche of doel
+ * ontbreekt) en een URL. Fase en doelgroep zijn optioneel en tellen niet mee
+ * voor "ontbrekend", zodat onbereikbare pagina's niet elke keer opnieuw worden
+ * geprobeerd.
+ */
+export function projectsMissingContext(projects: Project[]): Project[] {
+  return projects.filter(
+    (p) =>
+      !!(p.url ?? "").trim() &&
+      (!isBranche(p.branche) || !isPageGoal(p.pageGoal)),
+  )
+}
+
+/**
+ * Vult branche + reviewcontext aan voor bestaande reviews (één AI-call per
+ * site). Overschrijft nooit al ingevulde velden. Zet branche "overig" en doel
+ * "anders" als de AI niks bruikbaars geeft, zodat een project daarna niet meer
+ * als "ontbrekend" telt.
+ */
+export async function backfillContext(
+  projects: Project[],
+  onProgress?: (done: number, total: number) => void,
+): Promise<{ updated: number; total: number }> {
+  const todo = projectsMissingContext(projects)
+  let updated = 0
+  for (let i = 0; i < todo.length; i++) {
+    const p = todo[i]
+    try {
+      const a = await analyzePage((p.url ?? "").trim())
+      const patch: Partial<Project> = {}
+      if (!isBranche(p.branche)) {
+        patch.branche = a.branche ?? "overig"
+        patch.brancheAuto = true
+      }
+      if (!isPageGoal(p.pageGoal)) {
+        patch.pageGoal = a.pageGoal ?? "anders"
+      }
+      if (!isJourneyStage(p.journeyStage) && a.journeyStage) {
+        patch.journeyStage = a.journeyStage
+      }
+      if (!isAudience(p.audience) && a.audience) {
+        patch.audience = a.audience
+      }
+      if (Object.keys(patch).length > 0) {
+        patch.contextAuto = true
+        await updateDoc(doc(getDb(), "projects", p.id), patch)
+        updated++
+      }
+    } catch {
+      // sla dit project over; blijft in de volgende run staan
+    }
+    onProgress?.(i + 1, todo.length)
+  }
+  return { updated, total: todo.length }
 }
