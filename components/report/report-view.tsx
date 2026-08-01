@@ -179,6 +179,9 @@ export function ReportView({
         project={project}
         benchmark={bench}
         editPlain={editPlain}
+        devStatus={devStatus}
+        onDevUpdate={onDevUpdate}
+        onImage={setPreview}
       />
 
       {onDevUpdate && data.issues.length > 0 && (
@@ -204,16 +207,20 @@ export function ReportView({
         </div>
       )}
 
-      <FindingSection
-        title={`Verbeterpunten (${data.issues.length})`}
-        color="text-red-500"
-        findings={data.issues}
-        empty="Geen verbeterpunten, netjes!"
-        onImage={setPreview}
-        devStatus={devStatus}
-        onDevUpdate={onDevUpdate}
-        plain={project.plainActions}
-      />
+      {/* Vrije reviews hebben geen actieplan → toon hier de verbeterpunten.
+          Bij checklists staan die al in "Het plan" (geen dubbele lijst). */}
+      {project.reviewType === "free-form" && (
+        <FindingSection
+          title={`Verbeterpunten (${data.issues.length})`}
+          color="text-red-500"
+          findings={data.issues}
+          empty="Geen verbeterpunten, netjes!"
+          onImage={setPreview}
+          devStatus={devStatus}
+          onDevUpdate={onDevUpdate}
+          plain={project.plainActions}
+        />
+      )}
       <FindingSection
         title={`Sterke punten (${data.strengths.length})`}
         color="text-emerald-500"
