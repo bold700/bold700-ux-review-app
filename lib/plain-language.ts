@@ -6,7 +6,10 @@ import type { Project } from "@/lib/types"
 
 const PROXY = process.env.NEXT_PUBLIC_AI_PROXY_URL
 
-export type PlainActions = Record<string, { title: string; action: string }>
+export type PlainActions = Record<
+  string,
+  { title: string; action: string; impact?: string }
+>
 
 function parseObj(text: string): PlainActions | null {
   const t = text
@@ -36,21 +39,29 @@ export async function generatePlainActions(
 ): Promise<PlainActions> {
   if (project.reviewType === "free-form" || !PROXY) return project.plainActions ?? {}
   const existing = project.plainActions ?? {}
-  const items = buildActionPlan(project).priorities.filter((p) => !existing[p.id])
+  // Herschrijf punten die nog geen gewone-taal-versie hebben, of die nog de
+  // oude versie zonder "impact" hebben (upgrade naar jargon-vrije opbrengst).
+  const items = buildActionPlan(project).priorities.filter(
+    (p) => !existing[p.id] || existing[p.id].impact === undefined,
+  )
   if (items.length === 0) return existing
 
   const list = items
-    .map((p) => `[id:${p.id}] PUNT: ${p.title}\nFIX: ${p.fix}`)
+    .map(
+      (p) =>
+        `[id:${p.id}]\nPUNT: ${p.title}\nOPLEVERT: ${p.businessImpact ?? ""}\nFIX: ${p.fix}\nREVIEWER: ${p.notes ?? ""}`,
+    )
     .join("\n\n")
 
-  const system = `Je herschrijft UX-verbeterpunten naar heldere, simpele taal voor een ondernemer zonder technische kennis (jip-en-janneke). Vermijd ALLE vakjargon en Engelse termen (bijv. Flesch-Kincaid, CTA, above the fold, hero, viewport, bounce rate) — leg het uit in gewone woorden. Antwoord uitsluitend met JSON.`
+  const system = `Je herschrijft verbeterpunten voor een website naar heldere, simpele taal voor een ondernemer zonder technische kennis (jip-en-janneke). Vermijd ALLE vakjargon en Engelse termen (bijv. CTA, conversie, bounce, bounce rate, above the fold, hero, viewport, Flesch-Kincaid). Zeg bijvoorbeeld "meer aanvragen/aankopen" in plaats van "conversie", en "bezoekers haken af" in plaats van "bounce". Antwoord uitsluitend met JSON.`
 
-  const user = `Herschrijf elk punt hieronder. Geef per id:
-- "title": in gewone taal wat er aan de hand is (max ~8 woorden, geen jargon)
-- "action": één concrete "doe dit"-zin die begint met een werkwoord
+  const user = `Herschrijf elk punt hieronder naar gewone taal. Geef per id:
+- "title": kort wat er aan de hand is (max ~8 woorden, geen jargon)
+- "impact": wat het oplevert als je dit oplost, concreet en in gewone taal. Neem percentages uit OPLEVERT over als die er staan, maar zonder vakwoorden.
+- "action": het advies in 1 tot 2 zinnen, begin met een werkwoord. Verwerk de concrete observatie van REVIEWER als die er is, in nette taal.
 
-Behoud de betekenis, verzin niks. Antwoord UITSLUITEND als JSON met exact deze id's:
-{"<id>": {"title": "<gewone titel>", "action": "<doe dit-zin>"}}
+Behoud de betekenis, verzin geen cijfers. Antwoord UITSLUITEND als JSON met exact deze id's:
+{"<id>": {"title": "<titel>", "impact": "<wat het oplevert>", "action": "<advies>"}}
 
 ${list}`
 

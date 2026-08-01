@@ -16,7 +16,7 @@ import {
 } from "@/lib/review-context"
 import { scoreTone } from "@/lib/score"
 import { markdownToHtml } from "@/lib/markdown"
-import { ActionPlanView } from "@/components/report/action-plan-view"
+import { ActionPlanView, type PlainPatch } from "@/components/report/action-plan-view"
 import { ReportSummary } from "@/components/report/report-summary"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
@@ -45,12 +45,14 @@ export function ReportView({
   aiPlan,
   devStatus,
   onDevUpdate,
+  editPlain,
 }: {
   project: Project
   data: ReportData
   aiPlan?: string
   devStatus?: DevStatusMap
   onDevUpdate?: (id: string, entry: DevEntry) => void
+  editPlain?: (id: string, patch: PlainPatch) => void
 }) {
   const doneCount = onDevUpdate
     ? data.issues.filter((f) => devStateOf(devStatus?.[f.id]) === "done").length
@@ -173,7 +175,11 @@ export function ReportView({
         </section>
       )}
 
-      <ActionPlanView project={project} benchmark={bench} />
+      <ActionPlanView
+        project={project}
+        benchmark={bench}
+        editPlain={editPlain}
+      />
 
       {onDevUpdate && data.issues.length > 0 && (
         <div className="rounded-xl border bg-muted/30 p-3 text-sm">

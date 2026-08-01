@@ -64,7 +64,10 @@ export interface Project {
   // Engelse vertaling van vrije-review-bevindingen (voor de developer-link)
   findingTranslations?: Record<string, { title?: string; note?: string }>
   // Verbeterpunten in gewone taal (zonder jargon) voor het klant-rapport
-  plainActions?: Record<string, { title: string; action: string }>
+  plainActions?: Record<
+    string,
+    { title: string; action: string; impact?: string }
+  >
   // professional/audit
   auditStatus?: string
   assignedTo?: string | null

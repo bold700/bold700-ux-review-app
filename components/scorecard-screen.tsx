@@ -103,6 +103,28 @@ export function ScorecardScreen({ id }: { id: string }) {
     }
   }
 
+  // Reviewer past de gewone-taal-teksten van een verbeterpunt handmatig aan.
+  async function savePlain(
+    fid: string,
+    patch: { title?: string; impact?: string; action?: string },
+  ) {
+    const cur = project?.plainActions?.[fid] ?? { title: "", action: "" }
+    const merged = { ...cur, ...patch }
+    setProject((p) =>
+      p
+        ? { ...p, plainActions: { ...(p.plainActions ?? {}), [fid]: merged } }
+        : p,
+    )
+    try {
+      await updateDoc(doc(getDb(), "projects", id), {
+        [`plainActions.${fid}`]: merged,
+        updatedAt: new Date().toISOString(),
+      })
+    } catch (e) {
+      console.error("[scorecard:savePlain]", e)
+    }
+  }
+
   const data = useMemo(() => (project ? buildReport(project) : null), [project])
   const quickWins = useMemo(
     () => (project ? buildActionPlan(project).quickWins.length : 0),
@@ -148,7 +170,10 @@ export function ScorecardScreen({ id }: { id: string }) {
   useEffect(() => {
     if (!project || project.reviewType === "free-form" || !data) return
     const plain = project.plainActions ?? {}
-    const missing = data.issues.some((f) => !plain[f.id])
+    // ontbreekt de gewone-taal-versie, of nog de oude zonder "wat het oplevert"?
+    const missing = data.issues.some(
+      (f) => !plain[f.id] || plain[f.id].impact === undefined,
+    )
     if (!missing || plainGen.current) return
     plainGen.current = true
     generatePlainActions(project)
@@ -435,6 +460,7 @@ export function ScorecardScreen({ id }: { id: string }) {
           aiPlan={project.aiPlan}
           devStatus={devStatus}
           onDevUpdate={devUpdate}
+          editPlain={savePlain}
         />
         </div>
       </AppShell>

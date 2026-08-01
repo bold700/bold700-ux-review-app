@@ -1,14 +1,20 @@
 "use client"
 
-import { Clock } from "lucide-react"
+import { useState } from "react"
+import { Check, Clock, Pencil, X } from "lucide-react"
 
 import type { PlanItem } from "@/lib/action-plan"
 import { buildActionPlan, planPhases } from "@/lib/action-plan"
 import type { Benchmark } from "@/lib/insights"
 import type { Project } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
+
+export type PlainPatch = { title?: string; impact?: string; action?: string }
 
 const sevClass: Record<string, string> = {
   Kritiek: "bg-red-500/15 text-red-500",
@@ -64,9 +70,11 @@ const phaseTone: Record<string, { dot: string; text: string; border: string }> =
 export function ActionPlanView({
   project,
   benchmark,
+  editPlain,
 }: {
   project: Project
   benchmark?: Benchmark | null
+  editPlain?: (id: string, patch: PlainPatch) => void
 }) {
   const plan = buildActionPlan(project)
   const plain = project.plainActions ?? {}
@@ -115,6 +123,9 @@ export function ActionPlanView({
                   rank={i + 1}
                   benchmark={benchmark}
                   plain={plain[it.id]}
+                  onEdit={
+                    editPlain ? (patch) => editPlain(it.id, patch) : undefined
+                  }
                 />
               ))}
             </div>
@@ -130,16 +141,36 @@ function PlanRow({
   rank,
   benchmark,
   plain,
+  onEdit,
 }: {
   item: PlanItem
   rank: number
   benchmark?: Benchmark | null
-  plain?: { title: string; action: string }
+  plain?: { title: string; action: string; impact?: string }
+  onEdit?: (patch: PlainPatch) => void
 }) {
   const bm = benchmark?.checks?.[item.id]
   const alsoPct = bm && bm.r > 0 ? Math.round(bm.r * 100) : null
   const title = plain?.title || item.title
   const fix = plain?.action || item.fix
+  const impact = plain?.impact || item.businessImpact
+
+  const [editing, setEditing] = useState(false)
+  const [dTitle, setDTitle] = useState(title)
+  const [dImpact, setDImpact] = useState(impact ?? "")
+  const [dAction, setDAction] = useState(fix ?? "")
+
+  function openEdit() {
+    setDTitle(title)
+    setDImpact(impact ?? "")
+    setDAction(fix ?? "")
+    setEditing(true)
+  }
+  function save() {
+    onEdit?.({ title: dTitle, impact: dImpact, action: dAction })
+    setEditing(false)
+  }
+
   return (
     <Card>
       <CardContent className="py-3">
@@ -170,25 +201,80 @@ function PlanRow({
                   {alsoPct}% van de sites heeft dit ook
                 </Badge>
               )}
+              {onEdit && !editing && (
+                <button
+                  onClick={openEdit}
+                  aria-label="Teksten aanpassen"
+                  className="ml-auto shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground print:hidden"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
-            {item.businessImpact && (
-              <p className="rounded-md bg-emerald-500/10 px-2.5 py-1.5 text-sm text-emerald-700 dark:text-emerald-300">
-                <span className="font-semibold">Wat het oplevert: </span>
-                {item.businessImpact}
-              </p>
+
+            {editing ? (
+              <div className="space-y-2 rounded-lg border bg-muted/30 p-3">
+                <div className="grid gap-1">
+                  <Label className="text-xs text-muted-foreground">Titel</Label>
+                  <Textarea
+                    value={dTitle}
+                    onChange={(e) => setDTitle(e.target.value)}
+                    className="min-h-9"
+                    rows={1}
+                  />
+                </div>
+                <div className="grid gap-1">
+                  <Label className="text-xs text-muted-foreground">
+                    Wat het oplevert
+                  </Label>
+                  <Textarea
+                    value={dImpact}
+                    onChange={(e) => setDImpact(e.target.value)}
+                    className="min-h-14"
+                  />
+                </div>
+                <div className="grid gap-1">
+                  <Label className="text-xs text-muted-foreground">Advies</Label>
+                  <Textarea
+                    value={dAction}
+                    onChange={(e) => setDAction(e.target.value)}
+                    className="min-h-14"
+                  />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setEditing(false)}
+                  >
+                    <X className="mr-1 h-4 w-4" /> Annuleren
+                  </Button>
+                  <Button size="sm" onClick={save}>
+                    <Check className="mr-1 h-4 w-4" /> Opslaan
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {impact && (
+                  <p className="rounded-md bg-emerald-500/10 px-2.5 py-1.5 text-sm text-emerald-700 dark:text-emerald-300">
+                    <span className="font-semibold">Wat het oplevert: </span>
+                    {impact}
+                  </p>
+                )}
+                {fix && (
+                  <p className="text-sm">
+                    <span className="font-medium text-foreground">
+                      Advies:{" "}
+                    </span>
+                    <span className="text-muted-foreground">{fix}</span>
+                  </p>
+                )}
+                <p className="text-[11px] text-muted-foreground">
+                  {item.category}
+                </p>
+              </>
             )}
-            {fix && (
-              <p className="text-sm">
-                <span className="font-medium text-foreground">Doe dit: </span>
-                <span className="text-muted-foreground">{fix}</span>
-              </p>
-            )}
-            {item.notes && (
-              <p className="text-xs text-muted-foreground">
-                Reviewer: {item.notes}
-              </p>
-            )}
-            <p className="text-[11px] text-muted-foreground">{item.category}</p>
           </div>
         </div>
       </CardContent>
