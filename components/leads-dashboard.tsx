@@ -19,6 +19,7 @@ import {
   deleteLead,
   sendLeadResult,
   runLeadScan,
+  requestWorkerScan,
   FOLLOWUP_LABELS,
   SCAN_LABELS,
   type Lead,
@@ -103,6 +104,7 @@ export function LeadsDashboard() {
   const [toDelete, setToDelete] = useState<Lead | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [sendingId, setSendingId] = useState<string | null>(null)
+  const [scanningId, setScanningId] = useState<string | null>(null)
 
   async function load() {
     try {
@@ -164,6 +166,30 @@ export function LeadsDashboard() {
       })
     } finally {
       setSendingId(null)
+    }
+  }
+
+  // Start (of herstart) de headless Worker-scan voor een vastgelopen lead.
+  async function startScan(l: Lead) {
+    setScanningId(l.id)
+    setLeads((prev) =>
+      (prev ?? []).map((x) => (x.id === l.id ? { ...x, scanStatus: "scanning" } : x)),
+    )
+    try {
+      const ok = await requestWorkerScan(l)
+      if (!ok) {
+        // Worker /scan niet beschikbaar → browser-scan als terugval.
+        void runLeadScan(l, l.userId ?? "")
+        toast.message("Scan gestart in de browser (Worker niet bereikbaar)")
+      } else {
+        toast.success("Scan gestart", { description: l.url })
+      }
+    } catch (e) {
+      toast.error("Scan starten mislukt", {
+        description: e instanceof Error ? e.message : undefined,
+      })
+    } finally {
+      setScanningId(null)
     }
   }
 
@@ -262,12 +288,32 @@ export function LeadsDashboard() {
                       })}
                     </TableCell>
                     <TableCell>
-                      <Badge className={cn("text-[10px]", scanClass[l.scanStatus])}>
-                        {l.scanStatus === "scanning" && (
-                          <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                      <div className="flex items-center gap-2">
+                        <Badge className={cn("text-[10px]", scanClass[l.scanStatus])}>
+                          {l.scanStatus === "scanning" && (
+                            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                          )}
+                          {SCAN_LABELS[l.scanStatus]}
+                        </Badge>
+                        {(l.scanStatus === "queued" || l.scanStatus === "failed") && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 px-2 text-[11px]"
+                            disabled={scanningId === l.id}
+                            onClick={() => startScan(l)}
+                            title="Scan (opnieuw) starten"
+                          >
+                            {scanningId === l.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <>
+                                <RefreshCw className="mr-1 h-3 w-3" /> Scan
+                              </>
+                            )}
+                          </Button>
                         )}
-                        {SCAN_LABELS[l.scanStatus]}
-                      </Badge>
+                      </div>
                     </TableCell>
                     <TableCell
                       className={cn(
