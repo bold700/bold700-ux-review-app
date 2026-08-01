@@ -40,6 +40,37 @@ const dot: Record<string, string> = {
 }
 const rank: Record<string, number> = { good: 3, ok: 2, bad: 1 }
 
+// AI-analyseteam: elke rol heeft een naam, zodat de samenwerking van
+// verschillende expertises zichtbaar is. Bewust gelabeld als AI (geen suggestie
+// van menselijke reviewers); de menselijke controle is de BOLD700-specialist.
+const TEAM: { name: string; role: string }[] = [
+  { name: "Bram", role: "Bedrijfsprofiel" },
+  { name: "Sofie", role: "UX & gebruiksgemak" },
+  { name: "Ruben", role: "Vindbaarheid & content" },
+  { name: "Nora", role: "Conversie" },
+  { name: "Timo", role: "Toegankelijkheid" },
+  { name: "Ans", role: "Doelgroep-blik" },
+  { name: "Vera", role: "Kwaliteitscontrole" },
+  { name: "Stef", role: "Prioritering" },
+  { name: "Lot", role: "Heldere rapportage" },
+]
+// Koppelt de teamLog-stap (rol) aan de naam.
+const ROLE_NAME: Record<string, string> = {
+  Bedrijfsprofiel: "Bram",
+  "UX-analyse": "Sofie",
+  "SEO & content": "Ruben",
+  Conversie: "Nora",
+  Toegankelijkheid: "Timo",
+  "Doelgroep-blik": "Ans",
+  Kwaliteitscontrole: "Vera",
+  Prioritering: "Stef",
+  "Rapport-tekst": "Lot",
+}
+
+// Waar de "laat valideren / plan gesprek"-CTA's heen gaan (aanvraag expert-
+// review als extra dienst). TODO: vervangen door de echte productpagina-URL.
+const EXPERT_URL = "/"
+
 function verdictLine(doel: string | undefined, n: number): string {
   if (n === 0) return "Je website staat er op de belangrijkste punten goed voor."
   const d = doel ? doel.toLowerCase() : "klanten"
@@ -157,7 +188,9 @@ function TeamLog({ log }: { log: TeamLogEntry[] }) {
         <li key={i} className="flex items-start gap-2">
           {statusIcon[s.status] ?? <CircleDashed className="h-4 w-4" />}
           <span className="min-w-0">
-            <span className="font-medium">{s.stap}</span>
+            <span className="font-medium">
+              {ROLE_NAME[s.stap] ? `${ROLE_NAME[s.stap]} · ${s.stap}` : s.stap}
+            </span>
             {s.samenvatting ? (
               <span className="text-muted-foreground"> — {s.samenvatting}</span>
             ) : null}
@@ -286,7 +319,10 @@ function AgentReport({
             De metingen zijn feiten. De{" "}
             <span className="font-medium text-foreground">AI-analyses</span> zijn
             onderbouwde hypotheses, geen zekerheden.{" "}
-            <a href="/" className="font-medium text-primary hover:underline">
+            <a
+              href={EXPERT_URL}
+              className="font-medium text-primary hover:underline"
+            >
               Laat een specialist ze valideren →
             </a>
           </p>
@@ -367,15 +403,37 @@ function AgentReport({
       <section className="rounded-xl border bg-muted/20 p-4">
         <h2 className="mb-2 text-sm font-semibold">Hoe deze review is gemaakt</h2>
         <p className="mb-3 text-sm text-muted-foreground">
-          We combineerden {measurements.length} echte metingen met
-          gespecialiseerde AI-analyses (gebruiksgemak, vindbaarheid, conversie,
-          toegankelijkheid en doelgroep).
+          Dit rapport is opgesteld door ons <span className="font-medium text-foreground">AI-analyseteam</span>:
+          gespecialiseerde AI-analyses met elk een eigen focus, gecombineerd met{" "}
+          {measurements.length} echte metingen.
           {typeof project.geschrapt === "number" && project.geschrapt > 0
-            ? ` ${project.geschrapt} bevindingen doorstonden onze controle niet en zijn geschrapt.`
+            ? ` De kwaliteitscontrole schrapte ${project.geschrapt} bevindingen die het bewijs niet doorstonden.`
             : ""}{" "}
-          Een specialist van BOLD700 controleert het geheel voordat je het
-          gesprek in gaat.
+          Een <span className="font-medium text-foreground">specialist van BOLD700</span> controleert het geheel voordat je het gesprek in gaat.
         </p>
+
+        {/* Team-overzicht: namen + rollen (AI-team) */}
+        <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {TEAM.map((m) => (
+            <div
+              key={m.name}
+              className="flex items-center gap-2 rounded-lg border bg-background px-2.5 py-1.5"
+            >
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                {m.name.slice(0, 1)}
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-medium">
+                  {m.name}
+                </span>
+                <span className="block truncate text-[11px] text-muted-foreground">
+                  {m.role}
+                </span>
+              </span>
+            </div>
+          ))}
+        </div>
+
         {log.length > 0 && <TeamLog log={log} />}
       </section>
 
@@ -389,7 +447,7 @@ function AgentReport({
           geeft je de volgorde die het meeste oplevert.
         </p>
         <Button asChild size="lg" className="mt-5">
-          <Link href="/">Plan een gesprek →</Link>
+          <Link href={EXPERT_URL}>Plan een gesprek →</Link>
         </Button>
       </section>
     </div>
