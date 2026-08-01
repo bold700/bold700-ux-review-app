@@ -7,7 +7,7 @@ import { toast } from "sonner"
 import type { Project } from "@/lib/types"
 import type { ReportData } from "@/lib/report"
 import { drawScorecard } from "@/lib/scorecard-image"
-import { createLead, runLeadScan } from "@/lib/leads"
+import { createLead, requestWorkerScan, runLeadScan } from "@/lib/leads"
 import { ensureProtocol } from "@/lib/url"
 import { BrandLogo } from "@/components/brand-logo"
 import { ScorecardDeck } from "@/components/scorecard-deck"
@@ -182,12 +182,12 @@ function SignupForm() {
         url: ensureProtocol(url),
       })
       setDone(true)
-      // Betrouwbare browser-scan (bestaande, werkende flow). De headless
-      // multi-agent Worker-scan (/scan) is klaar maar vereist Cloudflare
-      // Workers Paid om binnen de tijds-/subrequest-limieten te draaien; tot
-      // die keuze gemaakt is, niet automatisch op leads loslaten (voorkomt
-      // vastgelopen leads). Handmatig testen kan via de knop in /leads.
-      void runLeadScan(lead, uid)
+      // Nieuwe headless multi-agent Worker-scan (overleeft dichte browser).
+      // Valt terug op de browser-scan als de Worker /scan onverhoopt niet
+      // antwoordt, zodat er nooit een lead blijft hangen.
+      void requestWorkerScan(lead).then((ok) => {
+        if (!ok) void runLeadScan(lead, uid)
+      })
     } catch (e) {
       console.error(e)
       toast.error("Aanmelden mislukt", {
