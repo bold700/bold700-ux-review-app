@@ -7,7 +7,7 @@ import { toast } from "sonner"
 import type { Project } from "@/lib/types"
 import type { ReportData } from "@/lib/report"
 import { drawScorecard } from "@/lib/scorecard-image"
-import { createLead, runLeadScan } from "@/lib/leads"
+import { createLead, requestWorkerScan, runLeadScan } from "@/lib/leads"
 import { ensureProtocol } from "@/lib/url"
 import { BrandLogo } from "@/components/brand-logo"
 import { ScorecardDeck } from "@/components/scorecard-deck"
@@ -182,7 +182,11 @@ function SignupForm() {
         url: ensureProtocol(url),
       })
       setDone(true)
-      void runLeadScan(lead, uid)
+      // Eerst de headless Worker-scan proberen (overleeft dichte browser);
+      // valt terug op de browser-scan zolang de worker /scan nog niet heeft.
+      void requestWorkerScan(lead).then((ok) => {
+        if (!ok) void runLeadScan(lead, uid)
+      })
     } catch (e) {
       console.error(e)
       toast.error("Aanmelden mislukt", {

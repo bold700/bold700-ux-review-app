@@ -73,6 +73,29 @@ export const SCAN_LABELS: Record<ScanStatus, string> = {
   sent: "Verstuurd",
 }
 
+/**
+ * Vraagt de Worker om de headless scan te draaien (POST /scan). Overleeft het
+ * sluiten van de browser. Geeft alleen true terug als de NIEUWE worker met de
+ * /scan-route antwoordt ({ok:true}); anders valt de aanroeper terug op de
+ * browser-scan (runLeadScan), zodat de flow blijft werken tot de worker.js met
+ * /scan gedeployed is.
+ */
+export async function requestWorkerScan(lead: Lead): Promise<boolean> {
+  if (!PROXY) return false
+  try {
+    const base = PROXY.replace(/\/$/, "")
+    const resp = await fetch(`${base}/scan`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ leadId: lead.id, url: lead.url }),
+    })
+    const data = await resp.json().catch(() => null)
+    return resp.ok && data?.ok === true
+  } catch {
+    return false
+  }
+}
+
 // Stuurt Kenny direct een notificatie via de Worker (fire-and-forget).
 function notifyKenny(lead: Lead) {
   if (!PROXY) return

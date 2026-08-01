@@ -13,7 +13,7 @@
 // ═══════════════════════════════════════════════════════════
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const corsHeaders = {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
@@ -25,6 +25,11 @@ export default {
     }
 
     const url = new URL(request.url);
+
+    // ── POST /scan → headless multi-agent scan (overleeft dichte browser) ──
+    if (request.method === 'POST' && url.pathname === '/scan') {
+      return handleScan(request, env, ctx, corsHeaders);
+    }
 
     // ── POST /lead → notificatie naar Kenny ──
     if (request.method === 'POST' && url.pathname === '/lead') {
@@ -145,6 +150,423 @@ export default {
     ctx.waitUntil(deliverDueLeads(env));
   },
 };
+
+// ═══════════════════════════════════════════════════════════
+// Headless scan-pijplijn (POST /scan) — DAG 1: verzamelen + meten
+// ═══════════════════════════════════════════════════════════
+// Draait in de Worker via ctx.waitUntil, zodat de scan de dichte browser
+// overleeft. Tekst-only opzet (geen Browser Rendering/screenshots): de
+// vision-stappen worden overgeslagen. De volledige 400-checklist zit niet in
+// de Worker; deze pijplijn is finding-centric en levert pages + lichte
+// measurements + teamLog (Dag 2 voegt de agent-findings + score toe).
+
+const SCAN_UA =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
+function jsonResp(obj, status, cors) {
+  return new Response(JSON.stringify(obj), {
+    status,
+    headers: { 'Content-Type': 'application/json', ...cors },
+  });
+}
+
+async function handleScan(request, env, ctx, cors) {
+  try {
+    const { leadId, url } = await request.json();
+    if (!leadId || !url) return jsonResp({ error: 'leadId en url vereist' }, 400, cors);
+    // Fire-and-forget: overleeft het sluiten van de browser.
+    ctx.waitUntil(
+      runScanPipeline(env, leadId, url).catch((e) =>
+        console.error('scan pipeline (top-level)', e),
+      ),
+    );
+    return jsonResp({ ok: true }, 200, cors);
+  } catch (e) {
+    return jsonResp({ error: String(e) }, 500, cors);
+  }
+}
+
+async function runScanPipeline(env, leadId, rawUrl) {
+  let token;
+  try {
+    token = await getAccessToken(env);
+  } catch (e) {
+    console.error('scan: geen Firestore-token', e);
+    return;
+  }
+  if (!token) return;
+
+  const url = normalizeScanUrl(rawUrl);
+  const now = Date.now();
+  const projectId = `proj_${now}_${randId()}`;
+  const lead = await fsGetLead(env, token, leadId).catch(() => null);
+
+  const teamLog = [];
+  const pushLog = async (stap, status, samenvatting, ms) => {
+    const entry = { stap, status };
+    if (samenvatting) entry.samenvatting = samenvatting;
+    if (ms != null) entry.ms = ms;
+    teamLog.push(entry);
+    await fsPatchProject(env, token, projectId, { teamLog }, ['teamLog']).catch(() => {});
+  };
+
+  // Project-skelet (rapport/scorecard lezen deze velden).
+  await fsPatchProject(env, token, projectId, {
+    id: projectId,
+    name: cleanUrl(url),
+    url,
+    urls: [url],
+    client: '',
+    mode: 'self-service',
+    sourceType: 'url',
+    userId: lead?.userId ?? null,
+    leadEmail: lead?.email ?? '',
+    createdAt: new Date(now).toISOString(),
+    public: true,
+    sharedAt: new Date(now).toISOString(),
+    shareExpiresAtMs: now + 60 * 24 * 60 * 60 * 1000,
+    scanVersion: 2,
+    leadId,
+    pages: [],
+    measurements: [],
+    findings: [],
+    teamLog: [],
+  }).catch((e) => console.error('scan: skelet', e));
+  await patchLead(env, token, leadId, { scanStatus: 'scanning', projectId }).catch(() => {});
+
+  try {
+    // ── Daan: kernpagina's ──
+    let t0 = Date.now();
+    const pages = await crawlPages(url);
+    await fsPatchProject(env, token, projectId, { pages: pages.map((p) => p.url) }, ['pages']);
+    await pushLog('Site-analyse', pages.length ? 'klaar' : 'fout', `${pages.length} pagina('s) gevonden`, Date.now() - t0);
+    if (!pages.length) throw new Error('Geen pagina op te halen');
+
+    // Screenshots: tekst-only opzet → overgeslagen.
+    await pushLog('Screenshots', 'overgeslagen', 'tekst-only opzet, geen visuele analyse');
+
+    // ── Teun: metingen (licht DOM + PageSpeed) ──
+    t0 = Date.now();
+    const measurements = [];
+    for (const p of pages) measurements.push(...measureHtml(p.html, p.url));
+    const psi = await psiFetch(env, url).catch(() => null);
+    if (psi) measurements.push(...psiMeasurements(psi));
+    await fsPatchProject(env, token, projectId, { measurements }, ['measurements']);
+    await pushLog(
+      'Metingen',
+      'klaar',
+      `${measurements.length} metingen${psi ? ' (incl. PageSpeed)' : ' (PageSpeed niet beschikbaar)'}`,
+      Date.now() - t0,
+    );
+
+    // Voorlopige score uit metingen (Dag 2 vervangt met findings-score).
+    const score = scoreFromMeasurements(measurements);
+    const reportUrl = `${scanOrigin(env)}/report?id=${projectId}`;
+    if (score != null) await fsPatchProject(env, token, projectId, { score }, ['score']);
+    await patchLead(env, token, leadId, {
+      scanStatus: 'done',
+      score: score != null ? score : 0,
+      projectId,
+      reportUrl,
+    }).catch(() => {});
+    await pushLog('Klaar', 'klaar', score != null ? `Voorlopige score ${score.toFixed(1)}/10` : 'Scan afgerond');
+  } catch (e) {
+    console.error('scan pipeline', e);
+    await patchLead(env, token, leadId, { scanStatus: 'failed' }).catch(() => {});
+    await pushLog('Scan', 'fout', String((e && e.message) || e));
+  }
+}
+
+// ── Crawl (Daan) ──
+async function crawlPages(homeUrl) {
+  const out = [];
+  const home = await fetchPageText(homeUrl).catch(() => null);
+  if (!home) return out;
+  out.push(home);
+  let host;
+  try {
+    host = new URL(home.url).host;
+  } catch {
+    host = '';
+  }
+  const links = extractLinks(home.html, home.url).filter((l) => sameHost(l, host));
+  const service = pickLink(links, [/dienst/i, /product/i, /aanbod/i, /oplossing/i, /service/i, /\bwerk\b/i, /cases?/i, /portfolio/i]);
+  const contact = pickLink(links, [/contact/i, /afspraak/i, /offerte/i, /boek/i, /quote/i, /checkout/i, /winkelwagen/i, /cart/i, /aanvraag/i]);
+  for (const l of [service, contact]) {
+    if (!l || out.some((p) => p.url === l)) continue;
+    const pg = await fetchPageText(l).catch(() => null);
+    if (pg) out.push(pg);
+    if (out.length >= 3) break;
+  }
+  return out.slice(0, 3);
+}
+
+async function fetchWithTimeout(u, ms, opts = {}) {
+  const c = new AbortController();
+  const timer = setTimeout(() => c.abort(), ms);
+  try {
+    return await fetch(u, {
+      ...opts,
+      signal: c.signal,
+      redirect: 'follow',
+      headers: { 'User-Agent': SCAN_UA, Accept: 'text/html,*/*', ...(opts.headers || {}) },
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function fetchPageText(u) {
+  const r = await fetchWithTimeout(u, 10000);
+  if (!r || !r.ok) return null;
+  const html = await r.text();
+  if (!html || html.length < 200) return null;
+  return { url: r.url || u, html, text: htmlToText(html) };
+}
+
+function extractLinks(html, base) {
+  const out = [];
+  const re = /<a\s[^>]*href=["']([^"'#]+)["']/gi;
+  let m;
+  while ((m = re.exec(html)) !== null) {
+    try {
+      out.push(new URL(m[1], base).toString());
+    } catch {
+      // ongeldige URL overslaan
+    }
+  }
+  return [...new Set(out)];
+}
+
+function sameHost(u, host) {
+  try {
+    return new URL(u).host === host;
+  } catch {
+    return false;
+  }
+}
+
+function pickLink(links, patterns) {
+  for (const pat of patterns) {
+    const hit = links.find((l) => {
+      try {
+        return pat.test(new URL(l).pathname);
+      } catch {
+        return false;
+      }
+    });
+    if (hit) return hit;
+  }
+  return null;
+}
+
+function htmlToText(html) {
+  return String(html || '')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// ── Lichte meting (Teun) ──
+function mk(id, label, score, note, page) {
+  return { id, label, score, note, source: 'measured', page };
+}
+
+function measureHtml(html, pageUrl) {
+  const out = [];
+  const title = (html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1]
+    ? (html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1].replace(/\s+/g, ' ').trim()
+    : '';
+  out.push(
+    !title
+      ? mk('title', 'Paginatitel', 'bad', 'Geen paginatitel gevonden.', pageUrl)
+      : title.length >= 30 && title.length <= 60
+        ? mk('title', 'Paginatitel', 'good', `Titel: "${title.slice(0, 60)}" (${title.length} tekens).`, pageUrl)
+        : mk('title', 'Paginatitel', 'ok', `Titel is ${title.length} tekens (ideaal 30-60).`, pageUrl),
+  );
+
+  const desc = (html.match(/<meta[^>]+name=["']description["'][^>]*content=["']([^"']*)["']/i) || [])[1] || '';
+  out.push(
+    !desc
+      ? mk('meta-desc', 'Meta-omschrijving', 'bad', 'Geen meta-omschrijving.', pageUrl)
+      : desc.length >= 50 && desc.length <= 160
+        ? mk('meta-desc', 'Meta-omschrijving', 'good', `Meta-omschrijving is ${desc.length} tekens.`, pageUrl)
+        : mk('meta-desc', 'Meta-omschrijving', 'ok', `Meta-omschrijving is ${desc.length} tekens (ideaal 50-160).`, pageUrl),
+  );
+
+  const h1 = (html.match(/<h1[\s>]/gi) || []).length;
+  out.push(
+    h1 === 1
+      ? mk('h1', 'Hoofdkop (H1)', 'good', 'Precies één H1 op de pagina.', pageUrl)
+      : h1 === 0
+        ? mk('h1', 'Hoofdkop (H1)', 'bad', 'Geen H1-hoofdkop.', pageUrl)
+        : mk('h1', 'Hoofdkop (H1)', 'ok', `${h1} H1-koppen (idealiter één).`, pageUrl),
+  );
+
+  const lang = (html.match(/<html[^>]*\blang=["']([^"']+)["']/i) || [])[1] || '';
+  out.push(
+    lang
+      ? mk('lang', 'Taal ingesteld', 'good', `Taal: "${lang}".`, pageUrl)
+      : mk('lang', 'Taal ingesteld', 'bad', 'De pagina mist een taal-attribuut (lang).', pageUrl),
+  );
+
+  const imgs = (html.match(/<img\b[^>]*>/gi) || []);
+  if (imgs.length) {
+    const noAlt = imgs.filter((t) => !/\balt=/i.test(t)).length;
+    out.push(
+      noAlt === 0
+        ? mk('img-alt', 'Alt-teksten afbeeldingen', 'good', `Alle ${imgs.length} afbeeldingen hebben een alt-tekst.`, pageUrl)
+        : mk('img-alt', 'Alt-teksten afbeeldingen', 'bad', `${noAlt} van ${imgs.length} afbeeldingen missen een alt-tekst.`, pageUrl),
+    );
+  }
+
+  const viewport = /<meta[^>]+name=["']viewport["']/i.test(html);
+  out.push(
+    viewport
+      ? mk('viewport', 'Mobiel geschikt (viewport)', 'good', 'Viewport-tag aanwezig (mobiel geschikt).', pageUrl)
+      : mk('viewport', 'Mobiel geschikt (viewport)', 'bad', 'Geen viewport-tag (slecht voor mobiel).', pageUrl),
+  );
+
+  out.push(
+    /^https:\/\//i.test(pageUrl)
+      ? mk('https', 'Beveiligde verbinding (HTTPS)', 'good', 'Pagina draait op HTTPS.', pageUrl)
+      : mk('https', 'Beveiligde verbinding (HTTPS)', 'bad', 'Pagina draait niet op HTTPS.', pageUrl),
+  );
+
+  const canonical = /<link[^>]+rel=["']canonical["']/i.test(html);
+  out.push(
+    canonical
+      ? mk('canonical', 'Canonical-tag', 'good', 'Canonical-tag aanwezig.', pageUrl)
+      : mk('canonical', 'Canonical-tag', 'ok', 'Geen canonical-tag gevonden.', pageUrl),
+  );
+
+  const ogTitle = /<meta[^>]+property=["']og:title["']/i.test(html);
+  const ogImage = /<meta[^>]+property=["']og:image["']/i.test(html);
+  out.push(
+    ogTitle && ogImage
+      ? mk('social', 'Deel-voorvertoning (Open Graph)', 'good', 'Open Graph-titel en -afbeelding aanwezig.', pageUrl)
+      : mk('social', 'Deel-voorvertoning (Open Graph)', 'ok', 'Open Graph-tags ontbreken deels (minder mooie deel-preview).', pageUrl),
+  );
+
+  return out;
+}
+
+// ── PageSpeed (Teun) ──
+async function psiFetch(env, url) {
+  const params = new URLSearchParams({ url, strategy: 'mobile', category: 'performance' });
+  if (env.PSI_API_KEY) params.set('key', env.PSI_API_KEY);
+  const r = await fetchWithTimeout(
+    `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?${params.toString()}`,
+    30000,
+  );
+  if (!r || !r.ok) return null;
+  const j = await r.json();
+  const lh = j.lighthouseResult || {};
+  const a = lh.audits || {};
+  const num = (k) => (a[k] ? a[k].numericValue : undefined);
+  const met = j.loadingExperience && j.loadingExperience.metrics;
+  const clsPerc = met && met.CUMULATIVE_LAYOUT_SHIFT_SCORE ? met.CUMULATIVE_LAYOUT_SHIFT_SCORE.percentile : undefined;
+  return {
+    score:
+      lh.categories && lh.categories.performance && typeof lh.categories.performance.score === 'number'
+        ? Math.round(lh.categories.performance.score * 100)
+        : null,
+    lcp: (met && met.LARGEST_CONTENTFUL_PAINT_MS && met.LARGEST_CONTENTFUL_PAINT_MS.percentile) ?? num('largest-contentful-paint'),
+    cls: clsPerc != null ? clsPerc / 100 : num('cumulative-layout-shift'),
+    inp: met && met.INTERACTION_TO_NEXT_PAINT ? met.INTERACTION_TO_NEXT_PAINT.percentile : undefined,
+    field: !!met,
+  };
+}
+
+function secStr(ms) {
+  return ms == null ? '?' : (ms / 1000).toFixed(1).replace('.', ',') + ' s';
+}
+
+function psiMeasurements(psi) {
+  const out = [];
+  if (psi.score != null) {
+    out.push(mk('perf-score', 'Snelheidsscore', psi.score >= 90 ? 'good' : psi.score >= 50 ? 'ok' : 'bad', `PageSpeed-score ${psi.score}/100 (mobiel).`));
+  }
+  if (psi.lcp != null) {
+    const s = psi.lcp < 2500 ? 'good' : psi.lcp < 4000 ? 'ok' : 'bad';
+    out.push(mk('lcp', 'Laadtijd (LCP)', s, `LCP ${secStr(psi.lcp)} — streef < 2,5 s ${psi.field ? '(echte gebruikersdata)' : '(labmeting)'}.`));
+  }
+  if (psi.cls != null) {
+    const s = psi.cls < 0.1 ? 'good' : psi.cls < 0.25 ? 'ok' : 'bad';
+    out.push(mk('cls', 'Stabiliteit (CLS)', s, `CLS ${psi.cls.toFixed(2).replace('.', ',')} — streef < 0,1.`));
+  }
+  if (psi.inp != null) {
+    const s = psi.inp < 200 ? 'good' : psi.inp < 500 ? 'ok' : 'bad';
+    out.push(mk('inp', 'Reactiesnelheid (INP)', s, `INP ${Math.round(psi.inp)} ms — streef < 200 ms.`));
+  }
+  return out;
+}
+
+function scoreFromMeasurements(ms) {
+  if (!ms || !ms.length) return null;
+  const rank = { good: 10, ok: 6, bad: 3 };
+  const vals = ms.map((m) => rank[m.score]).filter((v) => v != null);
+  if (!vals.length) return null;
+  return Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10;
+}
+
+// ── Firestore-helpers voor het project-document (rijke encoder) ──
+function fsValue(v) {
+  if (v === null || v === undefined) return { nullValue: null };
+  if (typeof v === 'string') return { stringValue: v };
+  if (typeof v === 'boolean') return { booleanValue: v };
+  if (typeof v === 'number') return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
+  if (Array.isArray(v)) return { arrayValue: { values: v.map(fsValue) } };
+  if (typeof v === 'object') return { mapValue: { fields: fsFields(v) } };
+  return { stringValue: String(v) };
+}
+function fsFields(obj) {
+  const f = {};
+  for (const [k, val] of Object.entries(obj || {})) {
+    if (val === undefined) continue;
+    f[k] = fsValue(val);
+  }
+  return f;
+}
+
+async function fsGetLead(env, token, id) {
+  const r = await fetch(
+    `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/leads/${id}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (!r.ok) return null;
+  const j = await r.json();
+  return j.fields ? decode(j.fields) : null;
+}
+
+async function fsPatchProject(env, token, id, fields, maskKeys) {
+  const mask =
+    maskKeys && maskKeys.length
+      ? '?' + maskKeys.map((k) => `updateMask.fieldPaths=${encodeURIComponent(k)}`).join('&')
+      : '';
+  const url = `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/projects/${id}${mask}`;
+  const r = await fetch(url, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields: fsFields(fields) }),
+  });
+  if (!r.ok) console.error('fsPatchProject', r.status, await r.text().catch(() => ''));
+  return r.ok;
+}
+
+function normalizeScanUrl(u) {
+  let s = String(u || '').trim();
+  if (!/^https?:\/\//i.test(s)) s = 'https://' + s;
+  return s;
+}
+function randId() {
+  return Math.random().toString(36).slice(2, 8);
+}
+function scanOrigin(env) {
+  return String(env.SITE_ORIGIN || 'https://uxreviews.bold700.com').replace(/\/$/, '');
+}
 
 // ─────────────────────────────────────────────────────────
 // Lead-notificatie (direct)
@@ -468,7 +890,8 @@ function decode(fields) {
 function encode(obj) {
   const f = {};
   for (const [k, v] of Object.entries(obj)) {
-    if (typeof v === 'number') f[k] = { integerValue: String(v) };
+    if (typeof v === 'number')
+      f[k] = Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
     else if (typeof v === 'boolean') f[k] = { booleanValue: v };
     else f[k] = { stringValue: String(v) };
   }
