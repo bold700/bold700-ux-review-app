@@ -204,7 +204,26 @@ async function handleScan(request, env, ctx, cors) {
 async function handleDebug(request, env, ctx, cors) {
   const u = new URL(request.url);
   const testUrl = normalizeScanUrl(u.searchParams.get('url') || 'https://example.com');
-  const out = { time: new Date().toISOString() };
+  const out = { time: new Date().toISOString(), ver: 'keyfix-2' };
+
+  // Veilige key-diagnose (alleen lengtes/vorm, NOOIT de key-inhoud zelf).
+  try {
+    const raw = String(env.FIREBASE_PRIVATE_KEY || '');
+    const filtered = raw
+      .replace(/\\n/g, '\n')
+      .replace(/-----[^-]*-----/g, '')
+      .replace(/[^A-Za-z0-9+/=]/g, '');
+    out.keyInfo = {
+      present: raw.length > 0,
+      rawLen: raw.length,
+      filteredLen: filtered.length,
+      mod4: filtered.length % 4,
+      hasBackslash: /\\/.test(raw),
+      hasRealNewline: /\n/.test(raw),
+      startsWithBEGIN: raw.trimStart().startsWith('-----BEGIN'),
+      looksJson: raw.trimStart().startsWith('{'),
+    };
+  } catch {}
 
   // Manueel één cron-tick draaien (simuleer de stap-machine).
   if (u.searchParams.get('advance') === '1') {
