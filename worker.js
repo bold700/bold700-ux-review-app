@@ -1619,7 +1619,14 @@ function b64url(input) {
   return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 async function importKey(pem) {
-  const body = pem.replace(/\\n/g, '\n').replace(/-----[^-]+-----/g, '').replace(/\s/g, '');
+  // Robuust: verwerk zowel echte newlines als letterlijke \n, verwijder de
+  // BEGIN/END-regels, en filter daarna ALLES weg wat geen geldig base64-teken
+  // is (stray backslashes, quotes, spaties). Zo werkt de key ongeacht hoe de
+  // secret precies is geplakt.
+  const body = String(pem || '')
+    .replace(/\\n/g, '\n')
+    .replace(/-----[^-]*-----/g, '')
+    .replace(/[^A-Za-z0-9+/=]/g, '');
   const der = Uint8Array.from(atob(body), (c) => c.charCodeAt(0));
   return crypto.subtle.importKey(
     'pkcs8',
