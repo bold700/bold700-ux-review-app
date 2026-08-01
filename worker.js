@@ -200,11 +200,20 @@ async function handleScan(request, env, ctx, cors) {
   }
 }
 
+// Geheime sleutel voor /debug. Zonder de juiste ?key= doet het endpoint alsof
+// het niet bestaat (404), zodat niemand er ongevraagd kosten/schrijfacties mee
+// kan uitlokken. Repo is privé; env.DEBUG_KEY kan dit overschrijven.
+const DEBUG_TOKEN = 'b7-diag-k9x2m4p7q';
+
 // Diagnose: test elke laag los en geef het resultaat als JSON terug.
 async function handleDebug(request, env, ctx, cors) {
   const u = new URL(request.url);
+  const expected = env.DEBUG_KEY || DEBUG_TOKEN;
+  if (u.searchParams.get('key') !== expected) {
+    return new Response('Not found', { status: 404, headers: cors });
+  }
   const testUrl = normalizeScanUrl(u.searchParams.get('url') || 'https://example.com');
-  const out = { time: new Date().toISOString(), ver: 'keyfix-5' };
+  const out = { time: new Date().toISOString(), ver: 'keyfix-6' };
   out.clientEmail = String(env.FIREBASE_CLIENT_EMAIL || '(leeg)');
   out.projectIdEnv = String(env.FIREBASE_PROJECT_ID || '(leeg)');
   // Alle variabelenamen die de Worker ziet (alleen NAMEN, geen waarden), zodat
