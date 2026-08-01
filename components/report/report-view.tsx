@@ -15,6 +15,7 @@ import {
   pageGoalLabel,
 } from "@/lib/review-context"
 import { scoreTone } from "@/lib/score"
+import { deJargon } from "@/lib/de-jargon"
 import { markdownToHtml } from "@/lib/markdown"
 import { ActionPlanView, type PlainPatch } from "@/components/report/action-plan-view"
 import { ReportSummary } from "@/components/report/report-summary"
@@ -370,7 +371,7 @@ function FindingItem({
                 done && "text-muted-foreground line-through",
               )}
             >
-              {plainTitle || f.question}
+              {deJargon(plainTitle || f.question)}
             </span>
             <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
               {f.category}
@@ -388,13 +389,15 @@ function FindingItem({
           </div>
           {f.notes && (
             <p className="mt-1.5 text-sm whitespace-pre-wrap text-muted-foreground">
-              {f.notes}
+              {deJargon(f.notes)}
             </p>
           )}
           {plainAction && (
             <p className="mt-1.5 text-sm">
               <span className="font-medium text-foreground">Doe dit: </span>
-              <span className="text-muted-foreground">{plainAction}</span>
+              <span className="text-muted-foreground">
+                {deJargon(plainAction)}
+              </span>
             </p>
           )}
           {f.images.length > 0 && (

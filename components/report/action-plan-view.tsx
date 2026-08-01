@@ -15,6 +15,7 @@ import { buildActionPlan, planPhases } from "@/lib/action-plan"
 import type { Benchmark } from "@/lib/insights"
 import type { DevEntry, DevStatusMap } from "@/lib/dev-status"
 import { devStateOf } from "@/lib/dev-status"
+import { deJargon } from "@/lib/de-jargon"
 import type { Project } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -181,9 +182,9 @@ function PlanRow({
 }) {
   const bm = benchmark?.checks?.[item.id]
   const alsoPct = bm && bm.r > 0 ? Math.round(bm.r * 100) : null
-  const title = plain?.title || item.title
-  const fix = plain?.action || item.fix
-  const impact = plain?.impact || item.businessImpact
+  const title = deJargon(plain?.title || item.title)
+  const fix = deJargon(plain?.action || item.fix)
+  const impact = deJargon(plain?.impact || item.businessImpact)
 
   const [editing, setEditing] = useState(false)
   const [dTitle, setDTitle] = useState(title)

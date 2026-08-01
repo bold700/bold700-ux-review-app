@@ -5,6 +5,7 @@ import { TrendingUp } from "lucide-react"
 import type { Project } from "@/lib/types"
 import type { ReportData } from "@/lib/report"
 import { buildActionPlan } from "@/lib/action-plan"
+import { deJargon } from "@/lib/de-jargon"
 import { scoreTone } from "@/lib/score"
 import { cn } from "@/lib/utils"
 
@@ -44,9 +45,10 @@ export function ReportSummary({
   const plain = project.plainActions ?? {}
   const top = plan.priorities[0]
   const topFallback = data.issues[0]
-  const topTitle =
-    (top && plain[top.id]?.title) || top?.title || topFallback?.question
-  const topImpact = top?.businessImpact || topFallback?.notes
+  const topTitle = deJargon(
+    (top && plain[top.id]?.title) || top?.title || topFallback?.question,
+  )
+  const topImpact = deJargon(top?.businessImpact || topFallback?.notes)
 
   const issues = data.issues.length
   const quick = plan.quickWins.length
