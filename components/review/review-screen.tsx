@@ -17,6 +17,7 @@ import { useProject } from "@/hooks/use-project"
 import { fetchPage } from "@/lib/page-fetch"
 import { runAiReview } from "@/lib/ai-review"
 import { runAutoScan } from "@/lib/auto-scan"
+import { fetchPageSpeed, mapPsiToChecks } from "@/lib/pagespeed"
 import {
   buildReviewSteps,
   getDefaultModuleConfig,
@@ -127,13 +128,18 @@ export function ReviewScreen({ id }: { id: string }) {
 
       const valid = new Set(["good", "ok", "bad", "nvt"])
 
+      // Echte performancemeting parallel starten (faalt netjes).
+      const psiPromise = fetchPageSpeed(page.url, { strategy: "mobile" }).catch(
+        () => null,
+      )
+
       // 1) Deterministische scan: objectieve checks direct uit de HTML.
       const autoResults = runAutoScan(
         page.doc,
         page.url,
         openChecks.map(({ q }) => q),
       )
-      const autoById = new Map(autoResults.map((r) => [r.id, r]))
+      const covered = new Set(autoResults.map((r) => r.id))
       let autoFilled = 0
       if (autoResults.length) {
         mutate((a) => {
@@ -148,6 +154,7 @@ export function ReviewScreen({ id }: { id: string }) {
               notes: r.note ? "[Auto] " + r.note : (cur?.notes ?? ""),
               autoScanned: true,
               aiFilled: false,
+              source: "measured",
             }
             autoFilled++
           }
@@ -155,9 +162,38 @@ export function ReviewScreen({ id }: { id: string }) {
         })
       }
 
-      // 2) AI beoordeelt de rest (subjectief/inhoudelijk).
+      // PageSpeed-metingen invullen (echte cijfers i.p.v. AI-inschatting).
+      const psi = await psiPromise
+      if (psi) {
+        const psiResults = mapPsiToChecks(
+          psi,
+          openChecks.map(({ q }) => q),
+        )
+        for (const r of psiResults) {
+          if (!valid.has(r.score) || covered.has(r.id)) continue
+          covered.add(r.id)
+          mutate((a) => {
+            const cur = a[r.id]
+            if (cur?.score && !cur.autoScanned && !cur.aiFilled) return a
+            return {
+              ...a,
+              [r.id]: {
+                ...(cur ?? {}),
+                score: r.score,
+                notes: "[Meting] " + r.note,
+                autoScanned: true,
+                aiFilled: false,
+                source: "measured" as const,
+              },
+            }
+          })
+          autoFilled++
+        }
+      }
+
+      // 2) AI beoordeelt de rest — maar niet wat al gemeten is.
       const qs = openChecks
-        .filter(({ q }) => !autoById.has(q.id))
+        .filter(({ q }) => !covered.has(q.id))
         .map(({ q, category }) => ({ id: q.id, text: q.text, category }))
 
       toast.loading(
@@ -191,6 +227,8 @@ export function ReviewScreen({ id }: { id: string }) {
             notes: r.note ? "[AI] " + r.note : (cur?.notes ?? ""),
             aiFilled: true,
             autoScanned: false,
+            source: "ai",
+            confidence: r.confidence,
           }
           aiFilled++
           if (valid.has(r.score)) dist[r.score as keyof typeof dist]++

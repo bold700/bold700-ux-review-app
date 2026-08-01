@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Check, HelpCircle, MessageSquarePlus, X } from "lucide-react"
+import { Check, HelpCircle, Info, MessageSquarePlus, X } from "lucide-react"
 
 import type { Project } from "@/lib/types"
 import type { DevEntry, DevStatusMap } from "@/lib/dev-status"
@@ -18,6 +18,7 @@ import { scoreTone } from "@/lib/score"
 import { deJargon } from "@/lib/de-jargon"
 import { markdownToHtml } from "@/lib/markdown"
 import { ActionPlanView, type PlainPatch } from "@/components/report/action-plan-view"
+import { SourceLabel } from "@/components/report/source-label"
 import { ReportSummary } from "@/components/report/report-summary"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
@@ -174,6 +175,21 @@ export function ReportView({
             dangerouslySetInnerHTML={{ __html: markdownToHtml(aiPlan) }}
           />
         </section>
+      )}
+
+      {data.issues.length > 0 && (
+        <div className="flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5 text-xs text-muted-foreground">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          <p>
+            <span className="font-medium text-foreground">Gemeten</span>{" "}
+            punten komen uit echte tests. Punten met{" "}
+            <span className="font-medium text-foreground">AI-inschatting</span>{" "}
+            zijn hypotheses, geen zekerheden.{" "}
+            <a href="/" className="font-medium text-primary hover:underline">
+              Laat een specialist ze valideren →
+            </a>
+          </p>
+        </div>
       )}
 
       <ActionPlanView
@@ -376,6 +392,7 @@ function FindingItem({
             <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
               {f.category}
             </span>
+            <SourceLabel source={f.source} confidence={f.confidence} />
             {done && (
               <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
                 Verwerkt

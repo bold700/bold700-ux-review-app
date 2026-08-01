@@ -16,6 +16,7 @@ import type { Benchmark } from "@/lib/insights"
 import type { DevEntry, DevStatusMap } from "@/lib/dev-status"
 import { devStateOf } from "@/lib/dev-status"
 import { deJargon } from "@/lib/de-jargon"
+import { SourceLabel } from "@/components/report/source-label"
 import type { Project } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -252,6 +253,7 @@ function PlanRow({
                 {item.severityLabel}
               </Badge>
               <EffortBadge effort={item.effortLabel} />
+              <SourceLabel source={item.source} confidence={item.confidence} />
               {alsoPct != null && (
                 <Badge
                   variant="outline"
@@ -319,6 +321,14 @@ function PlanRow({
                   <p className="rounded-md bg-emerald-500/10 px-2.5 py-1.5 text-sm text-emerald-700 dark:text-emerald-300">
                     <span className="font-semibold">Wat het oplevert: </span>
                     {impact}
+                  </p>
+                )}
+                {item.source === "measured" && item.notes && (
+                  <p className="text-sm">
+                    <span className="font-medium text-foreground">Meting: </span>
+                    <span className="text-muted-foreground">
+                      {deJargon(item.notes)}
+                    </span>
                   </p>
                 )}
                 {fix && (

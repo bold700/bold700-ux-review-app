@@ -3,6 +3,7 @@ import {
   getDefaultModuleConfig,
   type ReviewCheck,
 } from "@/lib/modules"
+import { sourceOf, type FindingSource } from "@/lib/report"
 import type { Project } from "@/lib/types"
 
 export interface PlanItem {
@@ -21,6 +22,8 @@ export interface PlanItem {
   notes?: string
   priority: number
   quickWin: boolean
+  source?: FindingSource
+  confidence?: "high" | "medium" | "low"
 }
 
 export interface ActionPlan {
@@ -140,9 +143,13 @@ export function buildActionPlan(project: Project): ActionPlan {
       fix: check.fix_suggestion_nl ?? "",
       fixEn: check.fix_suggestion_en ?? check.fix_suggestion_nl ?? "",
       businessImpact: check.business_impact_nl,
-      notes: (a.notes ?? "").replace(/\[(Auto|AI|Auto-scan)\]\s*/g, "").trim(),
+      notes: (a.notes ?? "")
+        .replace(/\[(Auto|AI|Auto-scan|Meting)\]\s*/g, "")
+        .trim(),
       priority,
       quickWin,
+      source: sourceOf(a),
+      confidence: a.confidence,
     })
   }
 

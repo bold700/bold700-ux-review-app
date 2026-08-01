@@ -2,10 +2,13 @@ import type { Score } from "@/lib/types"
 
 const PROXY = process.env.NEXT_PUBLIC_AI_PROXY_URL
 
+export type AiConfidence = "high" | "medium" | "low"
+
 export interface AiAnswer {
   id: string
   score: Score
   note: string
+  confidence?: AiConfidence
 }
 
 export interface AiQuestion {
@@ -62,7 +65,9 @@ export async function runAiReview(
 Scores: "good" = voldoet, "ok" = kan beter, "bad" = probleem, "nvt" = ALLEEN als de vraag echt niet uit de tekst te beoordelen is (bijv. exacte laadtijd in seconden, precieze kleurcontrast-ratio, of interactief/technisch gedrag dat je niet kunt zien).
 Belangrijk: geef voor UX-, content-, structuur-, navigatie-, vindbaarheids-, vertrouwens- en copy-vragen ALTIJD een inschatting (good/ok/bad) — vermijd "nvt" daar. Wees beslist en concreet, niet voorzichtig. Houd elke notitie kort (1 zin, Nederlands).
 
-GROUNDING (strikt): baseer je oordeel en notitie UITSLUITEND op de aangeleverde pagina-inhoud. Verzin NOOIT knop- of linkteksten, labels, secties of elementen die niet letterlijk in de inhoud voorkomen. Citeer alleen tekst die echt in de inhoud staat; weet je de exacte tekst niet, blijf dan algemeen ("de primaire CTA", "de hoofdtitel") in plaats van iets te verzinnen. Voorbeelden die tussen haakjes in de vraag staan zijn slechts voorbeelden, GEEN feiten over deze pagina — neem ze niet over als bevinding.`
+GROUNDING (strikt): baseer je oordeel en notitie UITSLUITEND op de aangeleverde pagina-inhoud. Verzin NOOIT knop- of linkteksten, labels, secties of elementen die niet letterlijk in de inhoud voorkomen. Citeer alleen tekst die echt in de inhoud staat; weet je de exacte tekst niet, blijf dan algemeen ("de primaire actieknop", "de hoofdtitel") in plaats van iets te verzinnen. Voorbeelden die tussen haakjes in de vraag staan zijn slechts voorbeelden, GEEN feiten over deze pagina — neem ze niet over als bevinding.
+
+CONFIDENCE: geef per vraag ook hoe zeker je bent van je oordeel, gebaseerd op hoeveel de aangeleverde inhoud je écht laat zien: "high" = duidelijk uit de inhoud af te leiden; "medium" = redelijke inschatting maar niet zeker; "low" = gok / weinig houvast in de inhoud. Je oordeel is een hypothese, geen gemeten feit.`
 
   const CHUNK = 30
   const chunks: AiQuestion[][] = []
@@ -86,7 +91,7 @@ CHECKLIST — beantwoord ELKE vraag hieronder:
 ${qList}
 
 Antwoord UITSLUITEND met een JSON-array, geen tekst eromheen. Gebruik exact de meegegeven id's. Formaat:
-[{"id":"<id>","score":"good|ok|bad|nvt","note":"<korte onderbouwing>"}]`
+[{"id":"<id>","score":"good|ok|bad|nvt","note":"<korte onderbouwing>","confidence":"high|medium|low"}]`
 
     try {
       const resp = await fetch(PROXY, {
@@ -95,7 +100,7 @@ Antwoord UITSLUITEND met een JSON-array, geen tekst eromheen. Gebruik exact de m
         body: JSON.stringify({
           model: "gpt-4o-mini",
           max_tokens: 4000,
-          temperature: 0.2,
+          temperature: 0,
           system,
           messages: [{ role: "user", content: [{ type: "text", text: user }] }],
         }),

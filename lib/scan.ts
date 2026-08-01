@@ -5,6 +5,7 @@ import { buildReviewSteps } from "@/lib/modules"
 import { fetchPage, type FetchedPage } from "@/lib/page-fetch"
 import { runAutoScan } from "@/lib/auto-scan"
 import { runAiReview } from "@/lib/ai-review"
+import { fetchPageSpeed, mapPsiToChecks } from "@/lib/pagespeed"
 import { projectScore } from "@/lib/score"
 import type { Answer, Project, Score } from "@/lib/types"
 
@@ -26,23 +27,50 @@ export async function scanToAnswers(
   )
   const answers: Record<string, Answer> = {}
 
+  // Echte performancemeting parallel starten (faalt netjes, geen await-blokkade
+  // op de deterministische scan).
+  const psiPromise = fetchPageSpeed(page.url, { strategy: "mobile" }).catch(
+    () => null,
+  )
+
   const auto = runAutoScan(
     page.doc,
     page.url,
     checks.map((c) => c.q),
   )
-  const autoIds = new Set(auto.map((r) => r.id))
+  const covered = new Set(auto.map((r) => r.id))
   for (const r of auto) {
     if (!valid.has(r.score)) continue
     answers[r.id] = {
       score: r.score,
       notes: r.note ? "[Auto] " + r.note : "",
       autoScanned: true,
+      source: "measured",
     }
   }
 
+  // PageSpeed-metingen invullen (echte cijfers i.p.v. AI-inschatting).
+  const psi = await psiPromise
+  if (psi) {
+    const psiResults = mapPsiToChecks(
+      psi,
+      checks.map((c) => c.q),
+    )
+    for (const r of psiResults) {
+      if (!valid.has(r.score) || covered.has(r.id)) continue
+      answers[r.id] = {
+        score: r.score,
+        notes: "[Meting] " + r.note,
+        autoScanned: true,
+        source: "measured",
+      }
+      covered.add(r.id)
+    }
+  }
+
+  // AI beoordeelt de rest — maar niet wat al gemeten is (auto-scan/PSI).
   const qs = checks
-    .filter((c) => !autoIds.has(c.q.id))
+    .filter((c) => !covered.has(c.q.id))
     .map((c) => ({ id: c.q.id, text: c.q.text, category: c.category }))
   const ai = await runAiReview(page.url, page.text, qs, onProgress)
   for (const r of ai) {
@@ -51,6 +79,8 @@ export async function scanToAnswers(
       score: r.score,
       notes: r.note ? "[AI] " + r.note : "",
       aiFilled: true,
+      source: "ai",
+      confidence: r.confidence,
     }
   }
   return answers

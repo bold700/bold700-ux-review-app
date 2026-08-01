@@ -4,8 +4,15 @@ import {
   getDefaultModuleConfig,
   type ReviewStep,
 } from "@/lib/modules"
-import type { Project, Score, Severity } from "@/lib/types"
+import type { Answer, Project, Score, Severity } from "@/lib/types"
 import { projectScore } from "@/lib/score"
+
+export type FindingSource = "measured" | "ai" | undefined
+
+/** Herkomst van een oordeel, met terugval op de oude autoScanned/aiFilled-vlaggen. */
+export function sourceOf(a: Answer): FindingSource {
+  return a.source ?? (a.autoScanned ? "measured" : a.aiFilled ? "ai" : undefined)
+}
 
 export interface Finding {
   id: string
@@ -15,6 +22,8 @@ export interface Finding {
   severity?: Severity | null
   notes: string
   images: string[]
+  source?: FindingSource
+  confidence?: "high" | "medium" | "low"
 }
 
 export interface ReportData {
@@ -86,6 +95,8 @@ export function buildReport(project: Project): ReportData {
         severity: a.severity,
         notes: a.notes ?? "",
         images: imagesOf(a),
+        source: sourceOf(a),
+        confidence: a.confidence,
       })
     }
   } else {
@@ -109,8 +120,12 @@ export function buildReport(project: Project): ReportData {
           question: q.text,
           score: a.score,
           severity: a.severity,
-          notes: (a.notes ?? "").replace(/\[(Auto-scan|AI)\]\s*/g, "").trim(),
+          notes: (a.notes ?? "")
+            .replace(/\[(Auto|Auto-scan|AI|Meting)\]\s*/g, "")
+            .trim(),
           images: imagesOf(a),
+          source: sourceOf(a),
+          confidence: a.confidence,
         })
       }
     }

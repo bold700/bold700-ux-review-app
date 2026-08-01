@@ -14,6 +14,11 @@ export interface Answer {
   screenshot?: string // legacy
   autoScanned?: boolean
   aiFilled?: boolean
+  // herkomst van het oordeel: "measured" = deterministische tool (auto-scan/
+  // PageSpeed), "ai" = LLM-inschatting (hypothese tot gevalideerd)
+  source?: "measured" | "ai"
+  // zekerheid van de AI-inschatting (alleen bij source "ai")
+  confidence?: "high" | "medium" | "low"
   // resultaat-loop: was de inschatting correct? (lib/outcomes.ts)
   outcome?: string
   outcomeNote?: string
