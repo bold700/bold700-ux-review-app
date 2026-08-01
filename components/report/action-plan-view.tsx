@@ -19,6 +19,7 @@ import type { Project } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
@@ -132,11 +133,10 @@ export function ActionPlanView({
               </Badge>
             </div>
             <div className="space-y-2">
-              {phase.items.map((it, i) => (
+              {phase.items.map((it) => (
                 <PlanRow
                   key={it.id}
                   item={it}
-                  rank={i + 1}
                   benchmark={benchmark}
                   plain={plain[it.id]}
                   images={
@@ -162,7 +162,6 @@ export function ActionPlanView({
 
 function PlanRow({
   item,
-  rank,
   benchmark,
   plain,
   images = [],
@@ -172,7 +171,6 @@ function PlanRow({
   onEdit,
 }: {
   item: PlanItem
-  rank: number
   benchmark?: Benchmark | null
   plain?: { title: string; action: string; impact?: string }
   images?: string[]
@@ -224,29 +222,15 @@ function PlanRow({
     >
       <CardContent className="py-3">
         <div className="flex items-start gap-3">
-          {onDevUpdate ? (
-            <button
-              onClick={() => dev({ status: done ? "open" : "done" })}
+          {onDevUpdate && (
+            <Checkbox
+              checked={done}
+              onCheckedChange={() =>
+                dev({ status: done ? "open" : "done" })
+              }
               aria-label={done ? "Markeer als open" : "Markeer als verwerkt"}
-              className={cn(
-                "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-colors",
-                done
-                  ? "border-emerald-500 bg-emerald-500 text-white"
-                  : "border-input hover:border-emerald-500",
-              )}
-            >
-              {done ? (
-                <Check className="h-3.5 w-3.5" />
-              ) : (
-                <span className="text-xs font-semibold text-muted-foreground">
-                  {rank}
-                </span>
-              )}
-            </button>
-          ) : (
-            <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">
-              {rank}
-            </div>
+              className="mt-0.5 size-5 shrink-0"
+            />
           )}
           <div className="min-w-0 flex-1 space-y-1.5">
             <div className="flex flex-wrap items-center gap-2">
