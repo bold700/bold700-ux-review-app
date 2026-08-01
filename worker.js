@@ -31,6 +31,11 @@ export default {
       return handleScan(request, env, ctx, corsHeaders);
     }
 
+    // ── GET /debug → diagnose van elke laag (token/firestore/crawl/psi/ai) ──
+    if (request.method === 'GET' && url.pathname === '/debug') {
+      return handleDebug(request, env, ctx, corsHeaders);
+    }
+
     // ── POST /lead → notificatie naar Kenny ──
     if (request.method === 'POST' && url.pathname === '/lead') {
       return handleLead(request, env, corsHeaders);
@@ -181,17 +186,128 @@ async function handleScan(request, env, ctx, cors) {
   try {
     const { leadId, url } = await request.json();
     if (!leadId || !url) return jsonResp({ error: 'leadId en url vereist' }, 400, cors);
+    const projectId = `proj_${Date.now()}_${randId()}`;
     // Zet de scan klaar en trap stap 1 af; de cron doet de rest (één stap per
     // minuut). Fire-and-forget zodat het de dichte browser overleeft.
     ctx.waitUntil(
-      setupScan(env, leadId, url).catch((e) =>
+      setupScan(env, leadId, url, projectId).catch((e) =>
         console.error('setupScan (top-level)', e),
       ),
     );
-    return jsonResp({ ok: true }, 200, cors);
+    return jsonResp({ ok: true, projectId }, 200, cors);
   } catch (e) {
     return jsonResp({ error: String(e) }, 500, cors);
   }
+}
+
+// Diagnose: test elke laag los en geef het resultaat als JSON terug.
+async function handleDebug(request, env, ctx, cors) {
+  const u = new URL(request.url);
+  const testUrl = normalizeScanUrl(u.searchParams.get('url') || 'https://example.com');
+  const out = { time: new Date().toISOString() };
+
+  // Manueel één cron-tick draaien (simuleer de stap-machine).
+  if (u.searchParams.get('advance') === '1') {
+    try {
+      await advanceScans(env);
+      out.advance = 'ok (zie logs / project-doc)';
+    } catch (e) {
+      out.advance = 'fout: ' + String((e && e.message) || e);
+    }
+    return jsonResp(out, 200, cors);
+  }
+
+  // 1) Firestore-token
+  let token = null;
+  try {
+    token = await getAccessToken(env);
+    out.token = { ok: !!token, len: token ? String(token).length : 0 };
+  } catch (e) {
+    out.token = { ok: false, error: String((e && e.message) || e) };
+  }
+
+  // 2) Firestore schrijven + lezen
+  if (token) {
+    try {
+      const id = `debug-${randId()}`;
+      const wrote = await fsPatchProject(env, token, id, {
+        id,
+        debug: true,
+        arr: ['a', 'b'],
+        map: { x: 1 },
+        at: new Date().toISOString(),
+      });
+      const chk = await fetch(
+        `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/projects/${id}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      out.firestore = { write: wrote, readStatus: chk.status };
+      await firestoreDelete(env, token, `projects/${id}`).catch(() => {});
+    } catch (e) {
+      out.firestore = { ok: false, error: String((e && e.message) || e) };
+    }
+
+    // Project opvragen (?project=<id>)
+    const pid = u.searchParams.get('project');
+    if (pid) {
+      try {
+        const r = await fetch(
+          `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/projects/${pid}`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        if (r.ok) {
+          const j = await r.json();
+          const p = fsDecodeFields(j.fields || {});
+          out.project = {
+            scanStep: p.scanStep,
+            scanActive: p.scanActive,
+            scanTries: p.scanTries,
+            pages: (p.pages || []).length,
+            measurements: (p.measurements || []).length,
+            ruwFindings: (p.ruwFindings || []).length,
+            findings: (p.findings || []).length,
+            score: p.score,
+            teamLog: (p.teamLog || []).map((t) => `${t.stap}:${t.status}`),
+          };
+        } else {
+          out.project = { error: 'niet gevonden', status: r.status };
+        }
+      } catch (e) {
+        out.project = { error: String((e && e.message) || e) };
+      }
+    }
+  }
+
+  // 3) Crawl
+  try {
+    const pages = await crawlPages(testUrl);
+    out.crawl = { ok: pages.length > 0, count: pages.length, urls: pages.map((p) => p.url) };
+  } catch (e) {
+    out.crawl = { ok: false, error: String((e && e.message) || e) };
+  }
+
+  // 4) PageSpeed
+  try {
+    const psi = await psiFetch(env, testUrl);
+    out.psi = psi ? { ok: true, score: psi.score, lcp: psi.lcp } : { ok: false, note: 'geen data/te traag' };
+  } catch (e) {
+    out.psi = { ok: false, error: String((e && e.message) || e) };
+  }
+
+  // 5) OpenAI
+  try {
+    const r = await callOpenAI(env, {
+      model: 'gpt-4o-mini',
+      system: 'Antwoord uitsluitend met JSON.',
+      user: 'Geef {"ok":true}',
+      max_tokens: 20,
+    });
+    out.ai = { ok: true, sample: String(r.text || '').slice(0, 60) };
+  } catch (e) {
+    out.ai = { ok: false, error: String((e && e.message) || e) };
+  }
+
+  return jsonResp(out, 200, cors);
 }
 
 // Verouderd: de monolithische pijplijn (liep vast op gratis-plan-limieten).
@@ -418,7 +534,7 @@ function nextStep(s) {
 }
 
 // Zet een nieuwe scan klaar en doe meteen stap 1 (crawl) voor een snelle start.
-async function setupScan(env, leadId, rawUrl) {
+async function setupScan(env, leadId, rawUrl, projectId) {
   let token;
   try {
     token = await getAccessToken(env);
@@ -429,7 +545,7 @@ async function setupScan(env, leadId, rawUrl) {
   if (!token) return;
   const url = normalizeScanUrl(rawUrl);
   const now = Date.now();
-  const projectId = `proj_${now}_${randId()}`;
+  if (!projectId) projectId = `proj_${now}_${randId()}`;
   const lead = await fsGetLead(env, token, leadId).catch(() => null);
 
   const skeleton = {
