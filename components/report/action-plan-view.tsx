@@ -1,10 +1,9 @@
 "use client"
 
-import { useState } from "react"
-import { ChevronDown, Clock, Wrench, Zap } from "lucide-react"
+import { Clock } from "lucide-react"
 
 import type { PlanItem } from "@/lib/action-plan"
-import { buildActionPlan } from "@/lib/action-plan"
+import { buildActionPlan, planPhases } from "@/lib/action-plan"
 import type { Benchmark } from "@/lib/insights"
 import type { Project } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
@@ -44,6 +43,24 @@ function EffortBadge({ effort }: { effort: string }) {
   )
 }
 
+const phaseTone: Record<string, { dot: string; text: string; border: string }> = {
+  good: {
+    dot: "bg-emerald-500",
+    text: "text-emerald-600 dark:text-emerald-400",
+    border: "border-emerald-500/30",
+  },
+  ok: {
+    dot: "bg-amber-500",
+    text: "text-amber-600 dark:text-amber-400",
+    border: "border-amber-500/30",
+  },
+  bad: {
+    dot: "bg-red-500",
+    text: "text-red-500",
+    border: "border-red-500/30",
+  },
+}
+
 export function ActionPlanView({
   project,
   benchmark,
@@ -53,76 +70,57 @@ export function ActionPlanView({
 }) {
   const plan = buildActionPlan(project)
   const plain = project.plainActions ?? {}
-  const [open, setOpen] = useState(false)
 
   if (plan.total === 0) return null
 
-  const rest = open ? plan.priorities : plan.priorities.slice(0, 6)
+  const phases = planPhases(plan)
 
   return (
-    <section className="space-y-4">
+    <section className="space-y-5">
       <div>
-        <h2 className="text-lg font-semibold">Wat je hiermee wint</h2>
+        <h2 className="text-lg font-semibold">Het plan</h2>
         <p className="text-sm text-muted-foreground">
           {plan.total} kans{plan.total !== 1 ? "en" : ""} om meer uit je website
-          te halen — geprioriteerd op wat het oplevert versus de moeite. Per punt
-          zie je wat je ermee wint en hoe je het aanpakt.
+          te halen, in fases van snelste winst naar grootste project. Begin
+          bovenaan. Per punt zie je wat het oplevert en wat je moet doen.
         </p>
       </div>
 
-      {plan.quickWins.length > 0 && (
-        <Card className="border-emerald-500/30 bg-emerald-500/5">
-          <CardContent className="space-y-3 py-4">
-            <div className="flex items-center gap-2 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-              <Zap className="h-4 w-4" /> Quick wins ({plan.quickWins.length})
-              <span className="font-normal text-muted-foreground">
-                — kleine moeite, direct effect
+      {phases.map((phase) => {
+        const tone = phaseTone[phase.tone]
+        return (
+          <div key={phase.key} className="space-y-2">
+            <div
+              className={cn(
+                "flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2",
+                tone.border,
+              )}
+            >
+              <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", tone.dot)} />
+              <span className="text-sm font-semibold">
+                Fase {phase.num}: {phase.name}
               </span>
+              <span className="text-xs text-muted-foreground">
+                {phase.subtitle}
+              </span>
+              <Badge variant="outline" className="ml-auto shrink-0 text-[10px]">
+                {phase.items.length}
+              </Badge>
             </div>
-            <ul className="space-y-2">
-              {plan.quickWins.map((it) => (
-                <li key={it.id} className="flex items-start gap-2 text-sm">
-                  <Wrench className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
-                  <span>
-                    <span className="font-medium">
-                      {plain[it.id]?.title || it.title}
-                    </span>{" "}
-                    <span className="text-muted-foreground">
-                      {plain[it.id]?.action || it.fix}
-                    </span>
-                  </span>
-                </li>
+            <div className="space-y-2">
+              {phase.items.map((it, i) => (
+                <PlanRow
+                  key={it.id}
+                  item={it}
+                  rank={i + 1}
+                  benchmark={benchmark}
+                  plain={plain[it.id]}
+                />
               ))}
-            </ul>
-          </CardContent>
-        </Card>
-      )}
-
-      <div className="space-y-2">
-        {rest.map((it, i) => (
-          <PlanRow
-            key={it.id}
-            item={it}
-            rank={i + 1}
-            benchmark={benchmark}
-            plain={plain[it.id]}
-          />
-        ))}
-      </div>
-
-      {plan.priorities.length > 6 && (
-        <button
-          onClick={() => setOpen((o) => !o)}
-          className="flex items-center gap-1 text-sm font-medium text-primary print:hidden"
-        >
-          {open
-            ? "Toon minder"
-            : `Toon alle ${plan.priorities.length} punten`}
-          <ChevronDown
-            className={cn("h-4 w-4 transition-transform", open && "rotate-180")}
-          />
-        </button>
-      )}
+            </div>
+          </div>
+        )
+      })}
     </section>
   )
 }

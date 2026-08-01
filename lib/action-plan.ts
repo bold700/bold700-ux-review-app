@@ -29,6 +29,50 @@ export interface ActionPlan {
   priorities: PlanItem[]
 }
 
+export interface PlanPhase {
+  num: number
+  key: string
+  name: string
+  subtitle: string
+  tone: "good" | "ok" | "bad"
+  items: PlanItem[]
+}
+
+/**
+ * Groepeert het plan in fases op basis van benodigde inzet (van snelste winst
+ * naar grootste project). Binnen elke fase blijven de items op prioriteit
+ * gesorteerd. Lege fases vallen weg; de nummering loopt door.
+ */
+export function planPhases(plan: ActionPlan): PlanPhase[] {
+  const defs: Omit<PlanPhase, "num" | "items">[] = [
+    {
+      key: "low",
+      name: "Quick wins",
+      subtitle: "Snel te doen, direct effect. Hier beginnen.",
+      tone: "good",
+    },
+    {
+      key: "medium",
+      name: "Doorpakken",
+      subtitle: "Wat werk, flinke winst.",
+      tone: "ok",
+    },
+    {
+      key: "high",
+      name: "Grotere verbeteringen",
+      subtitle: "Groter project, structureel resultaat.",
+      tone: "bad",
+    },
+  ]
+  return defs
+    .map((d) => ({
+      ...d,
+      items: plan.priorities.filter((i) => i.effort === d.key),
+    }))
+    .filter((p) => p.items.length > 0)
+    .map((p, i) => ({ ...p, num: i + 1 }))
+}
+
 const SEV_LABEL: Record<string, string> = {
   critical: "Kritiek",
   important: "Belangrijk",
