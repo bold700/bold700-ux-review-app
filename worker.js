@@ -204,24 +204,17 @@ async function handleScan(request, env, ctx, cors) {
 async function handleDebug(request, env, ctx, cors) {
   const u = new URL(request.url);
   const testUrl = normalizeScanUrl(u.searchParams.get('url') || 'https://example.com');
-  const out = { time: new Date().toISOString(), ver: 'keyfix-2' };
+  const out = { time: new Date().toISOString(), ver: 'keyfix-3' };
 
   // Veilige key-diagnose (alleen lengtes/vorm, NOOIT de key-inhoud zelf).
   try {
     const raw = String(env.FIREBASE_PRIVATE_KEY || '');
-    const filtered = raw
-      .replace(/\\n/g, '\n')
-      .replace(/-----[^-]*-----/g, '')
-      .replace(/[^A-Za-z0-9+/=]/g, '');
+    const filtered = pemToBase64(raw);
     out.keyInfo = {
       present: raw.length > 0,
       rawLen: raw.length,
       filteredLen: filtered.length,
       mod4: filtered.length % 4,
-      hasBackslash: /\\/.test(raw),
-      hasRealNewline: /\n/.test(raw),
-      startsWithBEGIN: raw.trimStart().startsWith('-----BEGIN'),
-      looksJson: raw.trimStart().startsWith('{'),
     };
   } catch {}
 
@@ -1637,15 +1630,20 @@ function b64url(input) {
   for (const b of bytes) bin += String.fromCharCode(b);
   return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
-async function importKey(pem) {
-  // Robuust: verwerk zowel echte newlines als letterlijke \n, verwijder de
-  // BEGIN/END-regels, en filter daarna ALLES weg wat geen geldig base64-teken
-  // is (stray backslashes, quotes, spaties). Zo werkt de key ongeacht hoe de
-  // secret precies is geplakt.
-  const body = String(pem || '')
+// Haalt de pure base64-body uit een PEM. Robuust: converteert letterlijke \n
+// naar regeleindes, gooit ELKE regel met '-----' weg (BEGIN/END of verminkte
+// varianten daarvan), en houdt alleen geldige base64-tekens over. Werkt dus
+// ook als de header per ongeluk is ingekort tot alleen '-----'.
+function pemToBase64(pem) {
+  return String(pem || '')
     .replace(/\\n/g, '\n')
-    .replace(/-----[^-]*-----/g, '')
+    .split(/\r?\n/)
+    .filter((l) => l && !l.includes('-----'))
+    .join('')
     .replace(/[^A-Za-z0-9+/=]/g, '');
+}
+async function importKey(pem) {
+  const body = pemToBase64(pem);
   const der = Uint8Array.from(atob(body), (c) => c.charCodeAt(0));
   return crypto.subtle.importKey(
     'pkcs8',
