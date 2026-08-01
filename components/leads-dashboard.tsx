@@ -397,7 +397,7 @@ export function LeadsDashboard() {
                             size="icon"
                             className="h-8 w-8"
                             onClick={() =>
-                              router.push(`/review/${l.projectId}/scorecard`)
+                              router.push(`/report?id=${l.projectId}`)
                             }
                             aria-label="Bekijk rapport"
                           >

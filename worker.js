@@ -145,9 +145,16 @@ export default {
     }
   },
 
-  // ── Cron: 23u-levering + failsafe ──
+  // ── Cron: scan-stappen aftrappen + 23u-levering + failsafe ──
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(deliverDueLeads(env));
+    // Advance lopende scans één stap (gratis-plan-vriendelijk: korte aanroep).
+    ctx.waitUntil(advanceScans(env));
+    // 23u-levering; opschonen alleen op het hele uur (niet elke minuut).
+    let onHour = true;
+    try {
+      onHour = new Date(event.scheduledTime).getMinutes() === 0;
+    } catch {}
+    ctx.waitUntil(deliverDueLeads(env, onHour));
   },
 };
 
@@ -174,10 +181,11 @@ async function handleScan(request, env, ctx, cors) {
   try {
     const { leadId, url } = await request.json();
     if (!leadId || !url) return jsonResp({ error: 'leadId en url vereist' }, 400, cors);
-    // Fire-and-forget: overleeft het sluiten van de browser.
+    // Zet de scan klaar en trap stap 1 af; de cron doet de rest (één stap per
+    // minuut). Fire-and-forget zodat het de dichte browser overleeft.
     ctx.waitUntil(
-      runScanPipeline(env, leadId, url).catch((e) =>
-        console.error('scan pipeline (top-level)', e),
+      setupScan(env, leadId, url).catch((e) =>
+        console.error('setupScan (top-level)', e),
       ),
     );
     return jsonResp({ ok: true }, 200, cors);
@@ -186,7 +194,9 @@ async function handleScan(request, env, ctx, cors) {
   }
 }
 
-async function runScanPipeline(env, leadId, rawUrl) {
+// Verouderd: de monolithische pijplijn (liep vast op gratis-plan-limieten).
+// Vervangen door de stap-voor-stap state-machine hieronder. Niet meer gebruikt.
+async function runScanPipeline_deprecated(env, leadId, rawUrl) {
   let token;
   try {
     token = await getAccessToken(env);
@@ -378,6 +388,301 @@ async function runScanPipeline(env, leadId, rawUrl) {
     await patchLead(env, token, leadId, { scanStatus: 'failed' }).catch(() => {});
     await pushLog('Scan', 'fout', String((e && e.message) || e));
   }
+}
+
+// ═══════════════════════════════════════════════════════════
+// Stap-voor-stap scan-machine (gratis-plan-vriendelijk)
+// ═══════════════════════════════════════════════════════════
+// Elke stap = één korte Worker-aanroep (één rol/taak). /scan zet de scan klaar
+// en doet stap 1; de cron trapt elke minuut de volgende stap af. De voortgang
+// staat in het project-document (scanStep/scanActive + tussenresultaten), zodat
+// niets in één lange aanroep hoeft — dat omzeilt de tijd-/subrequest-limieten.
+
+const STEP_ORDER = [
+  'crawl',
+  'psi',
+  'intake',
+  'sofie',
+  'ruben',
+  'nora',
+  'timo',
+  'ans',
+  'vera',
+  'stef',
+  'lot',
+  'finalize',
+];
+function nextStep(s) {
+  const i = STEP_ORDER.indexOf(s);
+  return i >= 0 && i < STEP_ORDER.length - 1 ? STEP_ORDER[i + 1] : 'done';
+}
+
+// Zet een nieuwe scan klaar en doe meteen stap 1 (crawl) voor een snelle start.
+async function setupScan(env, leadId, rawUrl) {
+  let token;
+  try {
+    token = await getAccessToken(env);
+  } catch (e) {
+    console.error('setupScan: geen token', e);
+    return;
+  }
+  if (!token) return;
+  const url = normalizeScanUrl(rawUrl);
+  const now = Date.now();
+  const projectId = `proj_${now}_${randId()}`;
+  const lead = await fsGetLead(env, token, leadId).catch(() => null);
+
+  const skeleton = {
+    id: projectId,
+    name: cleanUrl(url),
+    url,
+    urls: [url],
+    client: '',
+    mode: 'self-service',
+    sourceType: 'url',
+    userId: lead?.userId ?? null,
+    leadEmail: lead?.email ?? '',
+    createdAt: new Date(now).toISOString(),
+    public: true,
+    sharedAt: new Date(now).toISOString(),
+    shareExpiresAtMs: now + 60 * 24 * 60 * 60 * 1000,
+    scanVersion: 2,
+    leadId,
+    pages: [],
+    pageText: [],
+    measurements: [],
+    ruwFindings: [],
+    topFindings: [],
+    findings: [],
+    teamLog: [
+      { stap: 'Aangemaakt', status: 'klaar', samenvatting: 'scan staat klaar' },
+    ],
+    scanActive: true,
+    scanStep: 'crawl',
+    scanTries: 0,
+  };
+  await fsPatchProject(env, token, projectId, skeleton).catch((e) =>
+    console.error('setupScan: skelet', e),
+  );
+  await patchLead(env, token, leadId, { scanStatus: 'scanning', projectId }).catch(() => {});
+  // Stap 1 meteen doen zodat er direct voortgang is (cron doet de rest).
+  await runScanStep(env, token, skeleton).catch((e) =>
+    console.error('setupScan: stap 1', e),
+  );
+}
+
+// Cron: trap lopende scans elk één stap verder.
+async function advanceScans(env) {
+  let token;
+  try {
+    token = await getAccessToken(env);
+  } catch (e) {
+    console.error('advanceScans: geen token', e);
+    return;
+  }
+  if (!token) return;
+  let scans = [];
+  try {
+    scans = await queryActiveScans(env, token, 5);
+  } catch (e) {
+    console.error('advanceScans: query', e);
+    return;
+  }
+  for (const p of scans) {
+    await runScanStep(env, token, p).catch((e) =>
+      console.error('runScanStep', p.id, e),
+    );
+  }
+}
+
+// Voert één stap uit voor één project en zet scanStep op de volgende.
+async function runScanStep(env, token, p) {
+  const step = p.scanStep || 'crawl';
+  const teamLog = Array.isArray(p.teamLog) ? p.teamLog.slice() : [];
+  const log = (stap, status, samenvatting) => ({
+    stap,
+    status,
+    ...(samenvatting ? { samenvatting } : {}),
+  });
+
+  // Backstop: nooit eindeloos opnieuw proberen.
+  if ((p.scanTries || 0) > 40) {
+    teamLog.push(log('Scan', 'fout', 'te veel pogingen, gestopt'));
+    await fsPatchProject(env, token, p.id, {
+      scanActive: false,
+      scanStep: 'failed',
+      teamLog,
+    });
+    await patchLead(env, token, p.leadId, { scanStatus: 'failed' }).catch(() => {});
+    return;
+  }
+
+  const patch = {};
+  let entry = null;
+  let next = nextStep(step);
+
+  try {
+    if (step === 'crawl') {
+      const pages = await crawlPages(p.url);
+      if (!pages.length) throw new Error('Geen pagina op te halen');
+      const measurements = [];
+      for (const pg of pages) measurements.push(...measureHtml(pg.html, pg.url));
+      patch.pages = pages.map((x) => x.url);
+      patch.pageText = pages.map((x) => ({ url: x.url, text: (x.text || '').slice(0, 5000) }));
+      patch.measurements = measurements;
+      entry = log('Site-analyse', 'klaar', `${pages.length} pagina('s), ${measurements.length} metingen`);
+    } else if (step === 'psi') {
+      const psi = await psiFetch(env, p.url).catch(() => null);
+      const meas = Array.isArray(p.measurements) ? p.measurements.slice() : [];
+      if (psi) meas.push(...psiMeasurements(psi));
+      patch.measurements = meas;
+      entry = log('Snelheidsmeting', 'klaar', psi ? 'PageSpeed opgehaald' : 'PageSpeed niet beschikbaar');
+    } else if (step === 'intake') {
+      const dossier = { pages: p.pageText || [], measurements: p.measurements || [] };
+      const r = await runAgent(env, 'intake', dossier);
+      const briefing =
+        r.data && typeof r.data === 'object' && !Array.isArray(r.data)
+          ? { ...r.data, bron: 'aanname' }
+          : {};
+      patch.briefing = briefing;
+      entry = log('Bedrijfsprofiel', 'klaar', `${briefing.branche || '?'} · doel: ${briefing.doel || '?'}`);
+    } else if (['sofie', 'ruben', 'nora', 'timo', 'ans'].includes(step)) {
+      const dossier = {
+        pages: p.pageText || [],
+        measurements: p.measurements || [],
+        briefing: p.briefing,
+      };
+      const r = await runAgent(env, step, dossier);
+      const add = Array.isArray(r.data)
+        ? r.data.map((f) => ({ ...f, agent: step, page: p.url }))
+        : [];
+      patch.ruwFindings = [...(p.ruwFindings || []), ...add];
+      entry = log(AGENTS[step].label, 'klaar', `${add.length} aandachtspunten`);
+    } else if (step === 'vera') {
+      const ruw = p.ruwFindings || [];
+      if (!ruw.length) {
+        patch.geschrapt = 0;
+        entry = log('Kwaliteitscontrole', 'overgeslagen', 'geen bevindingen');
+      } else {
+        const r = await runAgent(env, 'vera', { ruw, dossier: { pages: p.pageText || [] } });
+        const verdicts = Array.isArray(r.data) ? r.data : [];
+        const byIdx = new Map(verdicts.map((x) => [Number(x.i), x]));
+        let geschrapt = 0;
+        const kept = [];
+        ruw.forEach((f, i) => {
+          const vd = byIdx.get(i);
+          if (vd && vd.verdict === 'verworpen') {
+            geschrapt++;
+            return;
+          }
+          if (vd && vd.verdict === 'onzeker') f.confidence = 'low';
+          kept.push(f);
+        });
+        patch.ruwFindings = kept;
+        patch.geschrapt = geschrapt;
+        entry = log('Kwaliteitscontrole', 'klaar', `${geschrapt} geschrapt, ${kept.length} bevestigd`);
+      }
+    } else if (step === 'stef') {
+      const ruw = p.ruwFindings || [];
+      let top = ruw.slice(0, 10);
+      if (ruw.length) {
+        const r = await runAgent(env, 'stef', { gecheckt: ruw, briefing: p.briefing });
+        if (Array.isArray(r.data) && r.data.length) top = r.data.slice(0, 10);
+      }
+      patch.topFindings = top;
+      entry = log('Prioritering', 'klaar', `top ${top.length}`);
+    } else if (step === 'lot') {
+      const top = p.topFindings || [];
+      let findings = top;
+      if (top.length) {
+        const r = await runAgent(env, 'lot', { top });
+        if (Array.isArray(r.data)) findings = top.map((f, i) => ({ ...f, ...(r.data[i] || {}) }));
+      }
+      patch.findings = findings.map((f) => ({ ...f, source: 'ai' }));
+      entry = log('Rapport-tekst', 'klaar', `${patch.findings.length} punten in klantentaal`);
+    } else if (step === 'finalize') {
+      const score = scoreFromScan(p.measurements || [], p.findings || []);
+      const reportUrl = `${scanOrigin(env)}/report?id=${p.id}`;
+      patch.score = score;
+      patch.scanActive = false;
+      await patchLead(env, token, p.leadId, {
+        scanStatus: 'done',
+        score: score != null ? score : 0,
+        projectId: p.id,
+        reportUrl,
+      }).catch(() => {});
+      entry = log('Klaar', 'klaar', `Score ${score != null ? score.toFixed(1) : '?'}/10`);
+      next = 'done';
+    } else {
+      next = 'done';
+      patch.scanActive = false;
+    }
+    patch.scanTries = 0;
+  } catch (e) {
+    // Crawl zonder pagina's = fataal; andere stappen: markeren en doorgaan.
+    if (step === 'crawl') {
+      teamLog.push(log('Site-analyse', 'fout', String((e && e.message) || e)));
+      await fsPatchProject(env, token, p.id, {
+        scanActive: false,
+        scanStep: 'failed',
+        teamLog,
+      });
+      await patchLead(env, token, p.leadId, { scanStatus: 'failed' }).catch(() => {});
+      return;
+    }
+    entry = log(AGENTS[step] ? AGENTS[step].label : step, 'fout', String((e && e.message) || e));
+    patch.scanTries = 0;
+  }
+
+  if (entry) teamLog.push(entry);
+  patch.teamLog = teamLog;
+  patch.scanStep = next;
+  await fsPatchProject(env, token, p.id, patch, Object.keys(patch)).catch((e) =>
+    console.error('runScanStep: patch', e),
+  );
+}
+
+async function queryActiveScans(env, token, limit) {
+  const url = `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:runQuery`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      structuredQuery: {
+        from: [{ collectionId: 'projects' }],
+        where: {
+          fieldFilter: {
+            field: { fieldPath: 'scanActive' },
+            op: 'EQUAL',
+            value: { booleanValue: true },
+          },
+        },
+        limit,
+      },
+    }),
+  });
+  const rows = await res.json();
+  return (rows || [])
+    .filter((r) => r.document)
+    .map((r) => ({ id: r.document.name.split('/').pop(), ...fsDecodeFields(r.document.fields) }));
+}
+
+function fsDecodeValue(v) {
+  if (!v || typeof v !== 'object') return v;
+  if ('stringValue' in v) return v.stringValue;
+  if ('integerValue' in v) return Number(v.integerValue);
+  if ('doubleValue' in v) return v.doubleValue;
+  if ('booleanValue' in v) return v.booleanValue;
+  if ('nullValue' in v) return null;
+  if ('timestampValue' in v) return v.timestampValue;
+  if ('arrayValue' in v) return (v.arrayValue.values || []).map(fsDecodeValue);
+  if ('mapValue' in v) return fsDecodeFields(v.mapValue.fields || {});
+  return null;
+}
+function fsDecodeFields(fields) {
+  const o = {};
+  for (const [k, val] of Object.entries(fields || {})) o[k] = fsDecodeValue(val);
+  return o;
 }
 
 // ── Crawl (Daan) ──
@@ -973,7 +1278,7 @@ async function handleSendResult(request, env, cors) {
 // ─────────────────────────────────────────────────────────
 // Cron: due leads afhandelen
 // ─────────────────────────────────────────────────────────
-async function deliverDueLeads(env) {
+async function deliverDueLeads(env, doCleanup = true) {
   let token;
   try {
     token = await getAccessToken(env);
@@ -988,9 +1293,12 @@ async function deliverDueLeads(env) {
   const now = Date.now();
 
   // Bewaartermijn afdwingen: leads ouder dan 12 maanden opschonen (AVG).
-  await cleanupOldLeads(env, token, now).catch((e) =>
-    console.error('cleanup fout', e),
-  );
+  // Alleen op het hele uur, zodat dit niet elke minuut draait.
+  if (doCleanup) {
+    await cleanupOldLeads(env, token, now).catch((e) =>
+      console.error('cleanup fout', e),
+    );
+  }
 
   const leads = await queryDueLeads(env, token, now);
   console.log(`CRON: ${leads.length} lead(s) met deliverAtMs <= nu gevonden.`);
