@@ -82,6 +82,58 @@ export interface Project {
   previousScore?: number | null
   previousAt?: string
   previousScores?: Record<string, Score>
+  // multi-agent scan (scanVersion 2, uit de Worker-pijplijn)
+  scanVersion?: number
+  score?: number | null
+  pages?: string[]
+  briefing?: ScanBriefing
+  measurements?: ScanMeasurement[]
+  findings?: ScanFinding[]
+  teamLog?: TeamLogEntry[]
+  geschrapt?: number
+}
+
+export interface ScanBriefing {
+  branche?: string
+  aanbod?: string
+  doelgroep?: string
+  doel?: string
+  belangrijkstePagina?: string
+  bron?: string // "aanname"
+}
+
+export interface ScanMeasurement {
+  id: string
+  label: string
+  score: Score
+  note: string
+  source?: "measured"
+  page?: string
+}
+
+export interface ScanFinding {
+  agent?: string
+  page?: string
+  issue?: string
+  bewijs?: string
+  severity?: number
+  confidence?: "high" | "medium" | "low"
+  aanbeveling?: string
+  ice?: { impact: number; confidence: number; effort: number; score: number }
+  // door Lot herschreven klantentaal
+  titel?: string
+  watWeZagen?: string
+  waaromKost?: string
+  watJeDoet?: string
+  source?: "ai"
+  nietGevalideerd?: boolean
+}
+
+export interface TeamLogEntry {
+  stap: string
+  status: "bezig" | "klaar" | "overgeslagen" | "fout"
+  samenvatting?: string
+  ms?: number
 }
 
 export interface UserProfile {

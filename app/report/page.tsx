@@ -20,6 +20,7 @@ import {
 import { buildDevItems } from "@/lib/dev-items"
 import { BrandLogo } from "@/components/brand-logo"
 import { ReportView } from "@/components/report/report-view"
+import { AgentReportView } from "@/components/report/agent-report-view"
 import { DevChecklist } from "@/components/report/dev-checklist"
 import { Button } from "@/components/ui/button"
 
@@ -158,11 +159,15 @@ function ReportContent() {
       {status === "ok" && project && !devView && (
         <main className="mx-auto max-w-2xl px-4 py-8">
           <div className="rounded-2xl border bg-background p-6 shadow-sm sm:p-8">
-            <ReportView
-              project={project}
-              data={buildReport(project)}
-              aiPlan={project.aiPlan}
-            />
+            {project.scanVersion === 2 ? (
+              <AgentReportView project={project} />
+            ) : (
+              <ReportView
+                project={project}
+                data={buildReport(project)}
+                aiPlan={project.aiPlan}
+              />
+            )}
           </div>
           <p className="mt-6 text-center text-sm text-muted-foreground">
             Dit rapport is live op het BOLD700-platform en altijd actueel.

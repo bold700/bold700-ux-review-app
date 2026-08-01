@@ -259,17 +259,120 @@ async function runScanPipeline(env, leadId, rawUrl) {
       Date.now() - t0,
     );
 
-    // Voorlopige score uit metingen (Dag 2 vervangt met findings-score).
-    const score = scoreFromMeasurements(measurements);
+    // ── Het team (Dag 2) ──
+    const dossier = {
+      url,
+      pages: pages.map((p) => ({ url: p.url, text: p.text })),
+      measurements,
+    };
+    const budget = {
+      tokens: 0,
+      max: Number(env.SCAN_MAX_TOKENS || 150000),
+      t0: Date.now(),
+      maxMs: Number(env.SCAN_MAX_MS || 240000),
+    };
+    const overBudget = () => budget.tokens >= budget.max || Date.now() - budget.t0 >= budget.maxMs;
+
+    // Intake (Bram+Jules)
+    let briefing = null;
+    try {
+      t0 = Date.now();
+      const r = await runAgent(env, 'intake', dossier, budget);
+      briefing = r.data && typeof r.data === 'object' && !Array.isArray(r.data) ? r.data : null;
+      if (briefing) briefing.bron = 'aanname';
+      await fsPatchProject(env, token, projectId, { briefing: briefing || {} }, ['briefing']);
+      await pushLog('Bedrijfsprofiel', briefing ? 'klaar' : 'fout', briefing ? `${briefing.branche || '?'} · doel: ${briefing.doel || '?'}` : '', Date.now() - t0);
+    } catch (e) {
+      await pushLog('Bedrijfsprofiel', 'fout', String((e && e.message) || e));
+    }
+    dossier.briefing = briefing;
+
+    // Fleur (eerste indruk) vereist screenshots → overgeslagen in tekst-only opzet.
+    await pushLog('Eerste indruk', 'overgeslagen', 'geen screenshots in tekst-only opzet');
+
+    // Specialisten (parallel)
+    const specialisten = ['sofie', 'ruben', 'nora', 'timo', 'ans'];
+    let ruw = [];
+    t0 = Date.now();
+    if (!overBudget()) {
+      const settled = await Promise.allSettled(
+        specialisten.map((r) => runAgent(env, r, dossier, budget)),
+      );
+      settled.forEach((s, i) => {
+        if (s.status === 'fulfilled' && Array.isArray(s.value.data)) {
+          for (const f of s.value.data) ruw.push({ ...f, agent: specialisten[i], page: url });
+        }
+      });
+    }
+    await pushLog('Specialisten', 'klaar', `${ruw.length} ruwe aandachtspunten`, Date.now() - t0);
+
+    // Vera (kwaliteitscontrole)
+    let geschrapt = 0;
+    t0 = Date.now();
+    if (ruw.length && !overBudget()) {
+      try {
+        const v = await runAgent(env, 'vera', { ruw, dossier }, budget);
+        const verdicts = Array.isArray(v.data) ? v.data : [];
+        const byIdx = new Map(verdicts.map((x) => [Number(x.i), x]));
+        const kept = [];
+        ruw.forEach((f, i) => {
+          const vd = byIdx.get(i);
+          if (vd && vd.verdict === 'verworpen') {
+            geschrapt++;
+            return;
+          }
+          if (vd && vd.verdict === 'onzeker') f.confidence = 'low';
+          kept.push(f);
+        });
+        ruw = kept;
+        await pushLog('Kwaliteitscontrole', 'klaar', `${geschrapt} geschrapt, ${ruw.length} bevestigd`, Date.now() - t0);
+      } catch (e) {
+        ruw = ruw.map((f) => ({ ...f, confidence: 'low', nietGevalideerd: true }));
+        await pushLog('Kwaliteitscontrole', 'fout', 'niet gevalideerd; alles gemarkeerd als onzeker');
+      }
+    }
+    await fsPatchProject(env, token, projectId, { geschrapt }, ['geschrapt']);
+
+    // Stef (prioritering + ICE)
+    let top = ruw.slice(0, 10);
+    t0 = Date.now();
+    if (ruw.length && !overBudget()) {
+      try {
+        const s = await runAgent(env, 'stef', { gecheckt: ruw, briefing }, budget);
+        if (Array.isArray(s.data) && s.data.length) top = s.data.slice(0, 10);
+      } catch (e) {
+        top = [...ruw].sort((a, b) => (Number(b.severity) || 0) - (Number(a.severity) || 0)).slice(0, 10);
+      }
+    }
+    await pushLog('Prioritering', 'klaar', `top ${top.length}`, Date.now() - t0);
+
+    // Lot (klantentaal)
+    let findings = top;
+    t0 = Date.now();
+    if (top.length && !overBudget()) {
+      try {
+        const l = await runAgent(env, 'lot', { top }, budget);
+        if (Array.isArray(l.data)) findings = top.map((f, i) => ({ ...f, ...(l.data[i] || {}) }));
+      } catch (e) {
+        // val terug op de onvertaalde top
+      }
+    }
+    findings = findings.map((f) => ({ ...f, source: 'ai' }));
+    await fsPatchProject(env, token, projectId, { findings }, ['findings']);
+    await pushLog('Rapport-tekst', 'klaar', `${findings.length} punten in klantentaal`, Date.now() - t0);
+
+    // Score uit metingen + findings; lead + report bijwerken.
+    const score = scoreFromScan(measurements, findings);
     const reportUrl = `${scanOrigin(env)}/report?id=${projectId}`;
-    if (score != null) await fsPatchProject(env, token, projectId, { score }, ['score']);
+    await fsPatchProject(env, token, projectId, { score }, ['score']);
     await patchLead(env, token, leadId, {
       scanStatus: 'done',
       score: score != null ? score : 0,
       projectId,
       reportUrl,
     }).catch(() => {});
-    await pushLog('Klaar', 'klaar', score != null ? `Voorlopige score ${score.toFixed(1)}/10` : 'Scan afgerond');
+    const eur = (budget.tokens / 1000000) * 0.6;
+    await pushLog('Klaar', 'klaar', `Score ${score != null ? score.toFixed(1) : '?'}/10 · ~${budget.tokens} tokens · ~€${eur.toFixed(2)}`, Date.now() - budget.t0);
   } catch (e) {
     console.error('scan pipeline', e);
     await patchLead(env, token, leadId, { scanStatus: 'failed' }).catch(() => {});
@@ -566,6 +669,194 @@ function randId() {
 }
 function scanOrigin(env) {
   return String(env.SITE_ORIGIN || 'https://uxreviews.bold700.com').replace(/\/$/, '');
+}
+
+// ═══════════════════════════════════════════════════════════
+// Het team (DAG 2) — intake → specialisten → checker → synthese → vertaler
+// ═══════════════════════════════════════════════════════════
+// Interne rolnamen; in de UI heten het rollen, nooit personen. Elk oordeel is
+// een gelabelde hypothese (source "ai"); metingen (source "measured") winnen.
+
+const GROUND =
+  'Baseer je UITSLUITEND op de aangeleverde inhoud. Verzin NOOIT knoppen, teksten, secties of elementen die er niet in staan. Citeer letterlijk of schrijf "niet zichtbaar in de inhoud". Twijfel je? Gebruik confidence "low" of laat het punt weg. Antwoord UITSLUITEND met geldige JSON, geen tekst eromheen.';
+
+const SPEC_CONTRACT =
+  'Formaat: [{"issue":"1-2 zinnen NL","bewijs":"letterlijk citaat uit de inhoud of \\"niet zichtbaar\\"","severity":0,"confidence":"high|medium|low","aanbeveling":"concreet, NL"}]. Severity 0=triviaal t/m 4=kritiek. Maximaal 6 punten; alleen de belangrijkste.';
+
+function pagesBlock(d) {
+  return (d.pages || [])
+    .map((p) => `PAGINA ${p.url}:\n"""${String(p.text || '').slice(0, 4000)}"""`)
+    .join('\n\n');
+}
+function measBlock(d) {
+  return (d.measurements || []).map((m) => `- ${m.label}: ${m.score} (${m.note})`).join('\n');
+}
+function briefingBlock(b) {
+  if (!b) return '(geen briefing beschikbaar)';
+  return `Branche: ${b.branche || '?'}; Aanbod: ${b.aanbod || '?'}; Doelgroep: ${b.doelgroep || '?'}; Conversiedoel: ${b.doel || '?'}.`;
+}
+function specBuild(focus, sys) {
+  return (d) => ({
+    system: `${sys} ${GROUND}`,
+    user: `Bedrijfscontext (aanname): ${briefingBlock(d.briefing)}\n\nMETINGEN (feiten):\n${measBlock(d)}\n\nINHOUD:\n${pagesBlock(d)}\n\nOPDRACHT: ${focus}\n${SPEC_CONTRACT}`,
+  });
+}
+
+const AGENTS = {
+  intake: {
+    label: 'Bedrijfsprofiel',
+    model: 'gpt-4o-mini',
+    max_tokens: 400,
+    build: (d) => ({
+      system: `Je leidt uit website-inhoud het bedrijfsprofiel af voor een reviewteam. ${GROUND}`,
+      user: `INHOUD:\n${pagesBlock(d)}\n\nGeef JSON: {"branche":"","aanbod":"wat verkopen ze","doelgroep":"wie is de klant","doel":"belangrijkste conversiedoel (bv. offerte/afspraak/aankoop/aanmelding)","belangrijkstePagina":"url","bron":"aanname"}. Alles is een aanname op basis van de tekst.`,
+    }),
+  },
+  sofie: {
+    label: 'UX-analyse',
+    model: 'gpt-4o-mini',
+    max_tokens: 1500,
+    build: specBuild(
+      'Beoordeel gebruiksgemak: navigatie, duidelijkheid, visuele hiërarchie in de tekststructuur, mobiele indruk (Nielsen-heuristieken).',
+      'Je bent UX-specialist.',
+    ),
+  },
+  ruben: {
+    label: 'SEO & content',
+    model: 'gpt-4o-mini',
+    max_tokens: 1500,
+    build: specBuild(
+      'Beoordeel vindbaarheid en content: koppenstructuur, helderheid van de teksten, sterkte van de waardepropositie, jargon.',
+      'Je bent SEO- en contentspecialist.',
+    ),
+  },
+  nora: {
+    label: 'Conversie',
+    model: 'gpt-4o-mini',
+    max_tokens: 1500,
+    build: specBuild(
+      "Beoordeel conversie: duidelijke actieknoppen, vertrouwenssignalen (reviews, logo's, contactgegevens), formulierfrictie (LIFT-model).",
+      'Je bent conversiespecialist.',
+    ),
+  },
+  timo: {
+    label: 'Toegankelijkheid',
+    model: 'gpt-4o-mini',
+    max_tokens: 1200,
+    build: specBuild(
+      'Beoordeel toegankelijkheid: interpreteer de metingen en wat regels missen (zinvolle alt-teksten, leesvolgorde, labels bij formuliervelden).',
+      'Je bent toegankelijkheidsspecialist.',
+    ),
+  },
+  ans: {
+    label: 'Doelgroep-blik',
+    model: 'gpt-4o-mini',
+    max_tokens: 1200,
+    build: (d) => ({
+      system: `Je bekijkt de site als de doelgroep uit de briefing, niet als expert. ${GROUND}`,
+      user: `Jij bent deze bezoeker: ${briefingBlock(d.briefing)}\n\nINHOUD:\n${pagesBlock(d)}\n\nOPDRACHT: als deze bezoeker — snap ik binnen 5 seconden wat ze doen? Vertrouw ik het? Wat weerhoudt me om contact op te nemen of te kopen?\n${SPEC_CONTRACT}`,
+    }),
+  },
+  vera: {
+    label: 'Kwaliteitscontrole',
+    model: 'gpt-4o',
+    max_tokens: 2000,
+    build: (d) => ({
+      system: `Je bent de kwaliteitscontrole. Voor elke bevinding: staat het genoemde/bekritiseerde element ÉCHT in de aangeleverde inhoud? Verzonnen → verworpen. Twijfel → onzeker. Klopt en aangetoond → bevestigd. ${GROUND}`,
+      user: `INHOUD:\n${pagesBlock(d.dossier)}\n\nBEVINDINGEN:\n${(d.ruw || []).map((f, i) => `[${i}] ${f.issue} | bewijs: ${f.bewijs}`).join('\n')}\n\nGeef JSON: [{"i":0,"verdict":"bevestigd|verworpen|onzeker","reden":"kort"}]`,
+    }),
+  },
+  stef: {
+    label: 'Prioritering',
+    model: 'gpt-4o',
+    max_tokens: 2500,
+    build: (d) => ({
+      system: `Je prioriteert bevindingen voor de klant. Dedupliceer (ook overlap tussen pagina's). Los tegenspraak expliciet op, vat niet zomaar samen. Score met ICE (impact/confidence/effort elk 1-10; score=impact*confidence/effort) t.o.v. het conversiedoel. ${GROUND}`,
+      user: `CONVERSIEDOEL: ${briefingBlock(d.briefing)}\n\nBEVINDINGEN:\n${(d.gecheckt || []).map((f, i) => `[${i}] (sev ${f.severity}, conf ${f.confidence}) ${f.issue} → ${f.aanbeveling} | bewijs: ${f.bewijs}`).join('\n')}\n\nGeef de TOP (max 10), gesorteerd op ICE-score aflopend. JSON: [{"issue":"","bewijs":"","severity":0,"confidence":"high|medium|low","aanbeveling":"","ice":{"impact":1,"confidence":1,"effort":1,"score":1}}]`,
+    }),
+  },
+  lot: {
+    label: 'Rapport-tekst',
+    model: 'gpt-4o-mini',
+    max_tokens: 2500,
+    build: (d) => ({
+      system: `Je herschrijft verbeterpunten naar heldere klantentaal voor een ondernemer zonder technische kennis. Geen jargon of Engelse termen (geen CTA, conversie, bounce, above the fold). ${GROUND}`,
+      user: `PUNTEN:\n${(d.top || []).map((f, i) => `[${i}] ${f.issue} | aanbeveling: ${f.aanbeveling}`).join('\n')}\n\nGeef per punt in dezelfde volgorde JSON: [{"titel":"korte titel","watWeZagen":"wat er aan de hand is, gewone taal","waaromKost":"waarom dit klanten kost","watJeDoet":"concreet advies"}]`,
+    }),
+  },
+};
+
+async function callOpenAI(env, { model, system, user, temperature = 0, max_tokens = 2000 }) {
+  const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.OPENAI_API_KEY}` },
+    body: JSON.stringify({
+      model,
+      temperature,
+      max_tokens,
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: user },
+      ],
+    }),
+  });
+  const j = await resp.json();
+  if (!resp.ok) throw new Error((j && j.error && j.error.message) || `OpenAI ${resp.status}`);
+  return { text: (j.choices && j.choices[0] && j.choices[0].message.content) || '', usage: j.usage || {} };
+}
+
+function parseJson(text) {
+  if (!text) return null;
+  const t = String(text).trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+  try {
+    return JSON.parse(t);
+  } catch {}
+  const arr = t.match(/\[[\s\S]*\]/);
+  if (arr) {
+    try {
+      return JSON.parse(arr[0]);
+    } catch {}
+  }
+  const obj = t.match(/\{[\s\S]*\}/);
+  if (obj) {
+    try {
+      return JSON.parse(obj[0]);
+    } catch {}
+  }
+  return null;
+}
+
+async function runAgent(env, role, dossier, budget) {
+  const A = AGENTS[role];
+  if (!A) throw new Error('onbekende rol ' + role);
+  const { system, user } = A.build(dossier);
+  let out = null;
+  let usage = {};
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const r = await callOpenAI(env, {
+      model: A.model,
+      system,
+      user: attempt ? user + '\n\nLET OP: geef UITSLUITEND geldige JSON.' : user,
+      max_tokens: A.max_tokens || 2000,
+    });
+    usage = r.usage;
+    if (budget) budget.tokens += usage.total_tokens || 0;
+    out = parseJson(r.text);
+    if (out) break;
+  }
+  return { data: out, usage };
+}
+
+function scoreFromScan(measurements, findings) {
+  const mScore = scoreFromMeasurements(measurements);
+  const sevs = (findings || []).map((f) => Number(f.severity) || 0);
+  const fScore = sevs.length
+    ? Math.max(0, 10 - (sevs.reduce((a, b) => a + b, 0) / sevs.length) * 1.6)
+    : null;
+  if (mScore != null && fScore != null) return Math.round((mScore * 0.4 + fScore * 0.6) * 10) / 10;
+  if (fScore != null) return Math.round(fScore * 10) / 10;
+  if (mScore != null) return mScore;
+  return 5;
 }
 
 // ─────────────────────────────────────────────────────────
