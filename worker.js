@@ -204,9 +204,21 @@ async function handleScan(request, env, ctx, cors) {
 async function handleDebug(request, env, ctx, cors) {
   const u = new URL(request.url);
   const testUrl = normalizeScanUrl(u.searchParams.get('url') || 'https://example.com');
-  const out = { time: new Date().toISOString(), ver: 'keyfix-4' };
+  const out = { time: new Date().toISOString(), ver: 'keyfix-5' };
   out.clientEmail = String(env.FIREBASE_CLIENT_EMAIL || '(leeg)');
   out.projectIdEnv = String(env.FIREBASE_PROJECT_ID || '(leeg)');
+  // Alle variabelenamen die de Worker ziet (alleen NAMEN, geen waarden), zodat
+  // een typfout in een naam meteen zichtbaar is.
+  try {
+    out.envKeys = Object.keys(env)
+      .filter((k) => typeof env[k] === 'string')
+      .sort();
+    out.firebaseLens = {
+      CLIENT_EMAIL: String(env.FIREBASE_CLIENT_EMAIL || '').length,
+      PROJECT_ID: String(env.FIREBASE_PROJECT_ID || '').length,
+      PRIVATE_KEY: String(env.FIREBASE_PRIVATE_KEY || '').length,
+    };
+  } catch {}
 
   // Veilige key-diagnose (alleen lengtes/vorm, NOOIT de key-inhoud zelf).
   try {
