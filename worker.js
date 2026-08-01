@@ -204,7 +204,9 @@ async function handleScan(request, env, ctx, cors) {
 async function handleDebug(request, env, ctx, cors) {
   const u = new URL(request.url);
   const testUrl = normalizeScanUrl(u.searchParams.get('url') || 'https://example.com');
-  const out = { time: new Date().toISOString(), ver: 'keyfix-3' };
+  const out = { time: new Date().toISOString(), ver: 'keyfix-4' };
+  out.clientEmail = String(env.FIREBASE_CLIENT_EMAIL || '(leeg)');
+  out.projectIdEnv = String(env.FIREBASE_PROJECT_ID || '(leeg)');
 
   // Veilige key-diagnose (alleen lengtes/vorm, NOOIT de key-inhoud zelf).
   try {
@@ -1504,7 +1506,12 @@ async function getAccessToken(env) {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
   });
-  return (await res.json()).access_token;
+  const j = await res.json();
+  if (!j.access_token) {
+    // Surface de exacte OAuth-fout (bijv. "invalid_grant: Invalid JWT Signature").
+    throw new Error(`OAuth ${res.status}: ${JSON.stringify(j).slice(0, 300)}`);
+  }
+  return j.access_token;
 }
 
 // Verwijdert leads ouder dan 12 maanden (behalve klanten) + hun scan-project.
