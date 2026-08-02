@@ -206,6 +206,72 @@ function TeamLog({ log }: { log: TeamLogEntry[] }) {
   )
 }
 
+// Live team-voortgang tijdens de scan: wie klaar is (vinkje), wie bezig is
+// (pulserende ring) en wie nog wacht (gedimd).
+function ScanProgress({ log }: { log: TeamLogEntry[] }) {
+  const done = new Set<string>()
+  for (const e of log) {
+    const n = ROLE_NAME[e.stap]
+    if (n && e.status !== "fout" && e.status !== "bezig") done.add(n)
+  }
+  const workers = TEAM.filter((m) => m.name !== "Kenny")
+  const activeName = workers.find((m) => !done.has(m.name))?.name ?? null
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-4 gap-3 sm:grid-cols-6">
+        {TEAM.map((m) => {
+          const isDone = done.has(m.name)
+          const isActive = m.name === activeName
+          return (
+            <div
+              key={m.name}
+              className="flex flex-col items-center gap-1 text-center"
+            >
+              <div className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={m.foto}
+                  alt={m.name}
+                  className={cn(
+                    "h-12 w-12 rounded-full object-cover transition-all duration-300",
+                    isActive && "ring-2 ring-primary ring-offset-2 ring-offset-background",
+                    !isDone && !isActive && "opacity-40 grayscale",
+                  )}
+                />
+                {isDone && (
+                  <span className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-white ring-2 ring-background">
+                    <Check className="h-2.5 w-2.5" />
+                  </span>
+                )}
+                {isActive && (
+                  <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-primary ring-2 ring-background motion-safe:animate-pulse" />
+                )}
+              </div>
+              <span
+                className={cn(
+                  "text-[10px] leading-tight",
+                  isActive
+                    ? "font-medium text-foreground"
+                    : "text-muted-foreground",
+                )}
+              >
+                {m.name}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+      {activeName && (
+        <p className="text-center text-sm text-muted-foreground">
+          <span className="font-medium text-foreground">{activeName}</span> is
+          bezig…
+        </p>
+      )}
+    </div>
+  )
+}
+
 export function AgentReportView({ project }: { project: Project }) {
   const findings = (project.findings ?? []).filter(
     (f) => f.titel || f.issue,
@@ -216,11 +282,12 @@ export function AgentReportView({ project }: { project: Project }) {
   // Nog bezig: toon het team live.
   if (scanning) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-5">
         <div className="flex items-center gap-2 text-sm font-medium">
           <Loader2 className="h-4 w-4 animate-spin text-primary" /> We zijn je
           website aan het bekijken…
         </div>
+        <ScanProgress log={log} />
         <Card>
           <CardContent className="py-4">
             <TeamLog log={log} />
