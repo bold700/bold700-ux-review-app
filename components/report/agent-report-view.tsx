@@ -186,6 +186,9 @@ const statusIcon: Record<string, React.ReactNode> = {
   fout: <XCircle className="h-4 w-4 text-red-500" />,
 }
 
+const TEAM_BY_NAME: Record<string, { name: string; role: string; foto?: string }> =
+  Object.fromEntries(TEAM.map((m) => [m.name, m]))
+
 function TeamLog({ log }: { log: TeamLogEntry[] }) {
   return (
     <ul className="space-y-1.5 text-sm">
@@ -202,6 +205,59 @@ function TeamLog({ log }: { log: TeamLogEntry[] }) {
           </span>
         </li>
       ))}
+    </ul>
+  )
+}
+
+// Gecombineerde tijdlijn: elke uitgevoerde taak mét de agent die 'm deed
+// (foto + naam + rol), en de statusmarker op de foto.
+function TeamTimeline({ log }: { log: TeamLogEntry[] }) {
+  return (
+    <ul className="space-y-2.5">
+      {log.map((s, i) => {
+        const member = TEAM_BY_NAME[ROLE_NAME[s.stap] ?? ""]
+        return (
+          <li key={i} className="flex items-start gap-3">
+            <div className="relative shrink-0">
+              {member?.foto ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={member.foto}
+                  alt={member.name}
+                  className={cn(
+                    "h-9 w-9 rounded-full object-cover",
+                    s.status === "overgeslagen" && "opacity-50",
+                  )}
+                />
+              ) : (
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                  <CircleDashed className="h-4 w-4" />
+                </span>
+              )}
+              <span className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-background ring-2 ring-background">
+                {statusIcon[s.status] ?? (
+                  <CircleDashed className="h-3.5 w-3.5" />
+                )}
+              </span>
+            </div>
+            <div className="min-w-0 pt-0.5 text-sm">
+              <p className="font-medium leading-tight">
+                {member ? member.name : s.stap}
+                {member && (
+                  <span className="text-muted-foreground">
+                    {" "}
+                    · {member.role}
+                  </span>
+                )}
+              </p>
+              <p className="leading-tight text-muted-foreground">
+                {s.stap}
+                {s.samenvatting ? ` — ${s.samenvatting}` : ""}
+              </p>
+            </div>
+          </li>
+        )
+      })}
     </ul>
   )
 }
@@ -484,38 +540,40 @@ function AgentReport({
           Een <span className="font-medium text-foreground">specialist van BOLD700</span> controleert het geheel voordat je het gesprek in gaat.
         </p>
 
-        {/* Team-overzicht: namen + rollen (AI-team) */}
-        <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {TEAM.map((m) => (
-            <div
-              key={m.name}
-              className="flex items-center gap-2 rounded-lg border bg-background px-2.5 py-1.5"
-            >
-              {m.foto ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={m.foto}
-                  alt={m.name}
-                  className="h-8 w-8 shrink-0 rounded-full object-cover"
-                />
-              ) : (
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-                  {m.name.slice(0, 1)}
+        {log.length > 0 ? (
+          <TeamTimeline log={log} />
+        ) : (
+          /* Fallback: alleen roster tonen als er (nog) geen log is */
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {TEAM.map((m) => (
+              <div
+                key={m.name}
+                className="flex items-center gap-2 rounded-lg border bg-background px-2.5 py-1.5"
+              >
+                {m.foto ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={m.foto}
+                    alt={m.name}
+                    className="h-8 w-8 shrink-0 rounded-full object-cover"
+                  />
+                ) : (
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                    {m.name.slice(0, 1)}
+                  </span>
+                )}
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-medium">
+                    {m.name}
+                  </span>
+                  <span className="block truncate text-[11px] text-muted-foreground">
+                    {m.role}
+                  </span>
                 </span>
-              )}
-              <span className="min-w-0">
-                <span className="block truncate text-sm font-medium">
-                  {m.name}
-                </span>
-                <span className="block truncate text-[11px] text-muted-foreground">
-                  {m.role}
-                </span>
-              </span>
-            </div>
-          ))}
-        </div>
-
-        {log.length > 0 && <TeamLog log={log} />}
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* CTA */}
