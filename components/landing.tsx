@@ -321,10 +321,22 @@ function Avatar({ s }: { s: ChatItem }) {
 
 function SystemRow({ s }: { s: ChatItem }) {
   return (
-    <div className="flex justify-center py-1 duration-300 animate-in fade-in-0">
-      <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-white/70 ring-1 ring-white/10">
-        🔔 {s.tekst}
-      </span>
+    <div className="w-full py-1 duration-500 ease-out animate-in fade-in-0 zoom-in-95 slide-in-from-top-2">
+      <div className="flex items-center gap-3 rounded-2xl bg-white px-4 py-4 text-[#1728C8] shadow-xl ring-1 ring-black/5 sm:px-5">
+        <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#ff5003]/15 text-xl">
+          🔔
+          <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-[#ff5003] ring-2 ring-white motion-safe:animate-ping" />
+          <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-[#ff5003] ring-2 ring-white" />
+        </span>
+        <div className="min-w-0">
+          <div className="text-base font-semibold sm:text-lg">
+            {s.tekst}
+          </div>
+          <div className="text-sm text-[#1728C8]/70">
+            Het team gaat aan de slag…
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
