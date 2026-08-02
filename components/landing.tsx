@@ -188,18 +188,13 @@ const TEAM_CHAT: {
 function TeamFlow() {
   const ref = useRef<HTMLDivElement | null>(null)
   const [shown, setShown] = useState(false)
+  const [revealed, setRevealed] = useState(0)
+  const [typing, setTyping] = useState(false)
 
+  // Start pas als de sectie in beeld komt.
   useEffect(() => {
     const el = ref.current
     if (!el) return
-    // Respecteer prefers-reduced-motion: dan meteen alles tonen.
-    const reduce =
-      typeof window !== "undefined" &&
-      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
-    if (reduce) {
-      setShown(true)
-      return
-    }
     const obs = new IntersectionObserver(
       (entries) => {
         if (entries.some((e) => e.isIntersecting)) {
@@ -207,11 +202,50 @@ function TeamFlow() {
           obs.disconnect()
         }
       },
-      { threshold: 0.15 },
+      { threshold: 0.2 },
     )
     obs.observe(el)
     return () => obs.disconnect()
   }, [])
+
+  // Speel het als een echte chat af: typt-indicator → bubbel, één voor één.
+  useEffect(() => {
+    if (!shown) return
+    const reduce =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+    if (reduce) {
+      setRevealed(TEAM_CHAT.length)
+      setTyping(false)
+      return
+    }
+    let cancelled = false
+    let timer: ReturnType<typeof setTimeout>
+    let i = 0
+    const step = () => {
+      if (cancelled) return
+      if (i >= TEAM_CHAT.length) {
+        setTyping(false)
+        return
+      }
+      setTyping(true)
+      timer = setTimeout(
+        () => {
+          if (cancelled) return
+          setTyping(false)
+          setRevealed(i + 1)
+          i += 1
+          timer = setTimeout(step, 450)
+        },
+        i === 0 ? 500 : 950,
+      )
+    }
+    step()
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [shown])
 
   return (
     <section className="px-5 py-16 sm:py-20">
@@ -229,71 +263,13 @@ function TeamFlow() {
           </p>
         </div>
 
-        <div className="mt-10 space-y-3">
-          {TEAM_CHAT.map((s, i) => {
-            const right = i % 2 === 1
-            const initial = s.mens ? "B7" : s.naam.slice(0, 1)
-            return (
-              <div
-                key={s.naam}
-                style={{ transitionDelay: shown ? `${i * 110}ms` : "0ms" }}
-                className={
-                  "flex items-end gap-2.5 transition-all duration-500 ease-out motion-reduce:transition-none " +
-                  (shown
-                    ? "translate-x-0 opacity-100"
-                    : "opacity-0 " + (right ? "translate-x-4" : "-translate-x-4")) +
-                  " " +
-                  (right ? "flex-row-reverse" : "flex-row")
-                }
-              >
-                <span
-                  className={
-                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold " +
-                    (s.mens
-                      ? "bg-[#ff5003] text-white"
-                      : "bg-white text-[#1728C8]")
-                  }
-                >
-                  {initial}
-                </span>
-                <div
-                  className={
-                    "max-w-[80%] rounded-2xl px-3.5 py-2.5 transition-all duration-200 hover:-translate-y-0.5 motion-reduce:transform-none sm:max-w-[75%] " +
-                    (s.mens
-                      ? "bg-[#ff5003]/20 ring-1 ring-[#ff5003]/40 hover:bg-[#ff5003]/25"
-                      : "bg-white/10 ring-1 ring-white/15 hover:bg-white/15") +
-                    (right ? " rounded-br-sm" : " rounded-bl-sm")
-                  }
-                >
-                  <div
-                    className={
-                      "flex items-center gap-2 " +
-                      (right ? "flex-row-reverse text-right" : "")
-                    }
-                  >
-                    <span className="text-sm font-semibold">{s.naam}</span>
-                    <span
-                      className={
-                        "rounded-full px-1.5 py-0.5 text-[10px] font-medium " +
-                        (s.mens
-                          ? "bg-[#ff5003]/30 text-white"
-                          : "bg-white/15 text-white/80")
-                      }
-                    >
-                      {s.mens ? "mens" : s.rol}
-                    </span>
-                  </div>
-                  <p
-                    className={
-                      "mt-1 text-sm text-white/85 " + (right ? "text-right" : "")
-                    }
-                  >
-                    {s.tekst}
-                  </p>
-                </div>
-              </div>
-            )
-          })}
+        <div className="mt-10 min-h-[520px] space-y-3">
+          {TEAM_CHAT.slice(0, revealed).map((s, i) => (
+            <ChatRow key={s.naam} s={s} i={i} />
+          ))}
+          {typing && revealed < TEAM_CHAT.length && (
+            <TypingRow s={TEAM_CHAT[revealed]} i={revealed} />
+          )}
         </div>
 
         <p className="mt-8 text-center text-sm text-white/55">
@@ -302,6 +278,101 @@ function TeamFlow() {
         </p>
       </div>
     </section>
+  )
+}
+
+type ChatItem = (typeof TEAM_CHAT)[number]
+
+function Avatar({ s }: { s: ChatItem }) {
+  return (
+    <span
+      className={
+        "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold " +
+        (s.mens ? "bg-[#ff5003] text-white" : "bg-white text-[#1728C8]")
+      }
+    >
+      {s.mens ? "B7" : s.naam.slice(0, 1)}
+    </span>
+  )
+}
+
+function ChatRow({ s, i }: { s: ChatItem; i: number }) {
+  const right = i % 2 === 1
+  return (
+    <div
+      className={
+        "flex items-end gap-2.5 duration-300 ease-out animate-in fade-in-0 " +
+        (right
+          ? "flex-row-reverse slide-in-from-right-3"
+          : "flex-row slide-in-from-left-3")
+      }
+    >
+      <Avatar s={s} />
+      <div
+        className={
+          "max-w-[80%] rounded-2xl px-3.5 py-2.5 transition-transform duration-200 hover:-translate-y-0.5 motion-reduce:transform-none sm:max-w-[75%] " +
+          (s.mens
+            ? "bg-[#ff5003]/20 ring-1 ring-[#ff5003]/40 hover:bg-[#ff5003]/25"
+            : "bg-white/10 ring-1 ring-white/15 hover:bg-white/15") +
+          (right ? " rounded-br-sm" : " rounded-bl-sm")
+        }
+      >
+        <div
+          className={
+            "flex items-center gap-2 " +
+            (right ? "flex-row-reverse text-right" : "")
+          }
+        >
+          <span className="text-sm font-semibold">{s.naam}</span>
+          <span
+            className={
+              "rounded-full px-1.5 py-0.5 text-[10px] font-medium " +
+              (s.mens
+                ? "bg-[#ff5003]/30 text-white"
+                : "bg-white/15 text-white/80")
+            }
+          >
+            {s.mens ? "mens" : s.rol}
+          </span>
+        </div>
+        <p className={"mt-1 text-sm text-white/85 " + (right ? "text-right" : "")}>
+          {s.tekst}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function TypingRow({ s, i }: { s: ChatItem; i: number }) {
+  const right = i % 2 === 1
+  return (
+    <div
+      className={
+        "flex items-end gap-2.5 duration-200 animate-in fade-in-0 " +
+        (right ? "flex-row-reverse" : "flex-row")
+      }
+    >
+      <Avatar s={s} />
+      <div
+        className={
+          "rounded-2xl bg-white/10 px-3.5 py-3 ring-1 ring-white/15 " +
+          (right ? "rounded-br-sm" : "rounded-bl-sm")
+        }
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-white/60">{s.naam} typt</span>
+          <span className="flex gap-1">
+            {[0, 150, 300].map((d) => (
+              <span
+                key={d}
+                className="h-1.5 w-1.5 animate-bounce rounded-full bg-white/70 motion-reduce:animate-none"
+                style={{ animationDelay: `${d}ms` }}
+              />
+            ))}
+          </span>
+        </div>
+      </div>
+    </div>
   )
 }
 
