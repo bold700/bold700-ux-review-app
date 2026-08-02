@@ -236,25 +236,33 @@ function WhatYouGet() {
             Elk teamlid levert zijn stukje aan, binnen 24 uur in je inbox.
           </p>
         </div>
-        <div className="mt-14 grid gap-x-8 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {DELIVERABLES.map((d) => (
-            <div key={d.naam} className="flex items-start gap-3">
+            <div
+              key={d.naam}
+              className="group relative overflow-hidden rounded-3xl ring-1 ring-white/15"
+            >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={d.foto}
                 alt={d.naam}
-                className="h-11 w-11 shrink-0 rounded-full object-cover ring-2 ring-white/30"
+                className="aspect-[4/5] w-full object-cover transition-transform duration-500 group-hover:scale-[1.03] motion-reduce:transform-none"
               />
-              <div className="rounded-2xl rounded-tl-sm bg-white/10 p-4 ring-1 ring-white/15">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-semibold">{d.naam}</span>
-                  <span className="rounded-full bg-white/15 px-1.5 py-0.5 text-[10px] font-medium text-white/85">
-                    {d.rol}
-                  </span>
+              {/* Donker verloop onderaan voor leesbaarheid van de bubbel */}
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent" />
+              {/* Spraakbubbel op de afbeelding */}
+              <div className="absolute inset-x-3.5 bottom-3.5">
+                <div className="relative rounded-2xl rounded-bl-sm bg-white p-4 text-[#1728C8] shadow-xl">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-semibold">{d.naam}</span>
+                    <span className="rounded-full bg-[#1728C8]/10 px-1.5 py-0.5 text-[10px] font-medium">
+                      {d.rol}
+                    </span>
+                  </div>
+                  <p className="mt-1.5 text-sm leading-snug text-[#1728C8]/85">
+                    {d.tekst}
+                  </p>
                 </div>
-                <p className="mt-1.5 text-[15px] leading-relaxed text-white/85">
-                  {d.tekst}
-                </p>
               </div>
             </div>
           ))}
