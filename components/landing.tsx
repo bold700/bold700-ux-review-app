@@ -185,7 +185,7 @@ const TEAM_CHAT: {
   { naam: "Vera", rol: "Kwaliteitscontrole", tekst: "Ik loop alles na en leg elk punt naast het bewijs op de site. Klopt iets niet? Dan haal ik het eruit." },
   { naam: "Stef", rol: "Prioritering", tekst: "Ik zet alles op een rij. Wat het meeste oplevert voor jullie doel, zet ik bovenaan." },
   { naam: "Lot", rol: "Heldere taal", tekst: "En ik maak er gewone taal van: wat we zagen, waarom het klanten kost, en wat je eraan doet." },
-  { naam: "Kenny", rol: "Eindcontrole", tekst: "Mooi werk, team. Ik ben Kenny en ik doe de eindcontrole: ik kijk het geheel nog even na en bespreek het samen met je.", mens: true, foto: "/team/kenny.jpg" },
+  { naam: "Kenny", rol: "Eindcontrole", tekst: "Mooi werk, team. Ik ben Kenny en ik doe de eindcontrole: ik kijk het geheel nog even na en bespreek het samen met je.", foto: "/team/kenny.jpg" },
 ]
 
 function TeamFlow() {
