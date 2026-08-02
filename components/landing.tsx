@@ -1,17 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import {
-  ArrowRight,
-  BarChart3,
-  Check,
-  Gauge,
-  ListChecks,
-  Loader2,
-  MousePointerClick,
-  Search,
-  ShieldCheck,
-} from "lucide-react"
+import { ArrowRight, BarChart3, Check, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
 import type { Project } from "@/lib/types"
@@ -180,37 +170,54 @@ export function Landing({ onLogin }: { onLogin: () => void }) {
   )
 }
 
-// ── Dit krijg je: spiegelt exact wat de scan oplevert ──────────────────────
-const DELIVERABLES: { icon: typeof Gauge; titel: string; tekst: string }[] = [
+// ── Dit krijg je: verteld door het teamlid dat het levert (foto + bubbel) ───
+const DELIVERABLES: {
+  naam: string
+  rol: string
+  foto: string
+  tekst: string
+}[] = [
   {
-    icon: Gauge,
-    titel: "Een rapportcijfer + top 3",
-    tekst: "Een helder cijfer voor je site en de drie dingen die je het eerst moet aanpakken.",
+    naam: "Teun",
+    rol: "Performance-analist",
+    foto: "/team/teun.jpg",
+    tekst:
+      "Ik meet je laadtijd en techniek met echte data (Core Web Vitals). Geen giswerk, gewoon de cijfers.",
   },
   {
-    icon: Gauge,
-    titel: "Echte snelheidsmeting",
-    tekst: "We meten je laadtijd en techniek (Core Web Vitals) met echte data, geen giswerk.",
+    naam: "Ruben",
+    rol: "SEO-specialist",
+    foto: "/team/ruben.jpg",
+    tekst:
+      "Ik kijk of je goed vindbaar bent in Google en of je boodschap meteen duidelijk is.",
   },
   {
-    icon: Search,
-    titel: "Vindbaarheid & teksten",
-    tekst: "Is je boodschap meteen duidelijk en kun je goed gevonden worden in Google?",
+    naam: "Nora",
+    rol: "Conversie-specialist",
+    foto: "/team/nora.jpg",
+    tekst:
+      "Ik zoek uit waar bezoekers afhaken bij de knop, en wat ze wél over de streep trekt.",
   },
   {
-    icon: MousePointerClick,
-    titel: "Conversie & vertrouwen",
-    tekst: "Zetten bezoekers de stap, of haken ze af bij de knop? We kijken waar het misgaat.",
+    naam: "Timo",
+    rol: "Toegankelijkheidsexpert",
+    foto: "/team/timo.jpg",
+    tekst:
+      "Ik check of iedereen je site kan gebruiken, ook op een klein scherm of met een beperking.",
   },
   {
-    icon: ShieldCheck,
-    titel: "Toegankelijkheid",
-    tekst: "Kan iedereen je site gebruiken, ook mensen met een beperking of op een klein scherm?",
+    naam: "Stef",
+    rol: "Strateeg",
+    foto: "/team/stef.jpg",
+    tekst:
+      "Ik zet alles op volgorde: je rapportcijfer plus de top 3 die het meeste oplevert.",
   },
   {
-    icon: ListChecks,
-    titel: "Stappenplan in gewone taal",
-    tekst: "Geen jargon: wat we zagen, waarom het klanten kost en wat je eraan doet.",
+    naam: "Lot",
+    rol: "Copywriter",
+    foto: "/team/lot.jpg",
+    tekst:
+      "Ik schrijf het rapport in gewone taal: wat we zagen, waarom het klanten kost, en wat je doet.",
   },
 ]
 
@@ -226,21 +233,29 @@ function WhatYouGet() {
             Geen los cijfer, maar een compleet beeld
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-base text-white/85">
-            Elke check levert dit op, binnen 24 uur in je inbox.
+            Elk teamlid levert zijn stukje aan, binnen 24 uur in je inbox.
           </p>
         </div>
-        <div className="mt-14 grid gap-x-10 gap-y-11 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-14 grid gap-x-8 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
           {DELIVERABLES.map((d) => (
-            <div key={d.titel}>
-              <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[#ff5003] text-white">
-                <d.icon className="h-5 w-5" />
-              </span>
-              <h3 className="mt-5 text-lg font-semibold tracking-tight">
-                {d.titel}
-              </h3>
-              <p className="mt-2 text-[15px] leading-relaxed text-white/85">
-                {d.tekst}
-              </p>
+            <div key={d.naam} className="flex items-start gap-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={d.foto}
+                alt={d.naam}
+                className="h-11 w-11 shrink-0 rounded-full object-cover ring-2 ring-white/30"
+              />
+              <div className="rounded-2xl rounded-tl-sm bg-white/10 p-4 ring-1 ring-white/15">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-semibold">{d.naam}</span>
+                  <span className="rounded-full bg-white/15 px-1.5 py-0.5 text-[10px] font-medium text-white/85">
+                    {d.rol}
+                  </span>
+                </div>
+                <p className="mt-1.5 text-[15px] leading-relaxed text-white/85">
+                  {d.tekst}
+                </p>
+              </div>
             </div>
           ))}
         </div>
