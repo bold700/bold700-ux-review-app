@@ -205,7 +205,9 @@ function TeamFlow() {
           obs.disconnect()
         }
       },
-      { threshold: 0.2 },
+      // Pas vuren als de sectie echt in beeld staat (niet al bij de eerste
+      // pixel onderin): de onderkant van de root 25% inkorten.
+      { threshold: 0.25, rootMargin: "0px 0px -25% 0px" },
     )
     obs.observe(el)
     return () => obs.disconnect()
