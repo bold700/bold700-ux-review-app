@@ -55,6 +55,8 @@ export interface Lead {
   note?: string
   emailedAtMs?: number
   kennyNotifiedAtMs?: number
+  followUpAtMs?: number
+  followUpSentMs?: number
 }
 
 export const FOLLOWUP_LABELS: Record<LeadFollowUp, string> = {

@@ -36,6 +36,11 @@ export default {
       return handleDebug(request, env, ctx, corsHeaders);
     }
 
+    // ── GET /test-mail?to=...&key=... → beide mails als test versturen ──
+    if (request.method === 'GET' && url.pathname === '/test-mail') {
+      return handleTestMail(request, env, corsHeaders);
+    }
+
     // ── POST /lead → notificatie naar Kenny ──
     if (request.method === 'POST' && url.pathname === '/lead') {
       return handleLead(request, env, corsHeaders);
@@ -1491,12 +1496,13 @@ async function deliverDueLeads(env, doCleanup = true) {
 
 async function sendDueFollowUps(env, token, now) {
   const leads = await queryDueField(env, token, 'followUpAtMs', now);
+  // Alleen opvolgen als de lead nog niet is aangepakt: status leeg of 'nieuw'.
+  // Zodra Kenny 'opgevolgd/gesprek/klant/afgevallen' zet, vervalt de follow-up.
   const due = leads.filter(
     (l) =>
       l.scanStatus === 'sent' &&
       !l.followUpSentMs &&
-      !l.replied &&
-      !l.klant,
+      (!l.status || l.status === 'nieuw'),
   );
   console.log(`CRON: ${due.length} follow-up(s) te versturen.`);
   for (const lead of due) {
@@ -1543,6 +1549,44 @@ function kennySignature(env) {
       <div style="color:#666;font-size:13px">Team lead · BOLD700</div>
     </td>
   </tr></table>`;
+}
+
+// Stuurt beide mails (review-klaar + follow-up) als test naar een adres.
+// Gebruik: GET /test-mail?to=support@bold700.com&key=b7-diag-k9x2m4p7q
+async function handleTestMail(request, env, cors) {
+  const u = new URL(request.url);
+  if (u.searchParams.get('key') !== DEBUG_TOKEN) {
+    return new Response('Not found', { status: 404, headers: cors });
+  }
+  const to = u.searchParams.get('to') || env.KENNY_EMAIL || 'support@bold700.com';
+  const lead = {
+    name: u.searchParams.get('name') || 'Noa Jansen',
+    url: 'https://voorbeeldbakkerij.nl',
+    score: 7.4,
+    reportUrl: `${scanOrigin(env)}/report?id=proj_demo`,
+  };
+  const results = {};
+  try {
+    await sendEmail(env, {
+      to,
+      subject: `[TEST] ${lead.name.split(' ')[0]}, je UX-review van ${cleanUrl(lead.url)} is klaar`,
+      html: applicantHtml(env, lead),
+    });
+    results.reviewMail = 'verstuurd';
+  } catch (e) {
+    results.reviewMail = String((e && e.message) || e);
+  }
+  try {
+    await sendEmail(env, {
+      to,
+      subject: `[TEST] Even over je UX-review van ${cleanUrl(lead.url)}`,
+      html: followUpHtml(env, lead),
+    });
+    results.followUp = 'verstuurd';
+  } catch (e) {
+    results.followUp = String((e && e.message) || e);
+  }
+  return jsonResp({ ok: true, to, results }, 200, cors);
 }
 
 function applicantHtml(env, lead) {

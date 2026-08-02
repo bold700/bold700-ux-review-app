@@ -325,16 +325,32 @@ export function LeadsDashboard() {
                     </TableCell>
                     <TableCell>
                       {l.scanStatus === "sent" ? (
-                        <span
-                          className="inline-flex items-center gap-1 text-xs font-medium text-emerald-500"
-                          title={
-                            l.emailedAtMs
-                              ? `Verstuurd op ${new Date(l.emailedAtMs).toLocaleString("nl-NL")}`
-                              : "Verstuurd"
-                          }
-                        >
-                          <Check className="h-3.5 w-3.5" /> Verstuurd
-                        </span>
+                        <div className="flex flex-col gap-0.5">
+                          <span
+                            className="inline-flex items-center gap-1 text-xs font-medium text-emerald-500"
+                            title={
+                              l.emailedAtMs
+                                ? `Verstuurd op ${new Date(l.emailedAtMs).toLocaleString("nl-NL")}`
+                                : "Verstuurd"
+                            }
+                          >
+                            <Check className="h-3.5 w-3.5" /> Verstuurd
+                          </span>
+                          {l.followUpSentMs ? (
+                            <span className="text-[10px] text-muted-foreground">
+                              Follow-up verstuurd
+                            </span>
+                          ) : l.followUpAtMs &&
+                            (l.status === "nieuw" || !l.status) ? (
+                            <span className="text-[10px] text-muted-foreground">
+                              Follow-up:{" "}
+                              {new Date(l.followUpAtMs).toLocaleDateString(
+                                "nl-NL",
+                                { day: "numeric", month: "short" },
+                              )}
+                            </span>
+                          ) : null}
+                        </div>
                       ) : l.scanStatus === "done" ? (
                         <Button
                           size="sm"
