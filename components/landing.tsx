@@ -261,7 +261,12 @@ function TeamFlow() {
   return (
     <section className="px-5 py-16 sm:py-20">
       <div ref={ref} className="mx-auto max-w-3xl">
-        <div className="text-center">
+        <div
+          className={
+            "text-center transition-all duration-700 ease-out motion-reduce:transition-none " +
+            (shown ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0")
+          }
+        >
           <span className="text-sm font-semibold text-white/70">
             Zo komen we tot je resultaat
           </span>
