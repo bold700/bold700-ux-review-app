@@ -172,6 +172,7 @@ const TEAM_CHAT: {
   tekst: string
   mens?: boolean
   system?: boolean
+  foto?: string // pad naar avatar-foto (in /public); anders initiaal
 }[] = [
   { naam: "", rol: "", tekst: "Er is een nieuwe website-check binnen", system: true },
   { naam: "Teun", rol: "Metingen", tekst: "Ik pak 'm op! Ik doe eerst een goede meting: snelheid, techniek en toegankelijkheid. Even de harde cijfers erbij, geen giswerk. Zo terug." },
@@ -184,7 +185,7 @@ const TEAM_CHAT: {
   { naam: "Vera", rol: "Kwaliteitscontrole", tekst: "Ik loop alles na en leg elk punt naast het bewijs op de site. Klopt iets niet? Dan haal ik het eruit." },
   { naam: "Stef", rol: "Prioritering", tekst: "Ik zet alles op een rij. Wat het meeste oplevert voor jullie doel, zet ik bovenaan." },
   { naam: "Lot", rol: "Heldere taal", tekst: "En ik maak er gewone taal van: wat we zagen, waarom het klanten kost, en wat je eraan doet." },
-  { naam: "BOLD700-specialist", rol: "Menselijke controle", tekst: "Mooi werk, team. Ik kijk het geheel nog even na en bespreek het samen met je.", mens: true },
+  { naam: "Kenny", rol: "Eindcontrole", tekst: "Mooi werk, team. Ik ben Kenny en ik doe de eindcontrole: ik kijk het geheel nog even na en bespreek het samen met je.", mens: true, foto: "/team/kenny.jpg" },
 ]
 
 function TeamFlow() {
@@ -307,6 +308,19 @@ function TeamFlow() {
 type ChatItem = (typeof TEAM_CHAT)[number]
 
 function Avatar({ s }: { s: ChatItem }) {
+  if (s.foto) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={s.foto}
+        alt={s.naam}
+        className={
+          "h-10 w-10 shrink-0 rounded-full object-cover ring-2 " +
+          (s.mens ? "ring-[#ff5003]" : "ring-white/40")
+        }
+      />
+    )
+  }
   return (
     <span
       className={
@@ -314,7 +328,7 @@ function Avatar({ s }: { s: ChatItem }) {
         (s.mens ? "bg-[#ff5003] text-white" : "bg-white text-[#1728C8]")
       }
     >
-      {s.mens ? "B7" : s.naam.slice(0, 1)}
+      {s.mens ? "K" : s.naam.slice(0, 1)}
     </span>
   )
 }
