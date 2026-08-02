@@ -263,12 +263,12 @@ function WhatYouGet() {
           {DELIVERABLES.map((d, i) => (
             <div
               key={d.naam}
-              style={{ transitionDelay: shown ? `${i * 90}ms` : "0ms" }}
+              style={{ transitionDelay: shown ? `${i * 110}ms` : "0ms" }}
               className={
-                "group relative overflow-hidden rounded-3xl ring-1 ring-white/15 transition-all duration-500 ease-out motion-reduce:transition-none " +
+                "group relative overflow-hidden rounded-3xl ring-1 ring-white/15 transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform motion-reduce:transition-none " +
                 (shown
-                  ? "translate-y-0 opacity-100"
-                  : "translate-y-8 opacity-0")
+                  ? "translate-y-0 scale-100 opacity-100"
+                  : "translate-y-10 scale-95 opacity-0")
               }
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -280,7 +280,13 @@ function WhatYouGet() {
               {/* Donker verloop onderaan voor leesbaarheid van het kaartje */}
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/15 to-transparent" />
               {/* Frosted kaartje op de foto, onderin ingesprongen */}
-              <div className="absolute inset-x-3.5 bottom-3.5">
+              <div
+                style={{ transitionDelay: shown ? `${i * 110 + 160}ms` : "0ms" }}
+                className={
+                  "absolute inset-x-3.5 bottom-3.5 transition-all duration-700 ease-out motion-reduce:transition-none " +
+                  (shown ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0")
+                }
+              >
                 <div className="rounded-2xl bg-black/35 p-4 ring-1 ring-white/15 backdrop-blur-md">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-base font-semibold">{d.naam}</span>
@@ -580,8 +586,24 @@ function SocialProof() {
 // ── Tweede CTA na de chat, precies waar iemand overtuigd is ────────────────
 function SecondCta() {
   return (
-    <Reveal as="section" className="px-5 py-20 sm:py-28">
-      <div className="mx-auto max-w-3xl text-center">
+    <Reveal
+      as="section"
+      className="relative overflow-hidden px-5 py-24 sm:py-32"
+    >
+      {/* Teamfoto als banner-achtergrond */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/team/team-banner.jpg"
+        alt=""
+        aria-hidden
+        loading="lazy"
+        className="absolute inset-0 h-full w-full object-cover object-center"
+      />
+      {/* Blauwe merk-overlay voor leesbaarheid */}
+      <div className="absolute inset-0 bg-[#1728C8]/85" />
+      <div className="absolute inset-0 bg-gradient-to-t from-[#101d94] via-transparent to-[#1728C8]/60" />
+
+      <div className="relative mx-auto max-w-3xl text-center">
         <h2 className="text-3xl font-semibold tracking-tight sm:text-5xl">
           Klaar om te weten wat je website{" "}
           <span className="text-[#ff5003]">oplevert</span>?
@@ -597,7 +619,7 @@ function SecondCta() {
         >
           Doe de gratis check <ArrowRight className="ml-1 h-4 w-4" />
         </Button>
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-1.5 text-sm text-white/80">
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-1.5 text-sm text-white/85">
           {["Echt gratis", "Binnen 24 uur", "Geen verplichtingen"].map((t) => (
             <span key={t} className="inline-flex items-center gap-1.5">
               <Check className="h-3.5 w-3.5" /> {t}
