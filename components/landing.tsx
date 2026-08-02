@@ -831,11 +831,6 @@ function TeamFlow() {
           {/* Scroll-anker: houdt de nieuwste bubbel met wat lucht in beeld. */}
           <div ref={endRef} aria-hidden className="h-16" />
         </div>
-
-        <p className="mt-8 text-center text-sm text-white/55">
-          Elke AI-bevinding is een onderbouwde hypothese, gelabeld en
-          gecontroleerd. De metingen zijn feiten.
-        </p>
       </div>
     </section>
   )
