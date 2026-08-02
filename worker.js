@@ -1460,10 +1460,14 @@ async function deliverDueLeads(env, doCleanup = true) {
       console.log(`CRON: resultaten-mail naar ${lead.email} (${lead.url})`);
       await sendEmail(env, {
         to: lead.email,
-        subject: `Je UX-review van ${cleanUrl(lead.url)} is klaar`,
+        subject: `${lead.name ? lead.name.split(' ')[0] + ', j' : 'J'}e UX-review van ${cleanUrl(lead.url)} is klaar`,
         html: applicantHtml(env, lead),
       });
-      await patchLead(env, token, lead.id, { emailedAtMs: now, scanStatus: 'sent' });
+      await patchLead(env, token, lead.id, {
+        emailedAtMs: now,
+        scanStatus: 'sent',
+        followUpAtMs: now + 3 * 24 * 60 * 60 * 1000, // over 3 dagen opvolgen
+      });
     } else if (lead.scanStatus === 'failed') {
       await sendEmail(env, {
         to: env.KENNY_EMAIL,
@@ -1477,24 +1481,106 @@ async function deliverDueLeads(env, doCleanup = true) {
     }
     // queued/scanning: nog niet klaar → volgende cron opnieuw.
   }
+
+  // Follow-up: leads die 3 dagen geleden hun review kregen en (nog) niet
+  // reageerden krijgen één persoonlijk berichtje van Kenny.
+  await sendDueFollowUps(env, token, now).catch((e) =>
+    console.error('follow-up fout', e),
+  );
+}
+
+async function sendDueFollowUps(env, token, now) {
+  const leads = await queryDueField(env, token, 'followUpAtMs', now);
+  const due = leads.filter(
+    (l) =>
+      l.scanStatus === 'sent' &&
+      !l.followUpSentMs &&
+      !l.replied &&
+      !l.klant,
+  );
+  console.log(`CRON: ${due.length} follow-up(s) te versturen.`);
+  for (const lead of due) {
+    await sendEmail(env, {
+      to: lead.email,
+      subject: `Even over je UX-review van ${cleanUrl(lead.url)}`,
+      html: followUpHtml(env, lead),
+    });
+    await patchLead(env, token, lead.id, { followUpSentMs: now });
+  }
+}
+
+// Contactgegevens voor Kenny (persoonlijke opvolging).
+const CONTACT_TEL = '+31614802802';
+const CONTACT_WA = '31614802802';
+function contactEmail(env) {
+  return env.KENNY_EMAIL || 'support@bold700.com';
+}
+function waLink(text) {
+  return `https://wa.me/${CONTACT_WA}?text=${encodeURIComponent(text)}`;
+}
+
+// Persoonlijke contactregel: WhatsApp / bellen / mailen.
+function contactBlock(env) {
+  const wa = waLink('Hoi Kenny, ik heb een vraag over mijn UX-review.');
+  return `<p style="margin:16px 0">Je kunt me zo bereiken:</p>
+    <p style="margin:4px 0">
+      📱 <a href="${wa}">WhatsApp</a> &nbsp;·&nbsp;
+      ☎️ <a href="tel:${CONTACT_TEL}">${CONTACT_TEL}</a> &nbsp;·&nbsp;
+      ✉️ <a href="mailto:${esc(contactEmail(env))}">${esc(contactEmail(env))}</a>
+    </p>`;
+}
+
+// Ondertekening met foto van Kenny.
+function kennySignature(env) {
+  const foto = `${scanOrigin(env)}/team/kenny.jpg`;
+  return `<table style="margin-top:24px;border-collapse:collapse"><tr>
+    <td style="vertical-align:middle;padding-right:12px">
+      <img src="${foto}" alt="Kenny" width="52" height="52"
+        style="width:52px;height:52px;border-radius:50%;object-fit:cover;display:block" />
+    </td>
+    <td style="vertical-align:middle">
+      <div style="font-weight:600">Kenny</div>
+      <div style="color:#666;font-size:13px">Team lead · BOLD700</div>
+    </td>
+  </tr></table>`;
 }
 
 function applicantHtml(env, lead) {
-  const persoonlijk = lead.note
-    ? `<p>${esc(lead.note)}</p>`
-    : `<p>Hoi ${esc(lead.name)}, we hebben je website bekeken.</p>`;
-  return `${persoonlijk}
-    <p>Je UX-score voor <b>${cleanUrl(lead.url)}</b> is
-    <b style="font-size:20px">${lead.score != null ? Number(lead.score).toFixed(1) : 'n.v.t.'}/10</b>.</p>
+  const score = lead.score != null ? Number(lead.score).toFixed(1) : 'n.v.t.';
+  return `<p>Hoi ${esc(lead.name)},</p>
+    <p>Ik ben Kenny. Samen met mijn team heb ik je website
+    <b>${cleanUrl(lead.url)}</b> bekeken, en je UX-review staat klaar.</p>
+    <p>Je score is <b style="font-size:20px">${score}/10</b>.</p>
     <p><a href="${esc(lead.reportUrl)}"
       style="display:inline-block;background:#ff5003;color:#fff;padding:10px 18px;
       border-radius:8px;text-decoration:none">Bekijk je rapport</a></p>
-    <p>Dit is een snelle scan. Een specialist met enterprise-ervaring kan het
-    rapport met je doornemen, interpretaties corrigeren en context geven, zodat
-    je precies weet wat prioriteit heeft.</p>
-    <p><a href="${esc(env.BOOK_URL)}">Plan een gesprek met de specialist</a>
-    of beantwoord deze mail.</p>
-    <p>Groet,<br>BOLD700</p>
+    <p>In het rapport zie je precies wat er goed gaat en wat je het eerst zou
+    moeten aanpakken. Wil je dat ik de belangrijkste punten even met je doorneem?
+    Dat kost je niks en je weet daarna precies waar de winst zit.</p>
+    ${contactBlock(env)}
+    <p>Hoor ik niks van je, dan neem ik over 3 dagen zelf nog even contact met je
+    op. Geen zorgen, ik val je niet lastig.</p>
+    ${kennySignature(env)}
+    ${optOut()}`;
+}
+
+// Follow-up na 3 dagen stilte.
+function followUpHtml(env, lead) {
+  const wa = waLink(`Hoi Kenny, over de UX-review van ${cleanUrl(lead.url)}...`);
+  return `<p>Hoi ${esc(lead.name)},</p>
+    <p>Een paar dagen geleden stuurde ik je de UX-review van
+    <b>${cleanUrl(lead.url)}</b>. Ik ben benieuwd of je er al naar hebt kunnen
+    kijken.</p>
+    <p>Zal ik de belangrijkste punten kort met je doornemen? Vaak zijn het een
+    paar kleine dingen die het meeste opleveren. Eén appje of belletje en ik leg
+    het je uit.</p>
+    <p><a href="${esc(lead.reportUrl)}"
+      style="display:inline-block;background:#ff5003;color:#fff;padding:10px 18px;
+      border-radius:8px;text-decoration:none">Bekijk je rapport opnieuw</a></p>
+    ${contactBlock(env)}
+    <p>Liever niet? Ook prima, laat het me gerust weten, dan hoor je niks meer
+    van me.</p>
+    ${kennySignature(env)}
     ${optOut()}`;
 }
 
@@ -1595,6 +1681,33 @@ async function queryDueLeads(env, token, now) {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+  });
+  const rows = await res.json();
+  return (rows || [])
+    .filter((r) => r.document)
+    .map((r) => ({ id: r.document.name.split('/').pop(), ...decode(r.document.fields) }));
+}
+
+// Leads waar een tijdstip-veld (bv. followUpAtMs) <= now is. Enkel-veld-range,
+// dus geen samengestelde index nodig; verdere filtering doen we in code.
+async function queryDueField(env, token, field, now) {
+  const url = `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:runQuery`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      structuredQuery: {
+        from: [{ collectionId: 'leads' }],
+        where: {
+          fieldFilter: {
+            field: { fieldPath: field },
+            op: 'LESS_THAN_OR_EQUAL',
+            value: { integerValue: String(now) },
+          },
+        },
+        limit: 50,
+      },
+    }),
   });
   const rows = await res.json();
   return (rows || [])
