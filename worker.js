@@ -36,10 +36,6 @@ export default {
       return handleDebug(request, env, ctx, corsHeaders);
     }
 
-    // ── GET /test-mail?to=...&key=... → beide mails als test versturen ──
-    if (request.method === 'GET' && url.pathname === '/test-mail') {
-      return handleTestMail(request, env, corsHeaders);
-    }
 
     // ── POST /lead → notificatie naar Kenny ──
     if (request.method === 'POST' && url.pathname === '/lead') {
@@ -1548,42 +1544,6 @@ function kennySignature(env) {
       <div style="color:#666;font-size:13px">Team lead · BOLD700</div>
     </td>
   </tr></table>`;
-}
-
-// Stuurt beide mails (review-klaar + follow-up) als test naar een adres.
-// Gebruik: GET /test-mail?to=support@bold700.com&key=b7-diag-k9x2m4p7q
-async function handleTestMail(request, env, cors) {
-  const u = new URL(request.url);
-  if (u.searchParams.get('key') !== DEBUG_TOKEN) {
-    return new Response('Not found', { status: 404, headers: cors });
-  }
-  const to = u.searchParams.get('to') || env.KENNY_EMAIL || 'support@bold700.com';
-  const lead = {
-    name: u.searchParams.get('name') || 'Noa Jansen',
-    url: 'https://voorbeeldbakkerij.nl',
-    score: 7.4,
-    reportUrl: `${scanOrigin(env)}/report?id=proj_demo`,
-  };
-  const results = {};
-  try {
-    results.reviewMail = await sendEmail(env, {
-      to,
-      subject: `[TEST] ${lead.name.split(' ')[0]}, je UX-review van ${cleanUrl(lead.url)} is klaar`,
-      html: applicantHtml(env, lead),
-    });
-  } catch (e) {
-    results.reviewMail = { ok: false, error: String((e && e.message) || e) };
-  }
-  try {
-    results.followUp = await sendEmail(env, {
-      to,
-      subject: `[TEST] Even over je UX-review van ${cleanUrl(lead.url)}`,
-      html: followUpHtml(env, lead),
-    });
-  } catch (e) {
-    results.followUp = { ok: false, error: String((e && e.message) || e) };
-  }
-  return jsonResp({ from: env.MAIL_FROM, to, results }, 200, cors);
 }
 
 function applicantHtml(env, lead) {
