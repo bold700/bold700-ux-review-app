@@ -1,18 +1,36 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { ArrowRight, Check, Loader2 } from "lucide-react"
+import {
+  ArrowRight,
+  BarChart3,
+  Check,
+  Gauge,
+  ListChecks,
+  Loader2,
+  MousePointerClick,
+  Search,
+  ShieldCheck,
+} from "lucide-react"
 import { toast } from "sonner"
 
 import type { Project } from "@/lib/types"
 import type { ReportData } from "@/lib/report"
 import { drawScorecard } from "@/lib/scorecard-image"
 import { createLead, requestWorkerScan, runLeadScan } from "@/lib/leads"
+import { loadBenchmark, type Benchmark } from "@/lib/insights"
+import { BRANCHES } from "@/lib/branche"
 import { ensureProtocol } from "@/lib/url"
 import { BrandLogo } from "@/components/brand-logo"
 import { ScorecardDeck } from "@/components/scorecard-deck"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+
+function scrollToSignup() {
+  document
+    .getElementById("aanmelden")
+    ?.scrollIntoView({ behavior: "smooth", block: "center" })
+}
 
 const BLUE = "#1728C8"
 
@@ -112,7 +130,8 @@ export function Landing({ onLogin }: { onLogin: () => void }) {
 
         {/* Formulier */}
         <div
-          className="rise order-4 sm:order-4"
+          id="aanmelden"
+          className="rise order-4 scroll-mt-24 sm:order-4"
           style={{ animationDelay: "240ms" }}
         >
           <SignupForm />
@@ -148,18 +167,516 @@ export function Landing({ onLogin }: { onLogin: () => void }) {
         </div>
       </main>
 
+      <WhatYouGet />
+      <BenchmarkBlock />
+      <RealCompany />
       <TeamFlow />
-
-      <footer className="shrink-0 border-t border-white/15 py-6 text-center text-xs text-white/60">
-        <a
-          href="/rapport"
-          className="underline transition-colors hover:text-white/90"
-        >
-          Bekijk het onderzoek: hoe goed zijn websites van ondernemers?
-        </a>
-        <div className="mt-2">BOLD700 · uxreviews.bold700.com</div>
-      </footer>
+      <SocialProof />
+      <SecondCta />
+      <Faq />
+      <SiteFooter />
+      <StickyCta />
     </div>
+  )
+}
+
+// ── Dit krijg je: spiegelt exact wat de scan oplevert ──────────────────────
+const DELIVERABLES: { icon: typeof Gauge; titel: string; tekst: string }[] = [
+  {
+    icon: Gauge,
+    titel: "Een rapportcijfer + top 3",
+    tekst: "Een helder cijfer voor je site en de drie dingen die je het eerst moet aanpakken.",
+  },
+  {
+    icon: Gauge,
+    titel: "Echte snelheidsmeting",
+    tekst: "We meten je laadtijd en techniek (Core Web Vitals) met echte data, geen giswerk.",
+  },
+  {
+    icon: Search,
+    titel: "Vindbaarheid & teksten",
+    tekst: "Is je boodschap meteen duidelijk en kun je goed gevonden worden in Google?",
+  },
+  {
+    icon: MousePointerClick,
+    titel: "Conversie & vertrouwen",
+    tekst: "Zetten bezoekers de stap, of haken ze af bij de knop? We kijken waar het misgaat.",
+  },
+  {
+    icon: ShieldCheck,
+    titel: "Toegankelijkheid",
+    tekst: "Kan iedereen je site gebruiken, ook mensen met een beperking of op een klein scherm?",
+  },
+  {
+    icon: ListChecks,
+    titel: "Stappenplan in gewone taal",
+    tekst: "Geen jargon: wat we zagen, waarom het klanten kost en wat je eraan doet.",
+  },
+]
+
+function WhatYouGet() {
+  return (
+    <Reveal as="section" className="px-5 py-16 sm:py-20">
+      <div className="mx-auto max-w-5xl">
+        <div className="text-center">
+          <span className="text-sm font-semibold text-white/70">
+            Wat je terugkrijgt
+          </span>
+          <h2 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
+            Geen los cijfer, maar een compleet beeld
+          </h2>
+          <p className="mx-auto mt-3 max-w-xl text-base text-white/70">
+            Elke check levert dit op, binnen 24 uur in je inbox.
+          </p>
+        </div>
+        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {DELIVERABLES.map((d) => (
+            <div
+              key={d.titel}
+              className="rounded-2xl border border-white/15 bg-white/[0.07] p-5 transition-colors hover:bg-white/[0.11]"
+            >
+              <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-white">
+                <d.icon className="h-5 w-5" />
+              </span>
+              <h3 className="mt-4 text-base font-semibold">{d.titel}</h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-white/70">
+                {d.tekst}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </Reveal>
+  )
+}
+
+// ── Branche-benchmark: live uit onze eigen data (benchmarks/global) ────────
+const BRANCHE_LABEL: Record<string, string> = Object.fromEntries(
+  BRANCHES.map((b) => [b.slug, b.label]),
+)
+
+function BenchmarkBlock() {
+  const [bench, setBench] = useState<Benchmark | null>(null)
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    loadBenchmark()
+      .then(setBench)
+      .finally(() => setLoaded(true))
+  }, [])
+
+  const rows = Object.entries(bench?.branches ?? {})
+    .filter(([, v]) => v.n >= 3 && v.avg != null)
+    .sort((a, b) => b[1].n - a[1].n)
+    .slice(0, 6)
+    .map(([slug, v]) => ({
+      label: BRANCHE_LABEL[slug] ?? slug,
+      avg: v.avg,
+      n: v.n,
+    }))
+
+  const hasData = loaded && (bench?.siteCount ?? 0) > 0
+  const siteCount = bench?.siteCount ?? 0
+  const avg = bench?.avgScore
+
+  return (
+    <Reveal as="section" className="px-5 py-16 sm:py-20">
+      <div className="mx-auto max-w-4xl">
+        <div className="text-center">
+          <span className="text-sm font-semibold text-white/70">
+            Wat niemand anders je kan vertellen
+          </span>
+          <h2 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
+            Je score, afgezet tegen je eigen branche
+          </h2>
+          <p className="mx-auto mt-3 max-w-xl text-base text-white/70">
+            {hasData ? (
+              <>
+                We hebben al{" "}
+                <span className="font-semibold text-white">{siteCount}</span>{" "}
+                websites doorgelicht
+                {avg != null && (
+                  <>
+                    {" "}
+                    (gemiddeld cijfer{" "}
+                    <span className="font-semibold text-white">
+                      {avg.toFixed(1)}
+                    </span>
+                    )
+                  </>
+                )}
+                . Zo weet je niet alleen je cijfer, maar ook of je voor- of
+                achterloopt op je concurrenten.
+              </>
+            ) : (
+              <>
+                Elke review die we doen maakt onze benchmark scherper. Zo weet je
+                niet alleen je cijfer, maar ook of je voor- of achterloopt op je
+                concurrenten.
+              </>
+            )}
+          </p>
+        </div>
+
+        {rows.length > 0 && (
+          <div className="mx-auto mt-10 max-w-2xl rounded-2xl border border-white/15 bg-white/[0.07] p-6">
+            <div className="flex items-center gap-2 text-sm font-medium text-white/80">
+              <BarChart3 className="h-4 w-4" /> Gemiddeld cijfer per branche
+            </div>
+            <div className="mt-5 space-y-3">
+              {rows.map((r) => (
+                <div key={r.label} className="flex items-center gap-3">
+                  <span className="w-40 shrink-0 truncate text-sm text-white/80">
+                    {r.label}
+                  </span>
+                  <span className="relative h-2.5 flex-1 overflow-hidden rounded-full bg-white/10">
+                    <span
+                      className="absolute inset-y-0 left-0 rounded-full bg-[#ff5003]"
+                      style={{ width: `${Math.max(4, (r.avg / 10) * 100)}%` }}
+                    />
+                  </span>
+                  <span className="w-8 shrink-0 text-right text-sm font-semibold tabular-nums">
+                    {r.avg.toFixed(1)}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-4 text-xs text-white/50">
+              Live uit onze eigen reviews, wordt bijgewerkt bij elke nieuwe
+              check.
+            </p>
+          </div>
+        )}
+
+        <div className="mt-8 text-center">
+          <a
+            href="/rapport"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-white/80 underline-offset-4 transition-colors hover:text-white hover:underline"
+          >
+            Bekijk het volledige onderzoek <ArrowRight className="h-4 w-4" />
+          </a>
+        </div>
+      </div>
+    </Reveal>
+  )
+}
+
+// ── Echt bedrijf: eerlijk over hoe we werken ───────────────────────────────
+function RealCompany() {
+  const points = [
+    {
+      titel: "Een echt bedrijf",
+      tekst:
+        "BOLD700 is een echt bedrijf, gerund door Kenny Timmer. Je hebt een vast aanspreekpunt, geen anoniem platform.",
+    },
+    {
+      titel: "Mensen én techniek",
+      tekst:
+        "We werken met externe specialisten (freelancers) en laten het speurwerk ondersteunen door AI-agents. Zo gaat het snel én blijft het scherp.",
+    },
+    {
+      titel: "Altijd een mens die nakijkt",
+      tekst:
+        "Elk punt wordt naast het bewijs op je site gelegd en Kenny neemt de eindbeslissing voordat jij het ziet.",
+    },
+  ]
+  return (
+    <Reveal as="section" className="px-5 py-16 sm:py-20">
+      <div className="mx-auto max-w-4xl">
+        <div className="text-center">
+          <span className="text-sm font-semibold text-white/70">
+            Hoe we werken
+          </span>
+          <h2 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
+            Geen zwarte doos, geen AI-praatje
+          </h2>
+        </div>
+        <div className="mt-10 grid gap-4 sm:grid-cols-3">
+          {points.map((p) => (
+            <div
+              key={p.titel}
+              className="rounded-2xl border border-white/15 bg-white/[0.07] p-5"
+            >
+              <h3 className="text-base font-semibold">{p.titel}</h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-white/70">
+                {p.tekst}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </Reveal>
+  )
+}
+
+// ── Social proof + gezicht (placeholders tot echte input) ──────────────────
+const QUOTES: { tekst: string; naam: string; bedrijf: string }[] = [
+  {
+    tekst:
+      "Binnen een dag wist ik precies wat er beter kon. Concreet en zonder wollig verhaal.",
+    naam: "Voorbeeldklant",
+    bedrijf: "Installatiebedrijf",
+  },
+  {
+    tekst:
+      "Eindelijk feedback in gewone taal. We hebben de top 3 meteen doorgevoerd.",
+    naam: "Voorbeeldklant",
+    bedrijf: "Webshop",
+  },
+]
+
+function SocialProof() {
+  return (
+    <Reveal as="section" className="px-5 py-16 sm:py-20">
+      <div className="mx-auto max-w-4xl">
+        {/* Kenny, het gezicht */}
+        <div className="flex flex-col items-center gap-5 rounded-2xl border border-white/15 bg-white/[0.07] p-6 text-center sm:flex-row sm:text-left">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/team/kenny.jpg"
+            alt="Kenny Timmer"
+            className="h-20 w-20 shrink-0 rounded-full object-cover ring-2 ring-[#ff5003]"
+          />
+          <div>
+            <p className="text-lg font-semibold">Kenny Timmer</p>
+            <p className="text-sm text-white/60">Oprichter BOLD700</p>
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-white/75">
+              Ik neem elke review persoonlijk met je door. Geen verkooppraatje,
+              gewoon eerlijk advies over wat je website oplevert en wat beter
+              kan.
+            </p>
+          </div>
+        </div>
+
+        {/* Quotes (placeholder) */}
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          {QUOTES.map((q, i) => (
+            <figure
+              key={i}
+              className="rounded-2xl border border-white/15 bg-white/[0.07] p-5"
+            >
+              <blockquote className="text-sm leading-relaxed text-white/85">
+                “{q.tekst}”
+              </blockquote>
+              <figcaption className="mt-3 text-xs text-white/55">
+                {q.naam} · {q.bedrijf}
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+      </div>
+    </Reveal>
+  )
+}
+
+// ── Tweede CTA na de chat, precies waar iemand overtuigd is ────────────────
+function SecondCta() {
+  return (
+    <Reveal as="section" className="px-5 py-16 sm:py-20">
+      <div className="mx-auto max-w-2xl rounded-3xl border border-white/20 bg-white/[0.09] p-8 text-center sm:p-10">
+        <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+          Klaar om te weten wat je website oplevert?
+        </h2>
+        <p className="mx-auto mt-3 max-w-md text-base text-white/75">
+          Meld je website aan en ontvang je rapportcijfer met concrete tips
+          binnen 24 uur.
+        </p>
+        <Button
+          onClick={scrollToSignup}
+          size="lg"
+          style={{ color: BLUE }}
+          className="mt-6 bg-white hover:bg-white/90"
+        >
+          Doe de gratis check <ArrowRight className="ml-1 h-4 w-4" />
+        </Button>
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 text-xs text-white/60">
+          {["Echt gratis", "Binnen 24 uur", "Geen verplichtingen"].map((t) => (
+            <span key={t} className="inline-flex items-center gap-1.5">
+              <Check className="h-3.5 w-3.5" /> {t}
+            </span>
+          ))}
+        </div>
+      </div>
+    </Reveal>
+  )
+}
+
+// ── Korte FAQ: laatste twijfels weg ────────────────────────────────────────
+const FAQS: { q: string; a: string }[] = [
+  {
+    q: "Is het echt gratis?",
+    a: "Ja. De snelle check en het rapport kosten je niks. Bevalt het en wil je dat we samen aan de slag gaan, dan bespreken we dat pas daarna.",
+  },
+  {
+    q: "Wat gebeurt er na de scan?",
+    a: "Je krijgt je rapportcijfer en tips per e-mail. Kenny neemt daarna persoonlijk contact op om de belangrijkste punten door te nemen. Hoor je niks, dan bellen we je binnen een paar dagen zelf.",
+  },
+  {
+    q: "Hoe lang duurt het?",
+    a: "Meestal heb je je rapport binnen 24 uur. Geen vragenlijsten, je hoeft alleen je website-URL door te geven.",
+  },
+  {
+    q: "Wat doen jullie met mijn gegevens?",
+    a: "We gebruiken je gegevens alleen voor deze check en het contact daarover. Niks meer, niks anders.",
+  },
+]
+
+function Faq() {
+  return (
+    <Reveal as="section" className="px-5 py-16 sm:py-20">
+      <div className="mx-auto max-w-2xl">
+        <h2 className="text-center text-3xl font-semibold tracking-tight sm:text-4xl">
+          Veelgestelde vragen
+        </h2>
+        <div className="mt-8 space-y-3">
+          {FAQS.map((f) => (
+            <details
+              key={f.q}
+              className="group rounded-2xl border border-white/15 bg-white/[0.07] p-5 [&_summary::-webkit-details-marker]:hidden"
+            >
+              <summary className="flex cursor-pointer items-center justify-between gap-3 text-base font-medium">
+                {f.q}
+                <ArrowRight className="h-4 w-4 shrink-0 text-white/60 transition-transform duration-200 group-open:rotate-90" />
+              </summary>
+              <p className="mt-3 text-sm leading-relaxed text-white/70">
+                {f.a}
+              </p>
+            </details>
+          ))}
+        </div>
+      </div>
+    </Reveal>
+  )
+}
+
+// ── Footer, verzorgd ───────────────────────────────────────────────────────
+function SiteFooter() {
+  return (
+    <footer className="mt-4 border-t border-white/15 px-5 pb-[calc(env(safe-area-inset-bottom)+6rem)] pt-12 sm:pb-12">
+      <div className="mx-auto max-w-5xl">
+        <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
+          <div className="max-w-xs">
+            <BrandLogo fill="#ffffff" className="h-7 w-auto" />
+            <p className="mt-3 text-sm leading-relaxed text-white/60">
+              Gratis UX-check voor ondernemers. Eerlijk advies over wat je
+              website oplevert, gerund door Kenny Timmer.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-8 text-sm">
+            <div>
+              <p className="font-semibold text-white/80">Bekijk</p>
+              <ul className="mt-3 space-y-2 text-white/60">
+                <li>
+                  <a href="/rapport" className="transition-colors hover:text-white">
+                    Het onderzoek
+                  </a>
+                </li>
+                <li>
+                  <a href="/privacy" className="transition-colors hover:text-white">
+                    Privacyverklaring
+                  </a>
+                </li>
+              </ul>
+            </div>
+            <div>
+              <p className="font-semibold text-white/80">Contact</p>
+              <ul className="mt-3 space-y-2 text-white/60">
+                <li>
+                  <a
+                    href="https://wa.me/31614802802"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="transition-colors hover:text-white"
+                  >
+                    WhatsApp
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="mailto:support@bold700.com"
+                    className="transition-colors hover:text-white"
+                  >
+                    support@bold700.com
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <div className="mt-10 flex flex-col gap-2 border-t border-white/10 pt-6 text-xs text-white/45 sm:flex-row sm:items-center sm:justify-between">
+          <span>© {new Date().getFullYear()} BOLD700</span>
+          <span>uxreviews.bold700.com</span>
+        </div>
+      </div>
+    </footer>
+  )
+}
+
+// ── Sticky mobiele CTA: verschijnt na de hero ──────────────────────────────
+function StickyCta() {
+  const [show, setShow] = useState(false)
+  useEffect(() => {
+    const onScroll = () => setShow(window.scrollY > 700)
+    window.addEventListener("scroll", onScroll, { passive: true })
+    onScroll()
+    return () => window.removeEventListener("scroll", onScroll)
+  }, [])
+  return (
+    <div
+      className={
+        "fixed inset-x-0 bottom-0 z-40 border-t border-white/15 bg-[#1728C8]/95 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 backdrop-blur transition-transform duration-300 sm:hidden " +
+        (show ? "translate-y-0" : "translate-y-full")
+      }
+    >
+      <Button
+        onClick={scrollToSignup}
+        style={{ color: BLUE }}
+        className="w-full bg-white hover:bg-white/90"
+      >
+        Doe de gratis check <ArrowRight className="ml-1 h-4 w-4" />
+      </Button>
+    </div>
+  )
+}
+
+// Sectie die zachtjes inscrollt (zelfde patroon als de team-chat).
+function Reveal({
+  as: Tag = "div",
+  className = "",
+  children,
+}: {
+  as?: "section" | "div"
+  className?: string
+  children: React.ReactNode
+}) {
+  const ref = useRef<HTMLDivElement | null>(null)
+  const [shown, setShown] = useState(false)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setShown(true)
+          obs.disconnect()
+        }
+      },
+      { threshold: 0.15, rootMargin: "0px 0px -10% 0px" },
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [])
+  return (
+    <Tag
+      ref={ref as React.RefObject<HTMLElement & HTMLDivElement>}
+      className={
+        className +
+        " transition-all duration-700 ease-out motion-reduce:transition-none " +
+        (shown ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0")
+      }
+    >
+      {children}
+    </Tag>
   )
 }
 

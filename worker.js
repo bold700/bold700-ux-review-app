@@ -765,6 +765,12 @@ async function runScanStep(env, token, p) {
       }).catch(() => {});
       entry = log('Klaar', 'klaar', `Score ${score != null ? score.toFixed(1) : '?'}/10`);
       next = 'done';
+      // Landing-benchmark live meelaten groeien (best-effort, nooit blokkerend).
+      if (score != null) {
+        await bumpBenchmark(env, token, score).catch((e) =>
+          console.error('bumpBenchmark', e),
+        );
+      }
     } else {
       next = 'done';
       patch.scanActive = false;
@@ -1714,6 +1720,37 @@ async function queryDueField(env, token, field, now) {
   return (rows || [])
     .filter((r) => r.document)
     .map((r) => ({ id: r.document.name.split('/').pop(), ...decode(r.document.fields) }));
+}
+
+// Verhoogt de globale landing-benchmark (siteCount + lopend gemiddelde) bij elke
+// afgeronde scan. Per-branche cijfers blijven de insights-herberekening (setDoc)
+// als authoritatieve bron; dit houdt het kopgetal live tussendoor.
+async function bumpBenchmark(env, token, score) {
+  const base = `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/benchmarks/global`;
+  let oldCount = 0;
+  let oldAvg = null;
+  try {
+    const r = await fetch(base, { headers: { Authorization: `Bearer ${token}` } });
+    if (r.ok) {
+      const d = decode((await r.json()).fields || {});
+      oldCount = Number(d.siteCount) || 0;
+      oldAvg = d.avgScore != null ? Number(d.avgScore) : null;
+    }
+  } catch {}
+  const newCount = oldCount + 1;
+  const newAvg =
+    oldAvg != null ? (oldAvg * oldCount + score) / newCount : score;
+  const fields = {
+    siteCount: newCount,
+    avgScore: Math.round(newAvg * 100) / 100,
+    generatedAt: new Date().toISOString(),
+  };
+  const mask = Object.keys(fields).map((k) => `updateMask.fieldPaths=${k}`).join('&');
+  await fetch(`${base}?${mask}`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields: encode(fields) }),
+  });
 }
 
 async function patchLead(env, token, id, fields) {
