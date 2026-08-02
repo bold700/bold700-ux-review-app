@@ -175,17 +175,17 @@ const TEAM_CHAT: {
   foto?: string // pad naar avatar-foto (in /public); anders initiaal
 }[] = [
   { naam: "", rol: "", tekst: "Er is een nieuwe website-check binnen", system: true },
-  { naam: "Teun", rol: "Metingen", tekst: "Ik pak 'm op! Ik doe eerst een goede meting: snelheid, techniek en toegankelijkheid. Even de harde cijfers erbij, geen giswerk. Zo terug." },
-  { naam: "Bram", rol: "Bedrijfsprofiel", tekst: "Top, Teun. Ik lees me even in: wie zijn ze, wat verkopen ze en wat willen ze bereiken? Dan weet iedereen waar we het voor doen." },
-  { naam: "Sofie", rol: "UX", tekst: "Ik duik in het gebruiksgemak. Vinden bezoekers makkelijk hun weg, of lopen ze ergens vast?" },
-  { naam: "Ruben", rol: "Vindbaarheid & content", tekst: "Ik kijk naar de teksten en de vindbaarheid. Is de boodschap meteen helder, zonder moeilijke woorden?" },
-  { naam: "Nora", rol: "Conversie", tekst: "Ik focus op de knoppen en het vertrouwen. Zou ik hier zelf die stap durven zetten?" },
-  { naam: "Timo", rol: "Toegankelijkheid", tekst: "Ik check of iedereen mee kan komen: goed leesbaar en bruikbaar, ook met een beperking." },
-  { naam: "Ans", rol: "Doelgroep-blik", tekst: "Ik kijk als jullie bezoeker. Snap ik binnen 5 seconden wat dit is, en voel ik me op mijn gemak?" },
-  { naam: "Vera", rol: "Kwaliteitscontrole", tekst: "Ik loop alles na en leg elk punt naast het bewijs op de site. Klopt iets niet? Dan haal ik het eruit." },
-  { naam: "Stef", rol: "Prioritering", tekst: "Ik zet alles op een rij. Wat het meeste oplevert voor jullie doel, zet ik bovenaan." },
-  { naam: "Lot", rol: "Heldere taal", tekst: "En ik maak er gewone taal van: wat we zagen, waarom het klanten kost, en wat je eraan doet." },
-  { naam: "Kenny", rol: "Eindcontrole", tekst: "Mooi werk, team. Ik ben Kenny en ik doe de eindcontrole: ik kijk het geheel nog even na en bespreek het samen met je.", foto: "/team/kenny.jpg" },
+  { naam: "Teun", rol: "Performance-analist", tekst: "Ik pak 'm op! Ik doe eerst een goede meting: snelheid, techniek en toegankelijkheid. Even de harde cijfers erbij, geen giswerk. Zo terug." },
+  { naam: "Bram", rol: "Business-analist", tekst: "Top, Teun. Ik lees me even in: wie zijn ze, wat verkopen ze en wat willen ze bereiken? Dan weet iedereen waar we het voor doen." },
+  { naam: "Sofie", rol: "UX-designer", tekst: "Ik duik in het gebruiksgemak. Vinden bezoekers makkelijk hun weg, of lopen ze ergens vast?" },
+  { naam: "Ruben", rol: "SEO-specialist", tekst: "Ik kijk naar de teksten en de vindbaarheid. Is de boodschap meteen helder, zonder moeilijke woorden?" },
+  { naam: "Nora", rol: "Conversie-specialist", tekst: "Ik focus op de knoppen en het vertrouwen. Zou ik hier zelf die stap durven zetten?" },
+  { naam: "Timo", rol: "Toegankelijkheidsexpert", tekst: "Ik check of iedereen mee kan komen: goed leesbaar en bruikbaar, ook met een beperking." },
+  { naam: "Ans", rol: "User researcher", tekst: "Ik kijk als jullie bezoeker. Snap ik binnen 5 seconden wat dit is, en voel ik me op mijn gemak?" },
+  { naam: "Vera", rol: "Kwaliteitsexpert", tekst: "Ik loop alles na en leg elk punt naast het bewijs op de site. Klopt iets niet? Dan haal ik het eruit." },
+  { naam: "Stef", rol: "Strateeg", tekst: "Ik zet alles op een rij. Wat het meeste oplevert voor jullie doel, zet ik bovenaan." },
+  { naam: "Lot", rol: "Copywriter", tekst: "En ik maak er gewone taal van: wat we zagen, waarom het klanten kost, en wat je eraan doet." },
+  { naam: "Kenny", rol: "Team lead", tekst: "Mooi werk, team. Ik ben Kenny, de team lead: ik kijk het geheel nog even na en bespreek het samen met je.", foto: "/team/kenny.jpg" },
 ]
 
 function TeamFlow() {
