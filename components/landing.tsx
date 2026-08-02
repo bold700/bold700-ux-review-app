@@ -81,7 +81,7 @@ export function Landing({ onLogin }: { onLogin: () => void }) {
   }, [])
 
   return (
-    <div className="flex min-h-svh flex-col bg-[#1728C8] text-white">
+    <div className="flex min-h-svh flex-col bg-gradient-to-b from-[#1c2ee0] via-[#1728C8] to-[#101d94] text-white">
       {/* Topbar */}
       <header className="mx-auto flex w-full max-w-6xl shrink-0 items-center justify-between px-5 pb-4 pt-[calc(env(safe-area-inset-top)+1.25rem)]">
         <div className="rise">
@@ -229,17 +229,16 @@ function WhatYouGet() {
             Elke check levert dit op, binnen 24 uur in je inbox.
           </p>
         </div>
-        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-14 grid gap-x-10 gap-y-11 sm:grid-cols-2 lg:grid-cols-3">
           {DELIVERABLES.map((d) => (
-            <div
-              key={d.titel}
-              className="rounded-2xl border border-white/15 bg-white/[0.07] p-5 transition-colors hover:bg-white/[0.11]"
-            >
-              <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-white">
+            <div key={d.titel}>
+              <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[#ff5003] text-white">
                 <d.icon className="h-5 w-5" />
               </span>
-              <h3 className="mt-4 text-base font-semibold">{d.titel}</h3>
-              <p className="mt-1.5 text-sm leading-relaxed text-white/70">
+              <h3 className="mt-5 text-lg font-semibold tracking-tight">
+                {d.titel}
+              </h3>
+              <p className="mt-2 text-[15px] leading-relaxed text-white/65">
                 {d.tekst}
               </p>
             </div>
@@ -319,7 +318,7 @@ function BenchmarkBlock() {
         </div>
 
         {rows.length > 0 && (
-          <div className="mx-auto mt-10 max-w-2xl rounded-2xl border border-white/15 bg-white/[0.07] p-6">
+          <div className="mx-auto mt-12 max-w-2xl rounded-2xl bg-white/[0.05] p-6 ring-1 ring-inset ring-white/10">
             <div className="flex items-center gap-2 text-sm font-medium text-white/80">
               <BarChart3 className="h-4 w-4" /> Gemiddeld cijfer per branche
             </div>
@@ -391,14 +390,16 @@ function RealCompany() {
             Geen zwarte doos, geen AI-praatje
           </h2>
         </div>
-        <div className="mt-10 grid gap-4 sm:grid-cols-3">
-          {points.map((p) => (
-            <div
-              key={p.titel}
-              className="rounded-2xl border border-white/15 bg-white/[0.07] p-5"
-            >
-              <h3 className="text-base font-semibold">{p.titel}</h3>
-              <p className="mt-1.5 text-sm leading-relaxed text-white/70">
+        <div className="mt-14 grid gap-x-10 gap-y-10 sm:grid-cols-3">
+          {points.map((p, i) => (
+            <div key={p.titel}>
+              <span className="text-3xl font-semibold tabular-nums text-[#ff5003]">
+                0{i + 1}
+              </span>
+              <h3 className="mt-3 text-lg font-semibold tracking-tight">
+                {p.titel}
+              </h3>
+              <p className="mt-2 text-[15px] leading-relaxed text-white/65">
                 {p.tekst}
               </p>
             </div>
@@ -429,18 +430,18 @@ function SocialProof() {
   return (
     <Reveal as="section" className="px-5 py-16 sm:py-20">
       <div className="mx-auto max-w-4xl">
-        {/* Kenny, het gezicht */}
-        <div className="flex flex-col items-center gap-5 rounded-2xl border border-white/15 bg-white/[0.07] p-6 text-center sm:flex-row sm:text-left">
+        {/* Kenny, het gezicht (open, geen kader) */}
+        <div className="flex flex-col items-center gap-6 text-center sm:flex-row sm:text-left">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/team/kenny.jpg"
             alt="Kenny Timmer"
-            className="h-20 w-20 shrink-0 rounded-full object-cover ring-2 ring-[#ff5003]"
+            className="h-24 w-24 shrink-0 rounded-full object-cover ring-2 ring-[#ff5003]"
           />
           <div>
-            <p className="text-lg font-semibold">Kenny Timmer</p>
+            <p className="text-xl font-semibold tracking-tight">Kenny Timmer</p>
             <p className="text-sm text-white/60">Oprichter BOLD700</p>
-            <p className="mt-2 max-w-xl text-sm leading-relaxed text-white/75">
+            <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-white/75">
               Ik neem elke review persoonlijk met je door. Geen verkooppraatje,
               gewoon eerlijk advies over wat je website oplevert en wat beter
               kan.
@@ -449,16 +450,19 @@ function SocialProof() {
         </div>
 
         {/* Quotes (placeholder) */}
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+        <div className="mt-14 grid gap-x-10 gap-y-8 sm:grid-cols-2">
           {QUOTES.map((q, i) => (
-            <figure
-              key={i}
-              className="rounded-2xl border border-white/15 bg-white/[0.07] p-5"
-            >
-              <blockquote className="text-sm leading-relaxed text-white/85">
-                “{q.tekst}”
+            <figure key={i} className="relative">
+              <span
+                aria-hidden
+                className="font-serif text-5xl leading-none text-[#ff5003]"
+              >
+                “
+              </span>
+              <blockquote className="mt-1 text-lg font-medium leading-relaxed tracking-tight text-white/90">
+                {q.tekst}
               </blockquote>
-              <figcaption className="mt-3 text-xs text-white/55">
+              <figcaption className="mt-3 text-sm text-white/55">
                 {q.naam} · {q.bedrijf}
               </figcaption>
             </figure>
@@ -472,24 +476,24 @@ function SocialProof() {
 // ── Tweede CTA na de chat, precies waar iemand overtuigd is ────────────────
 function SecondCta() {
   return (
-    <Reveal as="section" className="px-5 py-16 sm:py-20">
-      <div className="mx-auto max-w-2xl rounded-3xl border border-white/20 bg-white/[0.09] p-8 text-center sm:p-10">
-        <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-          Klaar om te weten wat je website oplevert?
+    <Reveal as="section" className="px-5 py-20 sm:py-28">
+      <div className="mx-auto max-w-3xl text-center">
+        <h2 className="text-3xl font-semibold tracking-tight sm:text-5xl">
+          Klaar om te weten wat je website{" "}
+          <span className="text-[#ff5003]">oplevert</span>?
         </h2>
-        <p className="mx-auto mt-3 max-w-md text-base text-white/75">
+        <p className="mx-auto mt-4 max-w-md text-lg text-white/75">
           Meld je website aan en ontvang je rapportcijfer met concrete tips
           binnen 24 uur.
         </p>
         <Button
           onClick={scrollToSignup}
           size="lg"
-          style={{ color: BLUE }}
-          className="mt-6 bg-white hover:bg-white/90"
+          className="mt-8 bg-[#ff5003] text-white hover:bg-[#ff5003]/90"
         >
           Doe de gratis check <ArrowRight className="ml-1 h-4 w-4" />
         </Button>
-        <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 text-xs text-white/60">
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-1.5 text-sm text-white/60">
           {["Echt gratis", "Binnen 24 uur", "Geen verplichtingen"].map((t) => (
             <span key={t} className="inline-flex items-center gap-1.5">
               <Check className="h-3.5 w-3.5" /> {t}
@@ -528,17 +532,17 @@ function Faq() {
         <h2 className="text-center text-3xl font-semibold tracking-tight sm:text-4xl">
           Veelgestelde vragen
         </h2>
-        <div className="mt-8 space-y-3">
+        <div className="mt-10 border-t border-white/12">
           {FAQS.map((f) => (
             <details
               key={f.q}
-              className="group rounded-2xl border border-white/15 bg-white/[0.07] p-5 [&_summary::-webkit-details-marker]:hidden"
+              className="group border-b border-white/12 py-5 [&_summary::-webkit-details-marker]:hidden"
             >
-              <summary className="flex cursor-pointer items-center justify-between gap-3 text-base font-medium">
+              <summary className="flex cursor-pointer items-center justify-between gap-3 text-lg font-medium tracking-tight">
                 {f.q}
-                <ArrowRight className="h-4 w-4 shrink-0 text-white/60 transition-transform duration-200 group-open:rotate-90" />
+                <ArrowRight className="h-4 w-4 shrink-0 text-[#ff5003] transition-transform duration-200 group-open:rotate-90" />
               </summary>
-              <p className="mt-3 text-sm leading-relaxed text-white/70">
+              <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-white/65">
                 {f.a}
               </p>
             </details>
