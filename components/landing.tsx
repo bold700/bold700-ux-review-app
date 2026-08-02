@@ -174,17 +174,17 @@ const TEAM_CHAT: {
   system?: boolean
 }[] = [
   { naam: "", rol: "", tekst: "Er is een nieuwe website-check binnen", system: true },
-  { naam: "Teun", rol: "Metingen", tekst: "De harde cijfers staan: snelheid, techniek en toegankelijkheid. Feiten, geen mening." },
-  { naam: "Bram", rol: "Bedrijfsprofiel", tekst: "Dit is wat ze doen, voor wie, en hun doel. Team, hou dit kader aan." },
-  { naam: "Sofie", rol: "UX", tekst: "Gebruiksgemak: waar haken bezoekers af, klopt de structuur?" },
-  { naam: "Ruben", rol: "Vindbaarheid & content", tekst: "De teksten: is de boodschap helder, geen jargon?" },
-  { naam: "Nora", rol: "Conversie", tekst: "Zijn de knoppen duidelijk en is er genoeg vertrouwen om actie te nemen?" },
-  { naam: "Timo", rol: "Toegankelijkheid", tekst: "Kan iedereen dit lezen en gebruiken?" },
-  { naam: "Ans", rol: "Doelgroep-blik", tekst: "Als jouw bezoeker: snap ik het in 5 seconden, vertrouw ik het?" },
-  { naam: "Vera", rol: "Kwaliteitscontrole", tekst: "Ik check elk punt tegen het bewijs op de site. Klopt het niet? Weg ermee." },
-  { naam: "Stef", rol: "Prioritering", tekst: "Op volgorde gezet: dít levert het meeste op voor jullie doel." },
-  { naam: "Lot", rol: "Heldere taal", tekst: "Ik schrijf het om naar gewone taal: wat we zagen, waarom het klanten kost, en wat je doet." },
-  { naam: "BOLD700-specialist", rol: "Menselijke controle", tekst: "Ik kijk het geheel na en bespreek het met je.", mens: true },
+  { naam: "Teun", rol: "Metingen", tekst: "Ik pak 'm op! Ik doe eerst een goede meting: snelheid, techniek en toegankelijkheid. Even de harde cijfers erbij, geen giswerk. Zo terug." },
+  { naam: "Bram", rol: "Bedrijfsprofiel", tekst: "Top, Teun. Ik lees me even in: wie zijn ze, wat verkopen ze en wat willen ze bereiken? Dan weet iedereen waar we het voor doen." },
+  { naam: "Sofie", rol: "UX", tekst: "Ik duik in het gebruiksgemak. Vinden bezoekers makkelijk hun weg, of lopen ze ergens vast?" },
+  { naam: "Ruben", rol: "Vindbaarheid & content", tekst: "Ik kijk naar de teksten en de vindbaarheid. Is de boodschap meteen helder, zonder moeilijke woorden?" },
+  { naam: "Nora", rol: "Conversie", tekst: "Ik focus op de knoppen en het vertrouwen. Zou ik hier zelf die stap durven zetten?" },
+  { naam: "Timo", rol: "Toegankelijkheid", tekst: "Ik check of iedereen mee kan komen: goed leesbaar en bruikbaar, ook met een beperking." },
+  { naam: "Ans", rol: "Doelgroep-blik", tekst: "Ik kijk als jullie bezoeker. Snap ik binnen 5 seconden wat dit is, en voel ik me op mijn gemak?" },
+  { naam: "Vera", rol: "Kwaliteitscontrole", tekst: "Ik loop alles na en leg elk punt naast het bewijs op de site. Klopt iets niet? Dan haal ik het eruit." },
+  { naam: "Stef", rol: "Prioritering", tekst: "Ik zet alles op een rij. Wat het meeste oplevert voor jullie doel, zet ik bovenaan." },
+  { naam: "Lot", rol: "Heldere taal", tekst: "En ik maak er gewone taal van: wat we zagen, waarom het klanten kost, en wat je eraan doet." },
+  { naam: "BOLD700-specialist", rol: "Menselijke controle", tekst: "Mooi werk, team. Ik kijk het geheel nog even na en bespreek het samen met je.", mens: true },
 ]
 
 function TeamFlow() {
