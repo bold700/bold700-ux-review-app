@@ -277,7 +277,35 @@ const BRANCHE_LABEL: Record<string, string> = Object.fromEntries(
   BRANCHES.map((b) => [b.slug, b.label]),
 )
 
+// Telt soepel op naar het eindcijfer zodra de sectie in beeld komt.
+function CountUp({ value, run }: { value: number; run: boolean }) {
+  const [n, setN] = useState(0)
+  useEffect(() => {
+    if (!run) return
+    const reduce = window.matchMedia?.(
+      "(prefers-reduced-motion: reduce)",
+    ).matches
+    if (reduce) {
+      setN(value)
+      return
+    }
+    let raf = 0
+    const start = performance.now()
+    const dur = 900
+    const tick = (t: number) => {
+      const p = Math.min(1, (t - start) / dur)
+      setN(value * (1 - Math.pow(1 - p, 3)))
+      if (p < 1) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [run, value])
+  return <span className="tabular-nums">{n.toFixed(1)}</span>
+}
+
 function BenchmarkBlock() {
+  const ref = useRef<HTMLDivElement | null>(null)
+  const [shown, setShown] = useState(false)
   const [bench, setBench] = useState<Benchmark | null>(null)
   const [loaded, setLoaded] = useState(false)
 
@@ -285,6 +313,22 @@ function BenchmarkBlock() {
     loadBenchmark()
       .then(setBench)
       .finally(() => setLoaded(true))
+  }, [])
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setShown(true)
+          obs.disconnect()
+        }
+      },
+      { threshold: 0.3 },
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
   }, [])
 
   const rows = Object.entries(bench?.branches ?? {})
@@ -302,16 +346,17 @@ function BenchmarkBlock() {
   const avg = bench?.avgScore
 
   return (
-    <Reveal as="section" className="px-5 py-16 sm:py-20">
-      <div className="mx-auto max-w-4xl">
-        <div className="text-center">
+    <section className="px-5 py-16 sm:py-24">
+      <div className="mx-auto grid max-w-5xl gap-10 lg:grid-cols-2 lg:items-center lg:gap-16">
+        {/* Links: de boodschap */}
+        <div>
           <span className="text-sm font-semibold text-white/85">
             Wat niemand anders je kan vertellen
           </span>
           <h2 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
             Je score, afgezet tegen je eigen branche
           </h2>
-          <p className="mx-auto mt-3 max-w-xl text-base text-white/85">
+          <p className="mt-4 max-w-md text-base text-white/85">
             {hasData ? (
               <>
                 We hebben al{" "}
@@ -338,48 +383,55 @@ function BenchmarkBlock() {
               </>
             )}
           </p>
-        </div>
-
-        {rows.length > 0 && (
-          <div className="mx-auto mt-12 max-w-2xl rounded-2xl bg-white/[0.05] p-6 ring-1 ring-inset ring-white/10">
-            <div className="flex items-center gap-2 text-sm font-medium text-white/80">
-              <BarChart3 className="h-4 w-4" /> Gemiddeld cijfer per branche
-            </div>
-            <div className="mt-5 space-y-3">
-              {rows.map((r) => (
-                <div key={r.label} className="flex items-center gap-3">
-                  <span className="w-40 shrink-0 truncate text-sm text-white/80">
-                    {r.label}
-                  </span>
-                  <span className="relative h-2.5 flex-1 overflow-hidden rounded-full bg-white/10">
-                    <span
-                      className="absolute inset-y-0 left-0 rounded-full bg-[#ff5003]"
-                      style={{ width: `${Math.max(4, (r.avg / 10) * 100)}%` }}
-                    />
-                  </span>
-                  <span className="w-8 shrink-0 text-right text-sm font-semibold tabular-nums">
-                    {r.avg.toFixed(1)}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <p className="mt-4 text-xs text-white/85">
-              Live uit onze eigen reviews, wordt bijgewerkt bij elke nieuwe
-              check.
-            </p>
-          </div>
-        )}
-
-        <div className="mt-8 text-center">
           <a
             href="/rapport"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-white/80 underline-offset-4 transition-colors hover:text-white hover:underline"
+            className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-white/85 underline-offset-4 transition-colors hover:text-white hover:underline"
           >
             Bekijk het volledige onderzoek <ArrowRight className="h-4 w-4" />
           </a>
         </div>
+
+        {/* Rechts: de live insights, geanimeerd */}
+        <div ref={ref}>
+          {rows.length > 0 ? (
+            <div className="rounded-2xl bg-white/[0.05] p-6 ring-1 ring-inset ring-white/10">
+              <div className="flex items-center gap-2 text-sm font-medium text-white/80">
+                <BarChart3 className="h-4 w-4" /> Gemiddeld cijfer per branche
+              </div>
+              <div className="mt-5 space-y-3.5">
+                {rows.map((r, i) => (
+                  <div key={r.label} className="group flex items-center gap-3">
+                    <span className="w-32 shrink-0 truncate text-sm text-white/80 sm:w-36">
+                      {r.label}
+                    </span>
+                    <span className="relative h-2.5 flex-1 overflow-hidden rounded-full bg-white/10">
+                      <span
+                        className="absolute inset-y-0 left-0 rounded-full bg-[#ff5003] transition-[width] duration-1000 ease-out group-hover:brightness-110"
+                        style={{
+                          width: shown ? `${Math.max(4, (r.avg / 10) * 100)}%` : "0%",
+                          transitionDelay: `${i * 120}ms`,
+                        }}
+                      />
+                    </span>
+                    <span className="w-8 shrink-0 text-right text-sm font-semibold text-white">
+                      <CountUp value={r.avg} run={shown} />
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-5 text-xs text-white/70">
+                Live uit onze eigen reviews, wordt bijgewerkt bij elke nieuwe
+                check.
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-2xl bg-white/[0.05] p-8 text-center text-sm text-white/70 ring-1 ring-inset ring-white/10">
+              Onze branche-benchmark wordt gevuld met elke review die we doen.
+            </div>
+          )}
+        </div>
       </div>
-    </Reveal>
+    </section>
   )
 }
 
