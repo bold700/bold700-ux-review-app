@@ -190,6 +190,7 @@ const TEAM_CHAT: {
 
 function TeamFlow() {
   const ref = useRef<HTMLDivElement | null>(null)
+  const endRef = useRef<HTMLDivElement | null>(null)
   const [shown, setShown] = useState(false)
   const [revealed, setRevealed] = useState(0)
   const [typing, setTyping] = useState(false)
@@ -261,6 +262,20 @@ function TeamFlow() {
     }
   }, [shown])
 
+  // Laat de pagina meescrollen met de nieuwste bubbel/typt-indicator, zodat de
+  // chat in beeld blijft. block:"nearest" beweegt alleen als het anker onder de
+  // rand zakt — geen schokkerig terugspringen naar boven.
+  useEffect(() => {
+    if (!shown) return
+    const reduce =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+    endRef.current?.scrollIntoView({
+      behavior: reduce ? "auto" : "smooth",
+      block: "nearest",
+    })
+  }, [shown, revealed, typing])
+
   return (
     <section className="px-5 py-16 sm:py-20">
       <div ref={ref} className="mx-auto max-w-3xl">
@@ -296,6 +311,8 @@ function TeamFlow() {
               right={(revealed - 1) % 2 === 1}
             />
           )}
+          {/* Scroll-anker: houdt de nieuwste bubbel met wat lucht in beeld. */}
+          <div ref={endRef} aria-hidden className="h-16" />
         </div>
 
         <p className="mt-8 text-center text-sm text-white/55">
