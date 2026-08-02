@@ -1567,26 +1567,24 @@ async function handleTestMail(request, env, cors) {
   };
   const results = {};
   try {
-    await sendEmail(env, {
+    results.reviewMail = await sendEmail(env, {
       to,
       subject: `[TEST] ${lead.name.split(' ')[0]}, je UX-review van ${cleanUrl(lead.url)} is klaar`,
       html: applicantHtml(env, lead),
     });
-    results.reviewMail = 'verstuurd';
   } catch (e) {
-    results.reviewMail = String((e && e.message) || e);
+    results.reviewMail = { ok: false, error: String((e && e.message) || e) };
   }
   try {
-    await sendEmail(env, {
+    results.followUp = await sendEmail(env, {
       to,
       subject: `[TEST] Even over je UX-review van ${cleanUrl(lead.url)}`,
       html: followUpHtml(env, lead),
     });
-    results.followUp = 'verstuurd';
   } catch (e) {
-    results.followUp = String((e && e.message) || e);
+    results.followUp = { ok: false, error: String((e && e.message) || e) };
   }
-  return jsonResp({ ok: true, to, results }, 200, cors);
+  return jsonResp({ from: env.MAIL_FROM, to, results }, 200, cors);
 }
 
 function applicantHtml(env, lead) {
@@ -1781,11 +1779,15 @@ async function sendEmail(env, { to, subject, html }) {
     },
     body: JSON.stringify({ from: env.MAIL_FROM, to, subject, html }),
   });
+  const body = await r.text();
   if (!r.ok) {
-    const t = await r.text();
-    console.error(`Resend fout (${r.status}) bij mail naar ${to}: ${t}`);
+    console.error(`Resend fout (${r.status}) bij mail naar ${to}: ${body}`);
   }
-  return r.ok;
+  let id = null;
+  try {
+    id = JSON.parse(body).id || null;
+  } catch {}
+  return { ok: r.ok, status: r.status, id, error: r.ok ? null : body };
 }
 
 function decode(fields) {
