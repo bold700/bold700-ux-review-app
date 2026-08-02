@@ -171,7 +171,9 @@ const TEAM_CHAT: {
   rol: string
   tekst: string
   mens?: boolean
+  system?: boolean
 }[] = [
+  { naam: "", rol: "", tekst: "Er is een nieuwe website-check binnen", system: true },
   { naam: "Teun", rol: "Metingen", tekst: "De harde cijfers staan: snelheid, techniek en toegankelijkheid. Feiten, geen mening." },
   { naam: "Bram", rol: "Bedrijfsprofiel", tekst: "Dit is wat ze doen, voor wie, en hun doel. Team, hou dit kader aan." },
   { naam: "Sofie", rol: "UX", tekst: "Gebruiksgemak: waar haken bezoekers af, klopt de structuur?" },
@@ -228,17 +230,26 @@ function TeamFlow() {
         setTyping(false)
         return
       }
-      setTyping(true)
-      timer = setTimeout(
-        () => {
+      const item = TEAM_CHAT[i]
+      if (item.system) {
+        // Systeem-melding: geen "typt", meteen tonen.
+        timer = setTimeout(() => {
           if (cancelled) return
-          setTyping(false)
           setRevealed(i + 1)
           i += 1
-          timer = setTimeout(step, 450)
-        },
-        i === 0 ? 500 : 950,
-      )
+          timer = setTimeout(step, 900)
+        }, 500)
+        return
+      }
+      // Persoon: eerst "typt…", dan de bubbel, dan even leestijd.
+      setTyping(true)
+      timer = setTimeout(() => {
+        if (cancelled) return
+        setTyping(false)
+        setRevealed(i + 1)
+        i += 1
+        timer = setTimeout(step, 1100)
+      }, 1200)
     }
     step()
     return () => {
@@ -263,12 +274,19 @@ function TeamFlow() {
           </p>
         </div>
 
-        <div className="mt-10 min-h-[520px] space-y-3">
-          {TEAM_CHAT.slice(0, revealed).map((s, i) => (
-            <ChatRow key={s.naam} s={s} i={i} />
-          ))}
+        <div className="mt-10 min-h-[560px] space-y-3">
+          {TEAM_CHAT.slice(0, revealed).map((s, i) =>
+            s.system ? (
+              <SystemRow key="sys" s={s} />
+            ) : (
+              <ChatRow key={s.naam} s={s} right={(i - 1) % 2 === 1} />
+            ),
+          )}
           {typing && revealed < TEAM_CHAT.length && (
-            <TypingRow s={TEAM_CHAT[revealed]} i={revealed} />
+            <TypingRow
+              s={TEAM_CHAT[revealed]}
+              right={(revealed - 1) % 2 === 1}
+            />
           )}
         </div>
 
@@ -296,8 +314,17 @@ function Avatar({ s }: { s: ChatItem }) {
   )
 }
 
-function ChatRow({ s, i }: { s: ChatItem; i: number }) {
-  const right = i % 2 === 1
+function SystemRow({ s }: { s: ChatItem }) {
+  return (
+    <div className="flex justify-center py-1 duration-300 animate-in fade-in-0">
+      <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-white/70 ring-1 ring-white/10">
+        🔔 {s.tekst}
+      </span>
+    </div>
+  )
+}
+
+function ChatRow({ s, right }: { s: ChatItem; right: boolean }) {
   return (
     <div
       className={
@@ -343,8 +370,7 @@ function ChatRow({ s, i }: { s: ChatItem; i: number }) {
   )
 }
 
-function TypingRow({ s, i }: { s: ChatItem; i: number }) {
-  const right = i % 2 === 1
+function TypingRow({ s, right }: { s: ChatItem; right: boolean }) {
   return (
     <div
       className={
