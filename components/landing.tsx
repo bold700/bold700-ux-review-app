@@ -335,21 +335,14 @@ function Avatar({ s }: { s: ChatItem }) {
 
 function SystemRow({ s }: { s: ChatItem }) {
   return (
-    <div className="w-full py-1 duration-500 ease-out animate-in fade-in-0 zoom-in-95 slide-in-from-top-2">
-      <div className="flex items-center gap-3 rounded-2xl bg-white px-4 py-4 text-[#1728C8] shadow-xl ring-1 ring-black/5 sm:px-5">
-        <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#ff5003]/15 text-xl">
+    <div className="flex justify-center py-1">
+      <div className="inline-flex items-center gap-2.5 rounded-full bg-white px-4 py-2.5 text-[#1728C8] shadow-lg ring-1 ring-black/5 duration-500 ease-out animate-in fade-in-0 zoom-in-90 slide-in-from-top-4">
+        <span className="relative flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#ff5003]/15 text-sm">
           🔔
-          <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-[#ff5003] ring-2 ring-white motion-safe:animate-ping" />
-          <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-[#ff5003] ring-2 ring-white" />
+          <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-[#ff5003] ring-2 ring-white motion-safe:animate-ping" />
+          <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-[#ff5003] ring-2 ring-white" />
         </span>
-        <div className="min-w-0">
-          <div className="text-base font-semibold sm:text-lg">
-            {s.tekst}
-          </div>
-          <div className="text-sm text-[#1728C8]/70">
-            Het team gaat aan de slag…
-          </div>
-        </div>
+        <span className="text-sm font-semibold">{s.tekst}</span>
       </div>
     </div>
   )
