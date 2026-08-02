@@ -222,25 +222,54 @@ const DELIVERABLES: {
 ]
 
 function WhatYouGet() {
+  const ref = useRef<HTMLDivElement | null>(null)
+  const [shown, setShown] = useState(false)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setShown(true)
+          obs.disconnect()
+        }
+      },
+      { threshold: 0.15 },
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [])
+
   return (
-    <Reveal as="section" className="px-5 py-16 sm:py-20">
+    <section ref={ref} className="px-5 py-16 sm:py-24">
       <div className="mx-auto max-w-5xl">
-        <div className="text-center">
+        <div
+          className={
+            "max-w-2xl transition-all duration-700 ease-out motion-reduce:transition-none " +
+            (shown ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0")
+          }
+        >
           <span className="text-sm font-semibold text-white/85">
             Wat je terugkrijgt
           </span>
-          <h2 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
+          <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-5xl">
             Geen los cijfer, maar een compleet beeld
           </h2>
-          <p className="mx-auto mt-3 max-w-xl text-base text-white/85">
+          <p className="mt-4 max-w-xl text-lg text-white/85">
             Elk teamlid levert zijn stukje aan, binnen 24 uur in je inbox.
           </p>
         </div>
-        <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {DELIVERABLES.map((d) => (
+        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {DELIVERABLES.map((d, i) => (
             <div
               key={d.naam}
-              className="group relative overflow-hidden rounded-3xl ring-1 ring-white/15"
+              style={{ transitionDelay: shown ? `${i * 90}ms` : "0ms" }}
+              className={
+                "group relative overflow-hidden rounded-3xl ring-1 ring-white/15 transition-all duration-500 ease-out motion-reduce:transition-none " +
+                (shown
+                  ? "translate-y-0 opacity-100"
+                  : "translate-y-8 opacity-0")
+              }
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -268,7 +297,7 @@ function WhatYouGet() {
           ))}
         </div>
       </div>
-    </Reveal>
+    </section>
   )
 }
 
@@ -786,10 +815,10 @@ const TEAM_CHAT: {
 
 function TeamFlow() {
   const ref = useRef<HTMLDivElement | null>(null)
-  const endRef = useRef<HTMLDivElement | null>(null)
   const [shown, setShown] = useState(false)
   const [revealed, setRevealed] = useState(0)
   const [typing, setTyping] = useState(false)
+  const [done, setDone] = useState(false)
 
   // Start pas als de sectie in beeld komt.
   useEffect(() => {
@@ -802,15 +831,14 @@ function TeamFlow() {
           obs.disconnect()
         }
       },
-      // Pas vuren als de sectie echt in beeld staat (niet al bij de eerste
-      // pixel onderin): de onderkant van de root 25% inkorten.
-      { threshold: 0.25, rootMargin: "0px 0px -25% 0px" },
+      { threshold: 0.35 },
     )
     obs.observe(el)
     return () => obs.disconnect()
   }, [])
 
   // Speel het als een echte chat af: typt-indicator → bubbel, één voor één.
+  // Alles binnen het vaste podium; de pagina scrollt niet mee.
   useEffect(() => {
     if (!shown) return
     const reduce =
@@ -819,6 +847,7 @@ function TeamFlow() {
     if (reduce) {
       setRevealed(TEAM_CHAT.length)
       setTyping(false)
+      setDone(true)
       return
     }
     let cancelled = false
@@ -828,11 +857,11 @@ function TeamFlow() {
       if (cancelled) return
       if (i >= TEAM_CHAT.length) {
         setTyping(false)
+        timer = setTimeout(() => !cancelled && setDone(true), 700)
         return
       }
       const item = TEAM_CHAT[i]
       if (item.system) {
-        // Systeem-melding: geen "typt", meteen tonen.
         timer = setTimeout(() => {
           if (cancelled) return
           setRevealed(i + 1)
@@ -841,7 +870,6 @@ function TeamFlow() {
         }, 350)
         return
       }
-      // Persoon: eerst "typt…", dan de bubbel, dan even leestijd.
       setTyping(true)
       timer = setTimeout(() => {
         if (cancelled) return
@@ -858,23 +886,9 @@ function TeamFlow() {
     }
   }, [shown])
 
-  // Laat de pagina meescrollen met de nieuwste bubbel/typt-indicator, zodat de
-  // chat in beeld blijft. block:"nearest" beweegt alleen als het anker onder de
-  // rand zakt — geen schokkerig terugspringen naar boven.
-  useEffect(() => {
-    if (!shown) return
-    const reduce =
-      typeof window !== "undefined" &&
-      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
-    endRef.current?.scrollIntoView({
-      behavior: reduce ? "auto" : "smooth",
-      block: "nearest",
-    })
-  }, [shown, revealed, typing])
-
   return (
-    <section className="px-5 py-16 sm:py-20">
-      <div ref={ref} className="mx-auto max-w-3xl">
+    <section className="px-5 py-16 sm:py-24">
+      <div ref={ref} className="mx-auto max-w-2xl">
         <div
           className={
             "text-center transition-all duration-700 ease-out motion-reduce:transition-none " +
@@ -893,25 +907,85 @@ function TeamFlow() {
           </p>
         </div>
 
-        <div className="mt-10 min-h-[560px] space-y-3">
-          {TEAM_CHAT.slice(0, revealed).map((s, i) =>
-            s.system ? (
-              <SystemRow key="sys" s={s} />
-            ) : (
-              <ChatRow key={s.naam} s={s} right={(i - 1) % 2 === 1} />
-            ),
-          )}
-          {typing && revealed < TEAM_CHAT.length && (
-            <TypingRow
-              s={TEAM_CHAT[revealed]}
-              right={(revealed - 1) % 2 === 1}
-            />
-          )}
-          {/* Scroll-anker: houdt de nieuwste bubbel met wat lucht in beeld. */}
-          <div ref={endRef} aria-hidden className="h-16" />
-        </div>
+        {/* Vast podium: nieuwste bericht onderin, oudere schuiven omhoog en
+            vervagen naar de achtergrond. Geen page-scroll. */}
+        {!done && (
+          <div
+            className="relative mt-10 flex h-[380px] flex-col justify-end gap-3 overflow-hidden sm:h-[420px] [-webkit-mask-image:linear-gradient(to_bottom,transparent,#000_22%,#000)] [mask-image:linear-gradient(to_bottom,transparent,#000_22%,#000)]"
+          >
+            {TEAM_CHAT.slice(0, revealed).map((s, i) =>
+              s.system ? (
+                <SystemRow key="sys" s={s} />
+              ) : (
+                <ChatRow key={s.naam} s={s} right={(i - 1) % 2 === 1} />
+              ),
+            )}
+            {typing && revealed < TEAM_CHAT.length && (
+              <TypingRow
+                s={TEAM_CHAT[revealed]}
+                right={(revealed - 1) % 2 === 1}
+              />
+            )}
+          </div>
+        )}
+
+        {/* Na Kenny: het voorbeeldresultaat, op dezelfde plek. */}
+        {done && (
+          <div className="mt-10 duration-700 animate-in fade-in-0 slide-in-from-bottom-4">
+            <ResultPreview />
+          </div>
+        )}
       </div>
     </section>
+  )
+}
+
+// Voorbeeld van het rapport dat eruit rolt, als afsluiter van de flow.
+function ResultPreview() {
+  const punten = [
+    { goed: true, tekst: "Snelle laadtijd, techniek zit goed in elkaar" },
+    { goed: false, tekst: "Onduidelijke knop bovenaan kost je aanvragen" },
+    { goed: false, tekst: "Teksten te formeel, boodschap niet meteen helder" },
+  ]
+  return (
+    <div className="mx-auto max-w-lg overflow-hidden rounded-3xl bg-white text-[#1728C8] shadow-2xl ring-1 ring-black/5">
+      <div className="flex items-center justify-between gap-4 bg-[#1728C8] px-6 py-5 text-white">
+        <div>
+          <p className="text-xs font-medium text-white/70">Voorbeeldrapport</p>
+          <p className="text-lg font-semibold tracking-tight">
+            Zo ziet jouw uitkomst eruit
+          </p>
+        </div>
+        <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20">
+          <span className="text-xl font-bold leading-none">7.2</span>
+          <span className="text-[10px] text-white/70">/10</span>
+        </div>
+      </div>
+      <div className="space-y-2.5 p-6">
+        {punten.map((p) => (
+          <div key={p.tekst} className="flex items-start gap-2.5">
+            <span
+              className={
+                "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-white " +
+                (p.goed ? "bg-emerald-500" : "bg-[#ff5003]")
+              }
+            >
+              <Check className="h-3 w-3" />
+            </span>
+            <span className="text-sm leading-snug text-[#1728C8]/85">
+              {p.tekst}
+            </span>
+          </div>
+        ))}
+        <button
+          onClick={scrollToSignup}
+          className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-[#ff5003] transition-opacity hover:opacity-80"
+        >
+          Doe de gratis check voor je eigen site{" "}
+          <ArrowRight className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
   )
 }
 
