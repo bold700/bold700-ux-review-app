@@ -240,8 +240,8 @@ function TeamFlow() {
           if (cancelled) return
           setRevealed(i + 1)
           i += 1
-          timer = setTimeout(step, 900)
-        }, 500)
+          timer = setTimeout(step, 550)
+        }, 350)
         return
       }
       // Persoon: eerst "typt…", dan de bubbel, dan even leestijd.
@@ -251,8 +251,8 @@ function TeamFlow() {
         setTyping(false)
         setRevealed(i + 1)
         i += 1
-        timer = setTimeout(step, 1100)
-      }, 1200)
+        timer = setTimeout(step, 750)
+      }, 800)
     }
     step()
     return () => {
