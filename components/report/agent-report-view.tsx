@@ -44,6 +44,7 @@ const rank: Record<string, number> = { good: 3, ok: 2, bad: 1 }
 // verschillende expertises zichtbaar is. Bewust gelabeld als AI (geen suggestie
 // van menselijke reviewers); de menselijke controle is de BOLD700-specialist.
 const TEAM: { name: string; role: string }[] = [
+  { name: "Teun", role: "Metingen" },
   { name: "Bram", role: "Bedrijfsprofiel" },
   { name: "Sofie", role: "UX & gebruiksgemak" },
   { name: "Ruben", role: "Vindbaarheid & content" },
@@ -56,6 +57,9 @@ const TEAM: { name: string; role: string }[] = [
 ]
 // Koppelt de teamLog-stap (rol) aan de naam.
 const ROLE_NAME: Record<string, string> = {
+  "Site-analyse": "Teun",
+  Snelheidsmeting: "Teun",
+  Metingen: "Teun",
   Bedrijfsprofiel: "Bram",
   "UX-analyse": "Sofie",
   "SEO & content": "Ruben",

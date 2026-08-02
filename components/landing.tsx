@@ -163,111 +163,108 @@ export function Landing({ onLogin }: { onLogin: () => void }) {
   )
 }
 
-// De estafette: elke specialist draagt het werk over aan de volgende, met een
-// mens als eindcontrole. Bewust als AI-team gepresenteerd (geen suggestie van
-// menselijke reviewers).
-const FLOW: {
+// Het team als chatgesprek: elke specialist geeft het werk door aan de
+// volgende, links-rechts als een groepschat. Bewust als AI-team (geen suggestie
+// van menselijke reviewers); de mens is de eindcontrole.
+const TEAM_CHAT: {
   naam: string
   rol: string
   tekst: string
   mens?: boolean
 }[] = [
-  {
-    naam: "Meten",
-    rol: "Objectieve feiten",
-    tekst:
-      "Eerst meten we hard: snelheid, techniek en toegankelijkheid. Cijfers, geen mening.",
-  },
-  {
-    naam: "Bram",
-    rol: "Bedrijfsprofiel",
-    tekst:
-      "Leest je site en bepaalt wat je doel is en voor wie. Dat kader krijgt iedereen mee.",
-  },
-  {
-    naam: "Sofie, Ruben, Nora, Timo & Ans",
-    rol: "5 specialisten",
-    tekst:
-      "Elk kijkt met een eigen bril: gebruiksgemak, vindbaarheid, conversie, toegankelijkheid en de blik van je doelgroep.",
-  },
-  {
-    naam: "Vera",
-    rol: "Kwaliteitscontrole",
-    tekst:
-      "Controleert élke bevinding tegen het bewijs op je site en schrapt wat niet klopt. Geen verzonnen adviezen.",
-  },
-  {
-    naam: "Stef",
-    rol: "Prioritering",
-    tekst:
-      "Zet alles op volgorde van wat het meeste oplevert voor jouw doel.",
-  },
-  {
-    naam: "Lot",
-    rol: "Heldere taal",
-    tekst:
-      "Schrijft het rapport in gewone taal: wat we zagen, waarom het je klanten kost, en wat je eraan doet.",
-  },
-  {
-    naam: "BOLD700-specialist",
-    rol: "Menselijke controle",
-    tekst:
-      "Een specialist met enterprise-ervaring kijkt het geheel na en bespreekt het met je.",
-    mens: true,
-  },
+  { naam: "Teun", rol: "Metingen", tekst: "De harde cijfers staan: snelheid, techniek en toegankelijkheid. Feiten, geen mening." },
+  { naam: "Bram", rol: "Bedrijfsprofiel", tekst: "Dit is wat ze doen, voor wie, en hun doel. Team, hou dit kader aan." },
+  { naam: "Sofie", rol: "UX", tekst: "Gebruiksgemak: waar haken bezoekers af, klopt de structuur?" },
+  { naam: "Ruben", rol: "Vindbaarheid & content", tekst: "De teksten: is de boodschap helder, geen jargon?" },
+  { naam: "Nora", rol: "Conversie", tekst: "Zijn de knoppen duidelijk en is er genoeg vertrouwen om actie te nemen?" },
+  { naam: "Timo", rol: "Toegankelijkheid", tekst: "Kan iedereen dit lezen en gebruiken?" },
+  { naam: "Ans", rol: "Doelgroep-blik", tekst: "Als jouw bezoeker: snap ik het in 5 seconden, vertrouw ik het?" },
+  { naam: "Vera", rol: "Kwaliteitscontrole", tekst: "Ik check elk punt tegen het bewijs op de site. Klopt het niet? Weg ermee." },
+  { naam: "Stef", rol: "Prioritering", tekst: "Op volgorde gezet: dít levert het meeste op voor jullie doel." },
+  { naam: "Lot", rol: "Heldere taal", tekst: "Ik schrijf het om naar gewone taal: wat we zagen, waarom het klanten kost, en wat je doet." },
+  { naam: "BOLD700-specialist", rol: "Menselijke controle", tekst: "Ik kijk het geheel na en bespreek het met je.", mens: true },
 ]
 
 function TeamFlow() {
   return (
-    <section className="bg-white px-5 py-16 text-[#0b1220] sm:py-20">
+    <section className="border-t border-white/10 px-5 py-16 sm:py-20">
       <div className="mx-auto max-w-3xl">
         <div className="text-center">
-          <span className="text-sm font-semibold text-[#1728C8]">
+          <span className="text-sm font-semibold text-white/70">
             Zo komen we tot je resultaat
           </span>
           <h2 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
-            Geen zwarte doos, maar een estafette
+            Geen zwarte doos, maar een team
           </h2>
-          <p className="mx-auto mt-3 max-w-xl text-base text-neutral-600">
-            Een AI-analyseteam met elk een eigen expertise draagt het werk aan
-            elkaar over. Een mens neemt de eindbeslissing.
+          <p className="mx-auto mt-3 max-w-xl text-base text-white/70">
+            Een AI-analyseteam met elk een eigen expertise geeft het werk aan
+            elkaar door. Een mens neemt de eindbeslissing.
           </p>
         </div>
 
-        <ol className="relative mt-10 space-y-4 before:absolute before:left-[15px] before:top-2 before:bottom-2 before:w-px before:bg-neutral-200">
-          {FLOW.map((s, i) => (
-            <li key={s.naam} className="relative flex gap-4">
-              <span
+        <div className="mt-10 space-y-3">
+          {TEAM_CHAT.map((s, i) => {
+            const right = i % 2 === 1
+            const initial = s.mens ? "B7" : s.naam.slice(0, 1)
+            return (
+              <div
+                key={s.naam}
                 className={
-                  "relative z-10 mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold " +
-                  (s.mens
-                    ? "bg-[#ff5003] text-white"
-                    : "bg-[#1728C8] text-white")
+                  "flex items-end gap-2.5 " +
+                  (right ? "flex-row-reverse" : "flex-row")
                 }
               >
-                {i + 1}
-              </span>
-              <div className="min-w-0 flex-1 rounded-xl border border-neutral-200 bg-white p-4">
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                  <span className="font-semibold">{s.naam}</span>
-                  <span
+                <span
+                  className={
+                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold " +
+                    (s.mens
+                      ? "bg-[#ff5003] text-white"
+                      : "bg-white text-[#1728C8]")
+                  }
+                >
+                  {initial}
+                </span>
+                <div
+                  className={
+                    "max-w-[80%] rounded-2xl px-3.5 py-2.5 sm:max-w-[75%] " +
+                    (s.mens
+                      ? "bg-[#ff5003]/20 ring-1 ring-[#ff5003]/40"
+                      : "bg-white/10 ring-1 ring-white/15") +
+                    (right ? " rounded-br-sm" : " rounded-bl-sm")
+                  }
+                >
+                  <div
                     className={
-                      "rounded-full px-2 py-0.5 text-[11px] font-medium " +
-                      (s.mens
-                        ? "bg-[#ff5003]/10 text-[#ff5003]"
-                        : "bg-[#1728C8]/10 text-[#1728C8]")
+                      "flex items-center gap-2 " +
+                      (right ? "flex-row-reverse text-right" : "")
                     }
                   >
-                    {s.mens ? "mens" : s.rol}
-                  </span>
+                    <span className="text-sm font-semibold">{s.naam}</span>
+                    <span
+                      className={
+                        "rounded-full px-1.5 py-0.5 text-[10px] font-medium " +
+                        (s.mens
+                          ? "bg-[#ff5003]/30 text-white"
+                          : "bg-white/15 text-white/80")
+                      }
+                    >
+                      {s.mens ? "mens" : s.rol}
+                    </span>
+                  </div>
+                  <p
+                    className={
+                      "mt-1 text-sm text-white/85 " + (right ? "text-right" : "")
+                    }
+                  >
+                    {s.tekst}
+                  </p>
                 </div>
-                <p className="mt-1 text-sm text-neutral-600">{s.tekst}</p>
               </div>
-            </li>
-          ))}
-        </ol>
+            )
+          })}
+        </div>
 
-        <p className="mt-8 text-center text-sm text-neutral-500">
+        <p className="mt-8 text-center text-sm text-white/55">
           Elke AI-bevinding is een onderbouwde hypothese, gelabeld en
           gecontroleerd. De metingen zijn feiten.
         </p>
