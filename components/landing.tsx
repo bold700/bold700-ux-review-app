@@ -259,13 +259,13 @@ function WhatYouGet() {
             Elk teamlid levert zijn stukje aan, binnen 24 uur in je inbox.
           </p>
         </div>
-        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="-mx-5 mt-12 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:grid sm:snap-none sm:grid-cols-2 sm:gap-5 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-3">
           {DELIVERABLES.map((d, i) => (
             <div
               key={d.naam}
               style={{ transitionDelay: shown ? `${i * 110}ms` : "0ms" }}
               className={
-                "group relative overflow-hidden rounded-3xl ring-1 ring-white/15 transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform motion-reduce:transition-none " +
+                "group relative w-[78%] shrink-0 snap-center overflow-hidden rounded-3xl ring-1 ring-white/15 transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform motion-reduce:transition-none sm:w-auto sm:shrink " +
                 (shown
                   ? "translate-y-0 scale-100 opacity-100"
                   : "translate-y-10 scale-95 opacity-0")
@@ -340,6 +340,7 @@ function CountUp({ value, run }: { value: number; run: boolean }) {
 
 function BenchmarkBlock() {
   const ref = useRef<HTMLDivElement | null>(null)
+  const [leftRef, leftIn] = useInView(0.2)
   const [shown, setShown] = useState(false)
   const [bench, setBench] = useState<Benchmark | null>(null)
   const [loaded, setLoaded] = useState(false)
@@ -384,7 +385,7 @@ function BenchmarkBlock() {
     <section className="px-5 py-16 sm:py-24">
       <div className="mx-auto grid max-w-5xl gap-10 lg:grid-cols-2 lg:items-center lg:gap-16">
         {/* Links: de boodschap */}
-        <div>
+        <div ref={leftRef} className={riseCls(leftIn)}>
           <span className="text-sm font-semibold text-white/85">
             Wat niemand anders je kan vertellen
           </span>
@@ -427,7 +428,7 @@ function BenchmarkBlock() {
         </div>
 
         {/* Rechts: de live insights, geanimeerd */}
-        <div ref={ref}>
+        <div ref={ref} className={riseCls(shown)}>
           {rows.length > 0 ? (
             <div className="rounded-2xl bg-white/[0.05] p-6 ring-1 ring-inset ring-white/10">
               <div className="flex items-center gap-2 text-sm font-medium text-white/80">
@@ -472,6 +473,7 @@ function BenchmarkBlock() {
 
 // ── Echt bedrijf: eerlijk over hoe we werken ───────────────────────────────
 function RealCompany() {
+  const [ref, inView] = useInView(0.2)
   const points = [
     {
       titel: "Een echt bedrijf",
@@ -481,7 +483,7 @@ function RealCompany() {
     {
       titel: "Mensen én techniek",
       tekst:
-        "We werken met externe specialisten (freelancers) en laten het speurwerk ondersteunen door AI-agents. Zo gaat het snel én blijft het scherp.",
+        "We werken met externe specialisten (freelancers) en laten het speurwerk ondersteunen door een slim systeem. Zo gaat het snel én blijft het scherp.",
     },
     {
       titel: "Altijd een mens die nakijkt",
@@ -490,19 +492,23 @@ function RealCompany() {
     },
   ]
   return (
-    <Reveal as="section" className="px-5 py-16 sm:py-20">
+    <section ref={ref} className="px-5 py-16 sm:py-20">
       <div className="mx-auto max-w-4xl">
-        <div className="text-center">
+        <div className={"text-center " + riseCls(inView)}>
           <span className="text-sm font-semibold text-white/85">
             Hoe we werken
           </span>
           <h2 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
-            Geen zwarte doos, geen AI-praatje
+            Geen zwarte doos, wel echte mensen
           </h2>
         </div>
         <div className="mt-14 grid gap-x-10 gap-y-10 sm:grid-cols-3">
           {points.map((p, i) => (
-            <div key={p.titel}>
+            <div
+              key={p.titel}
+              style={{ transitionDelay: inView ? `${i * 120 + 120}ms` : "0ms" }}
+              className={riseCls(inView)}
+            >
               <span className="text-3xl font-semibold tabular-nums text-[#ff5003]">
                 0{i + 1}
               </span>
@@ -516,7 +522,7 @@ function RealCompany() {
           ))}
         </div>
       </div>
-    </Reveal>
+    </section>
   )
 }
 
@@ -537,11 +543,17 @@ const QUOTES: { tekst: string; naam: string; bedrijf: string }[] = [
 ]
 
 function SocialProof() {
+  const [ref, inView] = useInView(0.2)
   return (
-    <Reveal as="section" className="px-5 py-16 sm:py-20">
+    <section ref={ref} className="px-5 py-16 sm:py-20">
       <div className="mx-auto max-w-4xl">
         {/* Kenny, het gezicht (open, geen kader) */}
-        <div className="flex flex-col items-center gap-6 text-center sm:flex-row sm:text-left">
+        <div
+          className={
+            "flex flex-col items-center gap-6 text-center sm:flex-row sm:text-left " +
+            riseCls(inView)
+          }
+        >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/team/kenny.jpg"
@@ -559,10 +571,17 @@ function SocialProof() {
           </div>
         </div>
 
-        {/* Quotes (placeholder) */}
-        <div className="mt-14 grid gap-x-10 gap-y-8 sm:grid-cols-2">
+        {/* Quotes als slider (desktop + mobiel) */}
+        <div className="-mx-5 mt-14 flex snap-x snap-mandatory gap-6 overflow-x-auto px-5 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:px-0">
           {QUOTES.map((q, i) => (
-            <figure key={i} className="relative">
+            <figure
+              key={i}
+              style={{ transitionDelay: inView ? `${i * 120 + 160}ms` : "0ms" }}
+              className={
+                "relative w-[82%] shrink-0 snap-center sm:w-[46%] " +
+                riseCls(inView)
+              }
+            >
               <span
                 aria-hidden
                 className="font-serif text-5xl leading-none text-[#ff5003]"
@@ -579,7 +598,7 @@ function SocialProof() {
           ))}
         </div>
       </div>
-    </Reveal>
+    </section>
   )
 }
 
@@ -599,9 +618,9 @@ function SecondCta() {
         loading="lazy"
         className="absolute inset-0 h-full w-full object-cover object-center"
       />
-      {/* Blauwe merk-overlay voor leesbaarheid */}
-      <div className="absolute inset-0 bg-[#1728C8]/85" />
-      <div className="absolute inset-0 bg-gradient-to-t from-[#101d94] via-transparent to-[#1728C8]/60" />
+      {/* Lichte donkere overlay: foto blijft goed zichtbaar, tekst leesbaar */}
+      <div className="absolute inset-0 bg-black/45" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/20 to-black/35" />
 
       <div className="relative mx-auto max-w-3xl text-center">
         <h2 className="text-3xl font-semibold tracking-tight sm:text-5xl">
@@ -652,17 +671,27 @@ const FAQS: { q: string; a: string }[] = [
 ]
 
 function Faq() {
+  const [ref, inView] = useInView(0.2)
   return (
-    <Reveal as="section" className="px-5 py-16 sm:py-20">
+    <section ref={ref} className="px-5 py-16 sm:py-20">
       <div className="mx-auto max-w-2xl">
-        <h2 className="text-center text-3xl font-semibold tracking-tight sm:text-4xl">
+        <h2
+          className={
+            "text-center text-3xl font-semibold tracking-tight sm:text-4xl " +
+            riseCls(inView)
+          }
+        >
           Veelgestelde vragen
         </h2>
         <div className="mt-10 border-t border-white/12">
-          {FAQS.map((f) => (
+          {FAQS.map((f, i) => (
             <details
               key={f.q}
-              className="group border-b border-white/12 py-5 [&_summary::-webkit-details-marker]:hidden"
+              style={{ transitionDelay: inView ? `${i * 90 + 120}ms` : "0ms" }}
+              className={
+                "group border-b border-white/12 py-5 [&_summary::-webkit-details-marker]:hidden " +
+                riseCls(inView)
+              }
             >
               <summary className="flex cursor-pointer items-center justify-between gap-3 text-lg font-medium tracking-tight">
                 {f.q}
@@ -675,15 +704,19 @@ function Faq() {
           ))}
         </div>
       </div>
-    </Reveal>
+    </section>
   )
 }
 
 // ── Footer, verzorgd ───────────────────────────────────────────────────────
 function SiteFooter() {
+  const [ref, inView] = useInView(0.2)
   return (
     <footer className="mt-4 border-t border-white/15 px-5 pb-[calc(env(safe-area-inset-bottom)+6rem)] pt-12 sm:pb-12">
-      <div className="mx-auto max-w-5xl">
+      <div
+        ref={ref}
+        className={"mx-auto max-w-6xl " + riseCls(inView)}
+      >
         <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
           <div className="max-w-xs">
             <BrandLogo fill="#ffffff" className="h-7 w-auto" />
@@ -766,6 +799,36 @@ function StickyCta() {
         Doe de gratis check <ArrowRight className="ml-1 h-4 w-4" />
       </Button>
     </div>
+  )
+}
+
+// Herbruikbare in-view hook: true zodra het element één keer in beeld komt.
+function useInView(threshold = 0.2) {
+  const ref = useRef<HTMLDivElement | null>(null)
+  const [inView, setInView] = useState(false)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setInView(true)
+          obs.disconnect()
+        }
+      },
+      { threshold },
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [threshold])
+  return [ref, inView] as const
+}
+
+// Inlaad-klasse (fade + omhoog), zelfde gevoel als de hero.
+function riseCls(inView: boolean) {
+  return (
+    "transition-all duration-700 ease-out motion-reduce:transition-none " +
+    (inView ? "translate-y-0 opacity-100" : "translate-y-5 opacity-0")
   )
 }
 
@@ -924,32 +987,49 @@ function TeamFlow() {
             Geen zwarte doos, maar een team
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-base text-white/85">
-            Een AI-analyseteam met elk een eigen expertise geeft het werk aan
-            elkaar door. Een mens neemt de eindbeslissing.
+            Elk teamlid heeft een eigen expertise en geeft het werk aan elkaar
+            door. Kenny neemt de eindbeslissing.
           </p>
         </div>
 
-        {/* Vast podium: nieuwste bericht onderin, oudere schuiven omhoog en
-            vervagen naar de achtergrond. Geen page-scroll. */}
-        {!done && (
-          <div
-            className="relative mt-10 flex h-[380px] flex-col justify-end gap-3 overflow-hidden sm:h-[420px] [-webkit-mask-image:linear-gradient(to_bottom,transparent,#000_22%,#000)] [mask-image:linear-gradient(to_bottom,transparent,#000_22%,#000)]"
-          >
-            {TEAM_CHAT.slice(0, revealed).map((s, i) =>
-              s.system ? (
-                <SystemRow key="sys" s={s} />
-              ) : (
-                <ChatRow key={s.naam} s={s} right={(i - 1) % 2 === 1} />
-              ),
-            )}
-            {typing && revealed < TEAM_CHAT.length && (
-              <TypingRow
-                s={TEAM_CHAT[revealed]}
-                right={(revealed - 1) % 2 === 1}
-              />
-            )}
-          </div>
-        )}
+        {/* Podium: alleen de laatste paar berichten, bovenaan verankerd zodat je
+            ze meteen ziet. Oudere vervagen weg. Geen frame/clip, geen page-scroll. */}
+        {!done &&
+          (() => {
+            const WINDOW = 4
+            const start = Math.max(0, revealed - WINDOW)
+            const visible = TEAM_CHAT.slice(start, revealed)
+            const fade = ["opacity-100", "opacity-70", "opacity-45", "opacity-25"]
+            return (
+              <div className="mt-10 flex min-h-[240px] flex-col gap-3 sm:min-h-[280px]">
+                {visible.map((s, k) => {
+                  const gi = start + k
+                  const depth = visible.length - 1 - k // 0 = nieuwste
+                  return (
+                    <div
+                      key={gi}
+                      className={
+                        "transition-opacity duration-500 " +
+                        (fade[depth] ?? "opacity-25")
+                      }
+                    >
+                      {s.system ? (
+                        <SystemRow s={s} />
+                      ) : (
+                        <ChatRow s={s} right={(gi - 1) % 2 === 1} />
+                      )}
+                    </div>
+                  )
+                })}
+                {typing && revealed < TEAM_CHAT.length && (
+                  <TypingRow
+                    s={TEAM_CHAT[revealed]}
+                    right={(revealed - 1) % 2 === 1}
+                  />
+                )}
+              </div>
+            )
+          })()}
 
         {/* Na Kenny: het voorbeeldresultaat, op dezelfde plek. */}
         {done && (
