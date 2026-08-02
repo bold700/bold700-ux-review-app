@@ -1525,15 +1525,14 @@ function waLink(text) {
   return `https://wa.me/${CONTACT_WA}?text=${encodeURIComponent(text)}`;
 }
 
-// Persoonlijke contactregel: WhatsApp / bellen / mailen.
+// Persoonlijke contactregels, gestapeld (leest prettig op mobiel).
 function contactBlock(env) {
   const wa = waLink('Hoi Kenny, ik heb een vraag over mijn UX-review.');
-  return `<p style="margin:16px 0">Je kunt me zo bereiken:</p>
-    <p style="margin:4px 0">
-      📱 <a href="${wa}">WhatsApp</a> &nbsp;·&nbsp;
-      ☎️ <a href="tel:${CONTACT_TEL}">${CONTACT_TEL}</a> &nbsp;·&nbsp;
-      ✉️ <a href="mailto:${esc(contactEmail(env))}">${esc(contactEmail(env))}</a>
-    </p>`;
+  const line = 'margin:6px 0;font-size:15px';
+  return `<p style="margin:16px 0 8px">Je kunt me zo bereiken:</p>
+    <p style="${line}">📱 <a href="${wa}">WhatsApp</a></p>
+    <p style="${line}">☎️ <a href="tel:${CONTACT_TEL}">${CONTACT_TEL}</a></p>
+    <p style="${line}">✉️ <a href="mailto:${esc(contactEmail(env))}">${esc(contactEmail(env))}</a></p>`;
 }
 
 // Ondertekening met foto van Kenny.
