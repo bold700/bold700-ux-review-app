@@ -161,7 +161,7 @@ export function Landing({ onLogin }: { onLogin: () => void }) {
               </div>
             ))}
           </div>
-          <p className="mt-4 text-center text-xs text-white/60">
+          <p className="mt-4 text-center text-xs text-white/80">
             Voorbeelden van het rapport dat je ontvangt.
           </p>
         </div>
@@ -219,13 +219,13 @@ function WhatYouGet() {
     <Reveal as="section" className="px-5 py-16 sm:py-20">
       <div className="mx-auto max-w-5xl">
         <div className="text-center">
-          <span className="text-sm font-semibold text-white/70">
+          <span className="text-sm font-semibold text-white/85">
             Wat je terugkrijgt
           </span>
           <h2 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
             Geen los cijfer, maar een compleet beeld
           </h2>
-          <p className="mx-auto mt-3 max-w-xl text-base text-white/70">
+          <p className="mx-auto mt-3 max-w-xl text-base text-white/85">
             Elke check levert dit op, binnen 24 uur in je inbox.
           </p>
         </div>
@@ -238,7 +238,7 @@ function WhatYouGet() {
               <h3 className="mt-5 text-lg font-semibold tracking-tight">
                 {d.titel}
               </h3>
-              <p className="mt-2 text-[15px] leading-relaxed text-white/65">
+              <p className="mt-2 text-[15px] leading-relaxed text-white/85">
                 {d.tekst}
               </p>
             </div>
@@ -282,13 +282,13 @@ function BenchmarkBlock() {
     <Reveal as="section" className="px-5 py-16 sm:py-20">
       <div className="mx-auto max-w-4xl">
         <div className="text-center">
-          <span className="text-sm font-semibold text-white/70">
+          <span className="text-sm font-semibold text-white/85">
             Wat niemand anders je kan vertellen
           </span>
           <h2 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
             Je score, afgezet tegen je eigen branche
           </h2>
-          <p className="mx-auto mt-3 max-w-xl text-base text-white/70">
+          <p className="mx-auto mt-3 max-w-xl text-base text-white/85">
             {hasData ? (
               <>
                 We hebben al{" "}
@@ -340,7 +340,7 @@ function BenchmarkBlock() {
                 </div>
               ))}
             </div>
-            <p className="mt-4 text-xs text-white/50">
+            <p className="mt-4 text-xs text-white/85">
               Live uit onze eigen reviews, wordt bijgewerkt bij elke nieuwe
               check.
             </p>
@@ -383,7 +383,7 @@ function RealCompany() {
     <Reveal as="section" className="px-5 py-16 sm:py-20">
       <div className="mx-auto max-w-4xl">
         <div className="text-center">
-          <span className="text-sm font-semibold text-white/70">
+          <span className="text-sm font-semibold text-white/85">
             Hoe we werken
           </span>
           <h2 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
@@ -399,7 +399,7 @@ function RealCompany() {
               <h3 className="mt-3 text-lg font-semibold tracking-tight">
                 {p.titel}
               </h3>
-              <p className="mt-2 text-[15px] leading-relaxed text-white/65">
+              <p className="mt-2 text-[15px] leading-relaxed text-white/85">
                 {p.tekst}
               </p>
             </div>
@@ -440,8 +440,8 @@ function SocialProof() {
           />
           <div>
             <p className="text-xl font-semibold tracking-tight">Kenny Timmer</p>
-            <p className="text-sm text-white/60">Oprichter BOLD700</p>
-            <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-white/75">
+            <p className="text-sm text-white/80">Oprichter BOLD700</p>
+            <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-white/90">
               Ik neem elke review persoonlijk met je door. Geen verkooppraatje,
               gewoon eerlijk advies over wat je website oplevert en wat beter
               kan.
@@ -462,7 +462,7 @@ function SocialProof() {
               <blockquote className="mt-1 text-lg font-medium leading-relaxed tracking-tight text-white/90">
                 {q.tekst}
               </blockquote>
-              <figcaption className="mt-3 text-sm text-white/55">
+              <figcaption className="mt-3 text-sm text-white/80">
                 {q.naam} · {q.bedrijf}
               </figcaption>
             </figure>
@@ -482,7 +482,7 @@ function SecondCta() {
           Klaar om te weten wat je website{" "}
           <span className="text-[#ff5003]">oplevert</span>?
         </h2>
-        <p className="mx-auto mt-4 max-w-md text-lg text-white/75">
+        <p className="mx-auto mt-4 max-w-md text-lg text-white/90">
           Meld je website aan en ontvang je rapportcijfer met concrete tips
           binnen 24 uur.
         </p>
@@ -493,7 +493,7 @@ function SecondCta() {
         >
           Doe de gratis check <ArrowRight className="ml-1 h-4 w-4" />
         </Button>
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-1.5 text-sm text-white/60">
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-1.5 text-sm text-white/80">
           {["Echt gratis", "Binnen 24 uur", "Geen verplichtingen"].map((t) => (
             <span key={t} className="inline-flex items-center gap-1.5">
               <Check className="h-3.5 w-3.5" /> {t}
@@ -542,7 +542,7 @@ function Faq() {
                 {f.q}
                 <ArrowRight className="h-4 w-4 shrink-0 text-[#ff5003] transition-transform duration-200 group-open:rotate-90" />
               </summary>
-              <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-white/65">
+              <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-white/85">
                 {f.a}
               </p>
             </details>
@@ -561,7 +561,7 @@ function SiteFooter() {
         <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
           <div className="max-w-xs">
             <BrandLogo fill="#ffffff" className="h-7 w-auto" />
-            <p className="mt-3 text-sm leading-relaxed text-white/60">
+            <p className="mt-3 text-sm leading-relaxed text-white/80">
               Gratis UX-check voor ondernemers. Eerlijk advies over wat je
               website oplevert, gerund door Kenny Timmer.
             </p>
@@ -569,7 +569,7 @@ function SiteFooter() {
           <div className="grid grid-cols-2 gap-8 text-sm">
             <div>
               <p className="font-semibold text-white/80">Bekijk</p>
-              <ul className="mt-3 space-y-2 text-white/60">
+              <ul className="mt-3 space-y-2 text-white/80">
                 <li>
                   <a href="/rapport" className="transition-colors hover:text-white">
                     Het onderzoek
@@ -584,7 +584,7 @@ function SiteFooter() {
             </div>
             <div>
               <p className="font-semibold text-white/80">Contact</p>
-              <ul className="mt-3 space-y-2 text-white/60">
+              <ul className="mt-3 space-y-2 text-white/80">
                 <li>
                   <a
                     href="https://wa.me/31614802802"
@@ -607,7 +607,7 @@ function SiteFooter() {
             </div>
           </div>
         </div>
-        <div className="mt-10 flex flex-col gap-2 border-t border-white/10 pt-6 text-xs text-white/45 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-10 flex flex-col gap-2 border-t border-white/10 pt-6 text-xs text-white/85 sm:flex-row sm:items-center sm:justify-between">
           <span>© {new Date().getFullYear()} BOLD700</span>
           <span>uxreviews.bold700.com</span>
         </div>
@@ -806,13 +806,13 @@ function TeamFlow() {
             (shown ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0")
           }
         >
-          <span className="text-sm font-semibold text-white/70">
+          <span className="text-sm font-semibold text-white/85">
             Zo komen we tot je resultaat
           </span>
           <h2 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
             Geen zwarte doos, maar een team
           </h2>
-          <p className="mx-auto mt-3 max-w-xl text-base text-white/70">
+          <p className="mx-auto mt-3 max-w-xl text-base text-white/85">
             Een AI-analyseteam met elk een eigen expertise geeft het werk aan
             elkaar door. Een mens neemt de eindbeslissing.
           </p>
@@ -945,7 +945,7 @@ function TypingRow({ s, right }: { s: ChatItem; right: boolean }) {
         }
       >
         <div className="flex items-center gap-2">
-          <span className="text-[11px] text-white/60">{s.naam} typt</span>
+          <span className="text-[11px] text-white/80">{s.naam} typt</span>
           <span className="flex gap-1">
             {[0, 150, 300].map((d) => (
               <span
@@ -1014,7 +1014,7 @@ function SignupForm() {
   }
 
   const field =
-    "border-white/20 bg-white/10 text-white placeholder:text-white/55 focus-visible:border-white/50 focus-visible:ring-white/20"
+    "border-white/20 bg-white/10 text-white placeholder:text-white/80 focus-visible:border-white/50 focus-visible:ring-white/20"
 
   return (
     <>
@@ -1071,7 +1071,7 @@ function SignupForm() {
 
 function PrivacyNote() {
   return (
-    <p className="mx-auto mt-3 max-w-2xl text-center text-xs text-white/55">
+    <p className="mx-auto mt-3 max-w-2xl text-center text-xs text-white/80">
       Door te versturen ga je akkoord met onze{" "}
       <a
         href="/privacy"
