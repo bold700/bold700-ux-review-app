@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { ArrowRight, Check, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -186,9 +186,36 @@ const TEAM_CHAT: {
 ]
 
 function TeamFlow() {
+  const ref = useRef<HTMLDivElement | null>(null)
+  const [shown, setShown] = useState(false)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    // Respecteer prefers-reduced-motion: dan meteen alles tonen.
+    const reduce =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+    if (reduce) {
+      setShown(true)
+      return
+    }
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setShown(true)
+          obs.disconnect()
+        }
+      },
+      { threshold: 0.15 },
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [])
+
   return (
-    <section className="border-t border-white/10 px-5 py-16 sm:py-20">
-      <div className="mx-auto max-w-3xl">
+    <section className="px-5 py-16 sm:py-20">
+      <div ref={ref} className="mx-auto max-w-3xl">
         <div className="text-center">
           <span className="text-sm font-semibold text-white/70">
             Zo komen we tot je resultaat
@@ -209,8 +236,13 @@ function TeamFlow() {
             return (
               <div
                 key={s.naam}
+                style={{ transitionDelay: shown ? `${i * 110}ms` : "0ms" }}
                 className={
-                  "flex items-end gap-2.5 " +
+                  "flex items-end gap-2.5 transition-all duration-500 ease-out motion-reduce:transition-none " +
+                  (shown
+                    ? "translate-x-0 opacity-100"
+                    : "opacity-0 " + (right ? "translate-x-4" : "-translate-x-4")) +
+                  " " +
                   (right ? "flex-row-reverse" : "flex-row")
                 }
               >
@@ -226,10 +258,10 @@ function TeamFlow() {
                 </span>
                 <div
                   className={
-                    "max-w-[80%] rounded-2xl px-3.5 py-2.5 sm:max-w-[75%] " +
+                    "max-w-[80%] rounded-2xl px-3.5 py-2.5 transition-all duration-200 hover:-translate-y-0.5 motion-reduce:transform-none sm:max-w-[75%] " +
                     (s.mens
-                      ? "bg-[#ff5003]/20 ring-1 ring-[#ff5003]/40"
-                      : "bg-white/10 ring-1 ring-white/15") +
+                      ? "bg-[#ff5003]/20 ring-1 ring-[#ff5003]/40 hover:bg-[#ff5003]/25"
+                      : "bg-white/10 ring-1 ring-white/15 hover:bg-white/15") +
                     (right ? " rounded-br-sm" : " rounded-bl-sm")
                   }
                 >
