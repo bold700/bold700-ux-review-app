@@ -43,18 +43,18 @@ const rank: Record<string, number> = { good: 3, ok: 2, bad: 1 }
 // AI-analyseteam: elke rol heeft een naam, zodat de samenwerking van
 // verschillende expertises zichtbaar is. Bewust gelabeld als AI (geen suggestie
 // van menselijke reviewers); de menselijke controle is de BOLD700-specialist.
-const TEAM: { name: string; role: string }[] = [
-  { name: "Teun", role: "Performance-analist" },
-  { name: "Bram", role: "Business-analist" },
-  { name: "Sofie", role: "UX-designer" },
-  { name: "Ruben", role: "SEO-specialist" },
-  { name: "Nora", role: "Conversie-specialist" },
-  { name: "Timo", role: "Toegankelijkheidsexpert" },
-  { name: "Ans", role: "User researcher" },
-  { name: "Vera", role: "Kwaliteitsexpert" },
-  { name: "Stef", role: "Strateeg" },
-  { name: "Lot", role: "Copywriter" },
-  { name: "Kenny", role: "Team lead" },
+const TEAM: { name: string; role: string; foto?: string }[] = [
+  { name: "Teun", role: "Performance-analist", foto: "/team/teun.jpg" },
+  { name: "Bram", role: "Business-analist", foto: "/team/bram.jpg" },
+  { name: "Sofie", role: "UX-designer", foto: "/team/sofie.jpg" },
+  { name: "Ruben", role: "SEO-specialist", foto: "/team/ruben.jpg" },
+  { name: "Nora", role: "Conversie-specialist", foto: "/team/nora.jpg" },
+  { name: "Timo", role: "Toegankelijkheidsexpert", foto: "/team/timo.jpg" },
+  { name: "Ans", role: "User researcher", foto: "/team/ans.jpg" },
+  { name: "Vera", role: "Kwaliteitsexpert", foto: "/team/vera.jpg" },
+  { name: "Stef", role: "Strateeg", foto: "/team/stef.jpg" },
+  { name: "Lot", role: "Copywriter", foto: "/team/lot.jpg" },
+  { name: "Kenny", role: "Team lead", foto: "/team/kenny.jpg" },
 ]
 // Koppelt de teamLog-stap (rol) aan de naam.
 const ROLE_NAME: Record<string, string> = {
@@ -424,9 +424,18 @@ function AgentReport({
               key={m.name}
               className="flex items-center gap-2 rounded-lg border bg-background px-2.5 py-1.5"
             >
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-                {m.name.slice(0, 1)}
-              </span>
+              {m.foto ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={m.foto}
+                  alt={m.name}
+                  className="h-8 w-8 shrink-0 rounded-full object-cover"
+                />
+              ) : (
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                  {m.name.slice(0, 1)}
+                </span>
+              )}
               <span className="min-w-0">
                 <span className="block truncate text-sm font-medium">
                   {m.name}
