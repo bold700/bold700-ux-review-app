@@ -248,18 +248,18 @@ function WhatYouGet() {
                 alt={d.naam}
                 className="aspect-[4/5] w-full object-cover transition-transform duration-500 group-hover:scale-[1.03] motion-reduce:transform-none"
               />
-              {/* Donker verloop onderaan voor leesbaarheid van de bubbel */}
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent" />
-              {/* Spraakbubbel op de afbeelding */}
+              {/* Donker verloop onderaan voor leesbaarheid van het kaartje */}
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/15 to-transparent" />
+              {/* Frosted kaartje op de foto, onderin ingesprongen */}
               <div className="absolute inset-x-3.5 bottom-3.5">
-                <div className="relative rounded-2xl rounded-bl-sm bg-white p-4 text-[#1728C8] shadow-xl">
+                <div className="rounded-2xl bg-black/35 p-4 ring-1 ring-white/15 backdrop-blur-md">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-semibold">{d.naam}</span>
-                    <span className="rounded-full bg-[#1728C8]/10 px-1.5 py-0.5 text-[10px] font-medium">
+                    <span className="text-base font-semibold">{d.naam}</span>
+                    <span className="rounded-full bg-white/15 px-1.5 py-0.5 text-[10px] font-medium text-white/85">
                       {d.rol}
                     </span>
                   </div>
-                  <p className="mt-1.5 text-sm leading-snug text-[#1728C8]/85">
+                  <p className="mt-1.5 text-sm leading-snug text-white/85">
                     {d.tekst}
                   </p>
                 </div>
