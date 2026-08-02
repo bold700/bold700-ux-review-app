@@ -607,7 +607,7 @@ function SecondCta() {
   return (
     <Reveal
       as="section"
-      className="relative overflow-hidden px-5 py-24 sm:py-32"
+      className="relative flex min-h-[560px] items-center overflow-hidden px-5 py-24 sm:min-h-[640px] sm:py-32"
     >
       {/* Teamfoto als banner-achtergrond */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -616,13 +616,13 @@ function SecondCta() {
         alt=""
         aria-hidden
         loading="lazy"
-        className="absolute inset-0 h-full w-full object-cover object-center"
+        className="absolute inset-0 h-full w-full object-cover object-top"
       />
-      {/* Lichte donkere overlay: foto blijft goed zichtbaar, tekst leesbaar */}
-      <div className="absolute inset-0 bg-black/45" />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/20 to-black/35" />
+      {/* Lichtere overlay: foto duidelijk zichtbaar, tekst nog leesbaar */}
+      <div className="absolute inset-0 bg-black/30" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/25" />
 
-      <div className="relative mx-auto max-w-3xl text-center">
+      <div className="relative mx-auto w-full max-w-3xl text-center">
         <h2 className="text-3xl font-semibold tracking-tight sm:text-5xl">
           Klaar om te weten wat je website{" "}
           <span className="text-[#ff5003]">oplevert</span>?
@@ -992,48 +992,45 @@ function TeamFlow() {
           </p>
         </div>
 
-        {/* Podium: alleen de laatste paar berichten, bovenaan verankerd zodat je
-            ze meteen ziet. Oudere vervagen weg. Geen frame/clip, geen page-scroll. */}
-        {!done &&
-          (() => {
+        {/* Podium met VASTE hoogte: nieuwste bericht onderin, oudere vervagen
+            naar boven. Vaste hoogte = geen layout-sprongen tijdens de chat. */}
+        <div className="relative mt-10 flex h-[340px] flex-col justify-end gap-3 overflow-hidden px-1 sm:h-[380px] [-webkit-mask-image:linear-gradient(to_bottom,transparent,#000_16%,#000)] [mask-image:linear-gradient(to_bottom,transparent,#000_16%,#000)]">
+          {(() => {
             const WINDOW = 4
             const start = Math.max(0, revealed - WINDOW)
             const visible = TEAM_CHAT.slice(start, revealed)
             const fade = ["opacity-100", "opacity-70", "opacity-45", "opacity-25"]
-            return (
-              <div className="mt-10 flex min-h-[240px] flex-col gap-3 sm:min-h-[280px]">
-                {visible.map((s, k) => {
-                  const gi = start + k
-                  const depth = visible.length - 1 - k // 0 = nieuwste
-                  return (
-                    <div
-                      key={gi}
-                      className={
-                        "transition-opacity duration-500 " +
-                        (fade[depth] ?? "opacity-25")
-                      }
-                    >
-                      {s.system ? (
-                        <SystemRow s={s} />
-                      ) : (
-                        <ChatRow s={s} right={(gi - 1) % 2 === 1} />
-                      )}
-                    </div>
-                  )
-                })}
-                {typing && revealed < TEAM_CHAT.length && (
-                  <TypingRow
-                    s={TEAM_CHAT[revealed]}
-                    right={(revealed - 1) % 2 === 1}
-                  />
-                )}
-              </div>
-            )
+            return visible.map((s, k) => {
+              const gi = start + k
+              const depth = visible.length - 1 - k // 0 = nieuwste
+              return (
+                <div
+                  key={gi}
+                  className={
+                    "transition-opacity duration-500 " +
+                    (fade[depth] ?? "opacity-25")
+                  }
+                >
+                  {s.system ? (
+                    <SystemRow s={s} />
+                  ) : (
+                    <ChatRow s={s} right={(gi - 1) % 2 === 1} />
+                  )}
+                </div>
+              )
+            })
           })()}
+          {typing && revealed < TEAM_CHAT.length && (
+            <TypingRow
+              s={TEAM_CHAT[revealed]}
+              right={(revealed - 1) % 2 === 1}
+            />
+          )}
+        </div>
 
-        {/* Na Kenny: het voorbeeldresultaat, op dezelfde plek. */}
+        {/* Resultaat komt netjes ONDER de chat te staan, na Kenny. */}
         {done && (
-          <div className="mt-10 duration-700 animate-in fade-in-0 slide-in-from-bottom-4">
+          <div className="mt-8 duration-700 animate-in fade-in-0 slide-in-from-bottom-4">
             <ResultPreview />
           </div>
         )}
@@ -1138,19 +1135,18 @@ function ChatRow({ s, right }: { s: ChatItem; right: boolean }) {
   return (
     <div
       className={
-        "flex items-end gap-2.5 duration-300 ease-out animate-in fade-in-0 " +
-        (right
-          ? "flex-row-reverse slide-in-from-right-3"
-          : "flex-row slide-in-from-left-3")
+        "flex items-end gap-2.5 duration-300 ease-out animate-in fade-in-0 slide-in-from-bottom-2 " +
+        (right ? "flex-row-reverse" : "flex-row")
       }
     >
       <Avatar s={s} />
+      {/* Echte card: frosted, met ring en schaduw (zelfde taal als de agent-cards) */}
       <div
         className={
-          "max-w-[80%] rounded-2xl px-3.5 py-2.5 transition-transform duration-200 hover:-translate-y-0.5 motion-reduce:transform-none sm:max-w-[75%] " +
+          "max-w-[82%] rounded-2xl p-4 shadow-lg ring-1 backdrop-blur-md transition-transform duration-200 hover:-translate-y-0.5 motion-reduce:transform-none sm:max-w-[78%] " +
           (s.mens
-            ? "bg-[#ff5003]/20 ring-1 ring-[#ff5003]/40 hover:bg-[#ff5003]/25"
-            : "bg-white/10 ring-1 ring-white/15 hover:bg-white/15") +
+            ? "bg-[#ff5003]/25 ring-[#ff5003]/40"
+            : "bg-white/[0.12] ring-white/15") +
           (right ? " rounded-br-sm" : " rounded-bl-sm")
         }
       >
@@ -1172,7 +1168,12 @@ function ChatRow({ s, right }: { s: ChatItem; right: boolean }) {
             {s.mens ? "mens" : s.rol}
           </span>
         </div>
-        <p className={"mt-1 text-sm text-white/85 " + (right ? "text-right" : "")}>
+        <p
+          className={
+            "mt-1.5 text-sm leading-relaxed text-white/90 " +
+            (right ? "text-right" : "")
+          }
+        >
           {s.tekst}
         </p>
       </div>
@@ -1191,7 +1192,7 @@ function TypingRow({ s, right }: { s: ChatItem; right: boolean }) {
       <Avatar s={s} />
       <div
         className={
-          "rounded-2xl bg-white/10 px-3.5 py-3 ring-1 ring-white/15 " +
+          "rounded-2xl bg-white/[0.12] px-4 py-3.5 shadow-lg ring-1 ring-white/15 backdrop-blur-md " +
           (right ? "rounded-br-sm" : "rounded-bl-sm")
         }
       >
