@@ -1042,7 +1042,7 @@ function TeamFlow() {
           })()}
           {typing && revealed < CHAT.length && (
             <div
-              style={{ zIndex: 50, marginTop: "-3rem" }}
+              style={{ zIndex: 50, marginTop: "0.75rem" }}
               className="relative"
             >
               <TypingRow
