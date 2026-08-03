@@ -91,6 +91,8 @@ export interface Project {
   findings?: ScanFinding[]
   teamLog?: TeamLogEntry[]
   geschrapt?: number
+  // Korte samenvatting in klantentaal (optioneel; door de Worker gegenereerd).
+  samenvatting?: string
 }
 
 export interface ScanBriefing {

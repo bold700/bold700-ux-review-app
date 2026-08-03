@@ -2,28 +2,23 @@
 
 import { useState } from "react"
 import {
+  ArrowRight,
   Check,
   ChevronDown,
   CircleDashed,
-  Info,
+  Lightbulb,
   Loader2,
   Mail,
   MessageCircle,
   MinusCircle,
   Phone,
-  TrendingUp,
+  ShieldCheck,
   XCircle,
 } from "lucide-react"
 
-import type {
-  Project,
-  ScanFinding,
-  ScanMeasurement,
-  TeamLogEntry,
-} from "@/lib/types"
+import type { Project, ScanFinding, TeamLogEntry } from "@/lib/types"
 import { scoreTone } from "@/lib/score"
 import { deJargon } from "@/lib/de-jargon"
-import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -34,13 +29,6 @@ const toneText: Record<string, string> = {
   bad: "text-red-500",
   na: "text-muted-foreground",
 }
-const dot: Record<string, string> = {
-  good: "bg-emerald-500",
-  ok: "bg-amber-500",
-  bad: "bg-red-500",
-  nvt: "bg-muted-foreground",
-}
-const rank: Record<string, number> = { good: 3, ok: 2, bad: 1 }
 
 // AI-analyseteam: elke rol heeft een naam, zodat de samenwerking van
 // verschillende expertises zichtbaar is. Bewust gelabeld als AI (geen suggestie
@@ -108,39 +96,64 @@ function ContactButtons() {
   )
 }
 
-function verdictLine(doel: string | undefined, n: number): string {
-  if (n === 0) return "Je website staat er op de belangrijkste punten goed voor."
-  const d = doel ? doel.toLowerCase() : "klanten"
-  return `Je loopt waarschijnlijk ${d} mis door ${Math.min(n, 3)} dingen. Hieronder leggen we ze uit.`
+// Kort, geruststellend oordeel op basis van de score.
+function verdictLine(score: number | null, n: number): string {
+  if (score != null && score >= 7.5)
+    return "Je website staat er goed voor. Met een paar aanpassingen haal je er nog meer klanten uit."
+  if (n === 0)
+    return "Je website staat er op de belangrijkste punten goed voor."
+  if (score != null && score < 5)
+    return "Je website laat op dit moment klanten liggen. Het goede nieuws: er valt flink wat te winnen."
+  return "Je website doet het redelijk, maar laat nog klanten liggen. Hieronder zie je waar de winst zit."
 }
 
-/** Ontdubbelt metingen per label; het slechtste oordeel wint. */
-function dedupeMeasurements(ms: ScanMeasurement[]): ScanMeasurement[] {
-  const by = new Map<string, ScanMeasurement>()
-  for (const m of ms) {
-    const cur = by.get(m.label)
-    if (!cur || (rank[m.score] ?? 9) < (rank[cur.score] ?? 9)) by.set(m.label, m)
+// Samenvatting in gewone taal: gebruik die van de Worker als die er is,
+// anders bouwen we er zelf een uit de score en de belangrijkste punten.
+function buildSamenvatting(
+  project: Project,
+  findings: ScanFinding[],
+): string {
+  if (project.samenvatting && project.samenvatting.trim())
+    return project.samenvatting.trim()
+
+  const score = project.score ?? null
+  const top = findings.slice(0, 3)
+  const themes = top
+    .map((f) => deJargon(f.titel || f.issue || "").toLowerCase())
+    .filter(Boolean)
+
+  const parts: string[] = []
+  if (score != null && score >= 7.5) {
+    parts.push(
+      "Je website maakt een sterke indruk: bezoekers snappen wat je doet en vinden makkelijk hun weg.",
+    )
+  } else if (score != null && score < 5) {
+    parts.push(
+      "Bezoekers haken op je website nu waarschijnlijk af voordat ze contact opnemen.",
+    )
+  } else {
+    parts.push(
+      "Je website is op de goede weg, maar een paar dingen houden bezoekers tegen om de stap te zetten.",
+    )
   }
-  return [...by.values()]
+  if (top.length > 0) {
+    parts.push(
+      `We zien ${findings.length} ${
+        findings.length === 1 ? "punt" : "punten"
+      } om te verbeteren. De grootste kansen zitten ${
+        themes.length ? "in " + listNL(themes) : "hieronder"
+      }.`,
+    )
+  }
+  parts.push("Pak je de punten hieronder op, dan haal je meer uit dezelfde bezoekers.")
+  return parts.join(" ")
 }
 
-function FindingLabel({ f }: { f: ScanFinding }) {
-  const validate = f.confidence === "low" || f.nietGevalideerd
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <Badge
-        variant="outline"
-        className="gap-1 text-[10px] text-muted-foreground"
-      >
-        AI-analyse
-      </Badge>
-      {validate && (
-        <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400">
-          te valideren
-        </span>
-      )}
-    </span>
-  )
+// "a, b en c"
+function listNL(items: string[]): string {
+  const a = items.slice(0, 3)
+  if (a.length <= 1) return a[0] ?? ""
+  return a.slice(0, -1).join(", ") + " en " + a[a.length - 1]
 }
 
 function FindingCard({
@@ -161,15 +174,10 @@ function FindingCard({
           onClick={() => setOpen((o) => !o)}
           className="flex w-full items-start gap-3 text-left"
         >
-          <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">
+          <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
             {rankNum}
           </span>
-          <span className="min-w-0 flex-1">
-            <span className="flex flex-wrap items-center gap-2">
-              <span className="font-medium">{titel}</span>
-              <FindingLabel f={f} />
-            </span>
-          </span>
+          <span className="min-w-0 flex-1 font-medium">{titel}</span>
           <ChevronDown
             className={cn(
               "mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-transform",
@@ -183,7 +191,7 @@ function FindingCard({
             {(f.watWeZagen || f.bewijs) && (
               <p>
                 <span className="font-medium text-foreground">
-                  Wat we zagen:{" "}
+                  Wat er speelt:{" "}
                 </span>
                 <span className="text-muted-foreground">
                   {deJargon(f.watWeZagen || f.bewijs)}
@@ -191,17 +199,15 @@ function FindingCard({
               </p>
             )}
             {f.waaromKost && (
-              <p className="rounded-md bg-emerald-500/10 px-2.5 py-1.5 text-emerald-700 dark:text-emerald-300">
-                <span className="font-semibold">Waarom dit klanten kost: </span>
+              <p className="rounded-md bg-amber-500/10 px-2.5 py-1.5 text-amber-700 dark:text-amber-300">
+                <span className="font-semibold">Waarom dit belangrijk is: </span>
                 {deJargon(f.waaromKost)}
               </p>
             )}
             {(f.watJeDoet || f.aanbeveling) && (
-              <p>
-                <span className="font-medium text-foreground">Wat je doet: </span>
-                <span className="text-muted-foreground">
-                  {deJargon(f.watJeDoet || f.aanbeveling)}
-                </span>
+              <p className="rounded-md bg-emerald-500/10 px-2.5 py-1.5 text-emerald-700 dark:text-emerald-300">
+                <span className="font-semibold">Wat je kunt doen: </span>
+                {deJargon(f.watJeDoet || f.aanbeveling)}
               </p>
             )}
           </div>
@@ -217,9 +223,6 @@ const statusIcon: Record<string, React.ReactNode> = {
   overgeslagen: <MinusCircle className="h-4 w-4 text-muted-foreground" />,
   fout: <XCircle className="h-4 w-4 text-red-500" />,
 }
-
-const TEAM_BY_NAME: Record<string, { name: string; role: string; foto?: string }> =
-  Object.fromEntries(TEAM.map((m) => [m.name, m]))
 
 function TeamLog({ log }: { log: TeamLogEntry[] }) {
   return (
@@ -237,59 +240,6 @@ function TeamLog({ log }: { log: TeamLogEntry[] }) {
           </span>
         </li>
       ))}
-    </ul>
-  )
-}
-
-// Gecombineerde tijdlijn: elke uitgevoerde taak mét de agent die 'm deed
-// (foto + naam + rol), en de statusmarker op de foto.
-function TeamTimeline({ log }: { log: TeamLogEntry[] }) {
-  return (
-    <ul className="space-y-2.5">
-      {log.map((s, i) => {
-        const member = TEAM_BY_NAME[ROLE_NAME[s.stap] ?? ""]
-        return (
-          <li key={i} className="flex items-start gap-3">
-            <div className="relative shrink-0">
-              {member?.foto ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={member.foto}
-                  alt={member.name}
-                  className={cn(
-                    "h-9 w-9 rounded-full object-cover",
-                    s.status === "overgeslagen" && "opacity-50",
-                  )}
-                />
-              ) : (
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                  <CircleDashed className="h-4 w-4" />
-                </span>
-              )}
-              <span className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-background ring-2 ring-background">
-                {statusIcon[s.status] ?? (
-                  <CircleDashed className="h-3.5 w-3.5" />
-                )}
-              </span>
-            </div>
-            <div className="min-w-0 pt-0.5 text-sm">
-              <p className="font-medium leading-tight">
-                {member ? member.name : s.stap}
-                {member && (
-                  <span className="text-muted-foreground">
-                    {" "}
-                    · {member.role}
-                  </span>
-                )}
-              </p>
-              <p className="leading-tight text-muted-foreground">
-                {s.stap}
-                {s.samenvatting ? ` — ${s.samenvatting}` : ""}
-              </p>
-            </div>
-          </li>
-        )
-      })}
     </ul>
   )
 }
@@ -389,41 +339,39 @@ export function AgentReportView({ project }: { project: Project }) {
     )
   }
 
-  return (
-    <AgentReport
-      project={project}
-      findings={findings}
-      measurements={dedupeMeasurements(project.measurements ?? [])}
-      log={log}
-    />
-  )
+  return <AgentReport project={project} findings={findings} />
 }
 
 function AgentReport({
   project,
   findings,
-  measurements,
-  log,
 }: {
   project: Project
   findings: ScanFinding[]
-  measurements: ScanMeasurement[]
-  log: TeamLogEntry[]
 }) {
   const [restOpen, setRestOpen] = useState(false)
-  const [bijlageOpen, setBijlageOpen] = useState(false)
   const score = project.score ?? null
   const tone = scoreTone(score)
-  const briefing = project.briefing
+  const toneLabel: Record<string, string> = {
+    good: "Sterk",
+    ok: "Redelijk",
+    bad: "Kan beter",
+    na: "",
+  }
   const top = findings.slice(0, 3)
   const rest = findings.slice(3)
-  const date = new Date(
-    project.createdAt ?? Date.now(),
-  ).toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric" })
+  const samenvatting = buildSamenvatting(project, findings)
+  const date = project.createdAt
+    ? new Date(project.createdAt).toLocaleDateString("nl-NL", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : ""
 
   return (
     <div className="space-y-6">
-      {/* Krantenkop */}
+      {/* Kop */}
       <div className="border-b pb-4">
         <div className="text-xs tracking-wide text-muted-foreground uppercase">
           Website-check
@@ -432,75 +380,52 @@ function AgentReport({
           {project.name || project.url}
         </h1>
         <div className="mt-1 truncate text-sm text-muted-foreground">
-          {project.url} · {date}
+          {project.url}
+          {date && ` · ${date}`}
         </div>
       </div>
 
-      <div className="flex items-start gap-4 rounded-2xl border bg-muted/30 p-5">
+      {/* Score + oordeel */}
+      <div className="flex items-center gap-5 rounded-2xl border bg-muted/30 p-5">
         {score != null && (
           <div className="shrink-0 text-center">
-            <div className={cn("text-4xl font-bold", toneText[tone])}>
+            <div className={cn("text-5xl font-bold leading-none", toneText[tone])}>
               {score.toFixed(1)}
             </div>
-            <div className="text-[11px] tracking-wide text-muted-foreground uppercase">
-              / 10
+            <div className="mt-1 text-[11px] tracking-wide text-muted-foreground uppercase">
+              / 10 {toneLabel[tone] && `· ${toneLabel[tone]}`}
             </div>
           </div>
         )}
-        <p className="text-sm">{verdictLine(briefing?.doel, findings.length)}</p>
+        <p className="text-sm leading-relaxed">
+          {verdictLine(score, findings.length)}
+        </p>
       </div>
 
-      {/* Wat we over je bedrijf zagen (aanname) */}
-      {briefing && (briefing.branche || briefing.aanbod || briefing.doel) && (
-        <div className="rounded-xl border bg-background p-4">
-          <div className="mb-1.5 flex items-center gap-2 text-sm font-semibold">
-            Wat we over je bedrijf zagen
-            <Badge variant="outline" className="text-[10px] text-muted-foreground">
-              aanname
-            </Badge>
-          </div>
-          <ul className="space-y-0.5 text-sm text-muted-foreground">
-            {briefing.branche && <li>Branche: {briefing.branche}</li>}
-            {briefing.aanbod && <li>Aanbod: {briefing.aanbod}</li>}
-            {briefing.doelgroep && <li>Doelgroep: {briefing.doelgroep}</li>}
-            {briefing.doel && <li>Belangrijkste doel: {briefing.doel}</li>}
-          </ul>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Klopt dit niet? Zeg het in het gesprek, dan wordt de review scherper.
-          </p>
+      {/* Samenvatting in gewone taal */}
+      <section className="rounded-2xl border bg-background p-5">
+        <div className="mb-2 flex items-center gap-2">
+          <Lightbulb className="h-4 w-4 text-primary" />
+          <h2 className="text-base font-semibold">In het kort</h2>
         </div>
-      )}
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          {samenvatting}
+        </p>
+      </section>
 
-      {/* Disclaimer */}
-      {findings.length > 0 && (
-        <div className="flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5 text-xs text-muted-foreground">
-          <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-          <p>
-            De metingen zijn feiten. De{" "}
-            <span className="font-medium text-foreground">AI-analyses</span> zijn
-            onderbouwde hypotheses, geen zekerheden.{" "}
-            <a
-              href={WHATSAPP_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium text-primary hover:underline"
-            >
-              Laat een specialist ze valideren →
-            </a>
-          </p>
-        </div>
-      )}
-
-      {/* Top-3 */}
+      {/* De belangrijkste punten */}
       {top.length > 0 && (
         <section className="space-y-2">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-primary" />
-            <h2 className="text-lg font-semibold">De 3 grootste kansen</h2>
+          <h2 className="text-lg font-semibold">Wat je het eerst kunt oppakken</h2>
+          <p className="text-sm text-muted-foreground">
+            De belangrijkste punten, met wat je eraan kunt doen. Tik een punt aan
+            voor de uitleg.
+          </p>
+          <div className="space-y-2 pt-1">
+            {top.map((f, i) => (
+              <FindingCard key={i} f={f} rankNum={i + 1} open={i === 0} />
+            ))}
           </div>
-          {top.map((f, i) => (
-            <FindingCard key={i} f={f} rankNum={i + 1} open={i === 0} />
-          ))}
         </section>
       )}
 
@@ -523,106 +448,38 @@ function AgentReport({
         </section>
       )}
 
-      {/* Bijlage: metingen */}
-      {measurements.length > 0 && (
-        <section className="space-y-2">
-          <button
-            onClick={() => setBijlageOpen((o) => !o)}
-            className="flex items-center gap-1 text-sm font-medium text-primary"
-          >
-            {bijlageOpen ? "Verberg" : "Bijlage voor je websitebouwer"} (
-            {measurements.length} metingen)
-            <ChevronDown
-              className={cn("h-4 w-4 transition-transform", bijlageOpen && "rotate-180")}
-            />
-          </button>
-          {bijlageOpen && (
-            <Card>
-              <CardContent className="space-y-1.5 py-3">
-                {measurements.map((m, i) => (
-                  <div key={i} className="flex items-start gap-2 text-sm">
-                    <span
-                      className={cn(
-                        "mt-1.5 h-2 w-2 shrink-0 rounded-full",
-                        dot[m.score],
-                      )}
-                    />
-                    <span>
-                      <span className="font-medium">{m.label}: </span>
-                      <span className="text-muted-foreground">
-                        {deJargon(m.note)}
-                      </span>
-                    </span>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
-        </section>
-      )}
-
-      {/* Hoe deze review is gemaakt */}
-      <section className="rounded-xl border bg-muted/20 p-4">
-        <h2 className="mb-2 text-sm font-semibold">Hoe deze review is gemaakt</h2>
-        <p className="mb-3 text-sm text-muted-foreground">
-          Dit rapport is opgesteld door ons <span className="font-medium text-foreground">AI-analyseteam</span>:
-          gespecialiseerde AI-analyses met elk een eigen focus, gecombineerd met{" "}
-          {measurements.length} echte metingen.
-          {typeof project.geschrapt === "number" && project.geschrapt > 0
-            ? ` De kwaliteitscontrole schrapte ${project.geschrapt} bevindingen die het bewijs niet doorstonden.`
-            : ""}{" "}
-          Een <span className="font-medium text-foreground">specialist van BOLD700</span> controleert het geheel voordat je het gesprek in gaat.
+      {/* Geruststelling: één regel, geen technisch AI-verhaal */}
+      <div className="flex items-start gap-2.5 rounded-xl border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+        <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+        <p>
+          Deze check is gemaakt door het BOLD700-analyseteam en nagekeken door een
+          specialist. Wil je de technische details? Vraag je websitebouwer om de
+          developer-versie.
         </p>
-
-        {log.length > 0 ? (
-          <TeamTimeline log={log} />
-        ) : (
-          /* Fallback: alleen roster tonen als er (nog) geen log is */
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {TEAM.map((m) => (
-              <div
-                key={m.name}
-                className="flex items-center gap-2 rounded-lg border bg-background px-2.5 py-1.5"
-              >
-                {m.foto ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={m.foto}
-                    alt={m.name}
-                    className="h-8 w-8 shrink-0 rounded-full object-cover"
-                  />
-                ) : (
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-                    {m.name.slice(0, 1)}
-                  </span>
-                )}
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-medium">
-                    {m.name}
-                  </span>
-                  <span className="block truncate text-[11px] text-muted-foreground">
-                    {m.role}
-                  </span>
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
+      </div>
 
       {/* CTA */}
       <section className="rounded-2xl border bg-primary/5 p-6 text-center">
         <h2 className="text-xl font-semibold">
-          Wil je weten wat je het eerst moet aanpakken?
+          Samen kijken wat het meeste oplevert?
         </h2>
         <p className="mx-auto mt-2 max-w-md text-muted-foreground">
-          Een specialist neemt het rapport met je door, valideert de analyses en
-          geeft je de volgorde die het meeste oplevert. Kies hoe je contact
-          opneemt:
+          Kenny neemt het rapport met je door en geeft je de volgorde die het
+          snelst nieuwe klanten oplevert. Kies hoe je contact opneemt:
         </p>
         <div className="mt-5">
           <ContactButtons />
         </div>
+        <button
+          onClick={() =>
+            document
+              .querySelector("section")
+              ?.scrollIntoView({ behavior: "smooth" })
+          }
+          className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+        >
+          Terug naar boven <ArrowRight className="h-3.5 w-3.5 -rotate-90" />
+        </button>
       </section>
     </div>
   )
