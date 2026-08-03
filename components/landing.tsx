@@ -619,8 +619,9 @@ function SecondCta() {
         className="absolute inset-0 h-full w-full object-cover object-top"
       />
       {/* Lichtere overlay: foto duidelijk zichtbaar, tekst nog leesbaar */}
-      <div className="absolute inset-0 bg-black/30" />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/25" />
+      <div className="absolute inset-0 bg-black/35" />
+      {/* Onderkant vloeit naadloos in de donkere footer */}
+      <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-b from-transparent to-[#0a0e1e]" />
 
       <div className="relative mx-auto w-full max-w-3xl text-center">
         <h2 className="text-3xl font-semibold tracking-tight sm:text-5xl">
@@ -711,7 +712,7 @@ function Faq() {
 function SiteFooter() {
   const [ref, inView] = useInView(0.2)
   return (
-    <footer className="mt-4 border-t border-white/15 px-5 pb-[calc(env(safe-area-inset-bottom)+6rem)] pt-12 sm:pb-12">
+    <footer className="bg-[#0a0e1e] px-5 pb-[calc(env(safe-area-inset-bottom)+6rem)] pt-14 sm:pb-14">
       <div
         ref={ref}
         className={"mx-auto max-w-6xl " + riseCls(inView)}
