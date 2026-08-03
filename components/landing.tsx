@@ -234,7 +234,7 @@ function WhatYouGet() {
           obs.disconnect()
         }
       },
-      { threshold: 0.15 },
+      { threshold: 0.15, rootMargin: "0px 0px -15% 0px" },
     )
     obs.observe(el)
     return () => obs.disconnect()
@@ -361,7 +361,7 @@ function BenchmarkBlock() {
           obs.disconnect()
         }
       },
-      { threshold: 0.3 },
+      { threshold: 0.3, rootMargin: "0px 0px -15% 0px" },
     )
     obs.observe(el)
     return () => obs.disconnect()
@@ -802,7 +802,7 @@ function StickyCta() {
 }
 
 // Herbruikbare in-view hook: true zodra het element één keer in beeld komt.
-function useInView(threshold = 0.2) {
+function useInView(threshold = 0.2, rootMargin = "0px 0px -15% 0px") {
   const ref = useRef<HTMLDivElement | null>(null)
   const [inView, setInView] = useState(false)
   useEffect(() => {
@@ -815,19 +815,20 @@ function useInView(threshold = 0.2) {
           obs.disconnect()
         }
       },
-      { threshold },
+      { threshold, rootMargin },
     )
     obs.observe(el)
     return () => obs.disconnect()
-  }, [threshold])
+  }, [threshold, rootMargin])
   return [ref, inView] as const
 }
 
-// Inlaad-klasse (fade + omhoog), zelfde gevoel als de hero.
+// Inlaad-klasse (fade + omhoog), zelfde gevoel als de hero. Iets trager en
+// een grotere sprong, zodat je 'm makkelijker meepakt tijdens het scrollen.
 function riseCls(inView: boolean) {
   return (
-    "transition-all duration-700 ease-out motion-reduce:transition-none " +
-    (inView ? "translate-y-0 opacity-100" : "translate-y-5 opacity-0")
+    "transition-all duration-[900ms] ease-out motion-reduce:transition-none " +
+    (inView ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0")
   )
 }
 
@@ -853,7 +854,7 @@ function Reveal({
           obs.disconnect()
         }
       },
-      { threshold: 0.15, rootMargin: "0px 0px -10% 0px" },
+      { threshold: 0.15, rootMargin: "0px 0px -15% 0px" },
     )
     obs.observe(el)
     return () => obs.disconnect()
@@ -863,8 +864,8 @@ function Reveal({
       ref={ref as React.RefObject<HTMLElement & HTMLDivElement>}
       className={
         className +
-        " transition-all duration-700 ease-out motion-reduce:transition-none " +
-        (shown ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0")
+        " transition-all duration-[900ms] ease-out motion-reduce:transition-none " +
+        (shown ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0")
       }
     >
       {children}
@@ -931,7 +932,7 @@ function TeamFlow() {
           obs.disconnect()
         }
       },
-      { threshold: 0.35 },
+      { threshold: 0.35, rootMargin: "0px 0px -12% 0px" },
     )
     obs.observe(el)
     return () => obs.disconnect()
@@ -966,8 +967,8 @@ function TeamFlow() {
           if (cancelled) return
           setRevealed(i + 1)
           i += 1
-          timer = setTimeout(step, 550)
-        }, 350)
+          timer = setTimeout(step, 700)
+        }, 450)
         return
       }
       setTyping(true)
@@ -976,8 +977,8 @@ function TeamFlow() {
         setTyping(false)
         setRevealed(i + 1)
         i += 1
-        timer = setTimeout(step, 750)
-      }, 800)
+        timer = setTimeout(step, 1050)
+      }, 1000)
     }
     step()
     return () => {
