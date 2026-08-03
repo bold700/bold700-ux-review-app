@@ -162,8 +162,8 @@ export function Landing({ onLogin }: { onLogin: () => void }) {
       <RealCompany />
       <TeamFlow />
       <SocialProof />
-      <SecondCta />
       <Faq />
+      <SecondCta />
       <SiteFooter />
       <StickyCta />
     </div>
@@ -624,8 +624,7 @@ function SecondCta() {
 
       <div className="relative mx-auto w-full max-w-3xl text-center">
         <h2 className="text-3xl font-semibold tracking-tight sm:text-5xl">
-          Klaar om te weten wat je website{" "}
-          <span className="text-[#ff5003]">oplevert</span>?
+          Klaar om te weten wat je website oplevert?
         </h2>
         <p className="mx-auto mt-4 max-w-md text-lg text-white/90">
           Meld je website aan en ontvang je rapportcijfer met concrete tips
