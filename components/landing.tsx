@@ -991,23 +991,28 @@ function TeamFlow() {
           </p>
         </div>
 
-        {/* Podium met VASTE hoogte: nieuwste bericht onderin, oudere vervagen
-            naar boven. Vaste hoogte = geen layout-sprongen tijdens de chat. */}
-        <div className="relative mt-10 flex h-[340px] flex-col justify-end gap-3 overflow-hidden px-1 sm:h-[380px] [-webkit-mask-image:linear-gradient(to_bottom,transparent,#000_16%,#000)] [mask-image:linear-gradient(to_bottom,transparent,#000_16%,#000)]">
+        {/* Podium met VASTE hoogte: berichten stapelen half over elkaar heen.
+            Nieuwste vooraan (vol), de een-na-laatste vervaagt erachter, oudere
+            zijn al weg. Compact: neemt weinig verticale ruimte in. */}
+        <div className="relative mt-10 flex h-[280px] flex-col justify-end overflow-hidden px-1 sm:h-[320px] [-webkit-mask-image:linear-gradient(to_bottom,transparent,#000_28%,#000)] [mask-image:linear-gradient(to_bottom,transparent,#000_28%,#000)]">
           {(() => {
-            const WINDOW = 4
+            const WINDOW = 3
             const start = Math.max(0, revealed - WINDOW)
             const visible = TEAM_CHAT.slice(start, revealed)
-            const fade = ["opacity-100", "opacity-70", "opacity-45", "opacity-25"]
+            const fade = ["opacity-100", "opacity-55", "opacity-20"]
+            const scale = ["scale-100", "scale-[0.97]", "scale-[0.94]"]
             return visible.map((s, k) => {
               const gi = start + k
-              const depth = visible.length - 1 - k // 0 = nieuwste
+              const depth = visible.length - 1 - k // 0 = nieuwste (vooraan)
               return (
                 <div
                   key={gi}
+                  style={{ zIndex: k + 1, marginTop: k === 0 ? 0 : "-3rem" }}
                   className={
-                    "transition-opacity duration-500 " +
-                    (fade[depth] ?? "opacity-25")
+                    "relative origin-bottom transition-all duration-500 ease-out motion-reduce:transition-none " +
+                    (fade[depth] ?? "opacity-0") +
+                    " " +
+                    (scale[depth] ?? "scale-90")
                   }
                 >
                   {s.system ? (
@@ -1020,10 +1025,15 @@ function TeamFlow() {
             })
           })()}
           {typing && revealed < TEAM_CHAT.length && (
-            <TypingRow
-              s={TEAM_CHAT[revealed]}
-              right={(revealed - 1) % 2 === 1}
-            />
+            <div
+              style={{ zIndex: 50, marginTop: "-3rem" }}
+              className="relative"
+            >
+              <TypingRow
+                s={TEAM_CHAT[revealed]}
+                right={(revealed - 1) % 2 === 1}
+              />
+            </div>
           )}
         </div>
 
