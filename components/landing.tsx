@@ -897,6 +897,11 @@ const TEAM_CHAT: {
   { naam: "Kenny", rol: "Team lead", foto: "/team/kenny.jpg", tekst: "Top, team! Ik pak het van hier over: ik neem contact op met de klant om de resultaten persoonlijk door te nemen." },
 ]
 
+// De chat speelt in de stapel t/m Lot; Kenny sluit los af met de scorecard
+// in zijn eigen bubbel (past niet in de vaste-hoogte stapel).
+const KENNY = TEAM_CHAT[TEAM_CHAT.length - 1]
+const CHAT = TEAM_CHAT.slice(0, -1)
+
 function TeamFlow() {
   const ref = useRef<HTMLDivElement | null>(null)
   const [shown, setShown] = useState(false)
@@ -940,7 +945,7 @@ function TeamFlow() {
       typeof window !== "undefined" &&
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
     if (reduce) {
-      setRevealed(TEAM_CHAT.length)
+      setRevealed(CHAT.length)
       setTyping(false)
       setDone(true)
       return
@@ -950,12 +955,12 @@ function TeamFlow() {
     let i = 0
     const step = () => {
       if (cancelled) return
-      if (i >= TEAM_CHAT.length) {
+      if (i >= CHAT.length) {
         setTyping(false)
         timer = setTimeout(() => !cancelled && setDone(true), 700)
         return
       }
-      const item = TEAM_CHAT[i]
+      const item = CHAT[i]
       if (item.system) {
         timer = setTimeout(() => {
           if (cancelled) return
@@ -1009,7 +1014,7 @@ function TeamFlow() {
           {(() => {
             const WINDOW = 3
             const start = Math.max(0, revealed - WINDOW)
-            const visible = TEAM_CHAT.slice(start, revealed)
+            const visible = CHAT.slice(start, revealed)
             const fade = ["opacity-100", "opacity-55", "opacity-20"]
             const scale = ["scale-100", "scale-[0.97]", "scale-[0.94]"]
             return visible.map((s, k) => {
@@ -1035,40 +1040,23 @@ function TeamFlow() {
               )
             })
           })()}
-          {typing && revealed < TEAM_CHAT.length && (
+          {typing && revealed < CHAT.length && (
             <div
               style={{ zIndex: 50, marginTop: "-3rem" }}
               className="relative"
             >
               <TypingRow
-                s={TEAM_CHAT[revealed]}
+                s={CHAT[revealed]}
                 right={(revealed - 1) % 2 === 1}
               />
             </div>
           )}
         </div>
 
-        {/* Kenny sluit af met de echte UX-scorecard als resultaat. */}
-        {done && card && (
-          <div className="mt-8 flex flex-col items-center gap-3 duration-700 animate-in fade-in-0 slide-in-from-bottom-4">
-            <div className="flex items-center gap-2.5 text-sm text-white/85">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/team/kenny.jpg"
-                alt="Kenny"
-                className="h-8 w-8 rounded-full object-cover ring-2 ring-[#ff5003]"
-              />
-              <span>
-                <span className="font-semibold text-white">Kenny</span> deelt jouw
-                resultaat
-              </span>
-            </div>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={card}
-              alt="Voorbeeld UX Scorecard"
-              className="w-full max-w-[300px] overflow-hidden rounded-2xl shadow-2xl ring-1 ring-white/10"
-            />
+        {/* Kenny sluit af met de echte UX-scorecard IN zijn eigen bubbel. */}
+        {done && (
+          <div className="mt-4 duration-700 animate-in fade-in-0 slide-in-from-bottom-4">
+            <ChatRow s={KENNY} right={false} card={card} />
           </div>
         )}
       </div>
@@ -1119,7 +1107,15 @@ function SystemRow({ s }: { s: ChatItem }) {
   )
 }
 
-function ChatRow({ s, right }: { s: ChatItem; right: boolean }) {
+function ChatRow({
+  s,
+  right,
+  card,
+}: {
+  s: ChatItem
+  right: boolean
+  card?: string
+}) {
   return (
     <div
       className={
@@ -1164,6 +1160,14 @@ function ChatRow({ s, right }: { s: ChatItem; right: boolean }) {
         >
           {s.tekst}
         </p>
+        {card && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={card}
+            alt="Voorbeeld UX Scorecard"
+            className="mt-3 w-full max-w-[260px] overflow-hidden rounded-xl shadow-2xl ring-1 ring-white/10"
+          />
+        )}
       </div>
     </div>
   )
