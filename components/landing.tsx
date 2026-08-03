@@ -903,6 +903,17 @@ function TeamFlow() {
   const [revealed, setRevealed] = useState(0)
   const [typing, setTyping] = useState(false)
   const [done, setDone] = useState(false)
+  const [card, setCard] = useState("")
+
+  // De echte scorecard (dezelfde als op de hero) als eindresultaat van Kenny.
+  useEffect(() => {
+    try {
+      const s = SAMPLES.find((x) => x.project.name === "Cvhreiniging.nl")
+      if (s) setCard(drawScorecard(s.project, s.data))
+    } catch {
+      /* canvas niet beschikbaar */
+    }
+  }, [])
 
   // Start pas als de sectie in beeld komt.
   useEffect(() => {
@@ -1037,63 +1048,31 @@ function TeamFlow() {
           )}
         </div>
 
-        {/* Resultaat komt netjes ONDER de chat te staan, na Kenny. */}
-        {done && (
-          <div className="mt-8 duration-700 animate-in fade-in-0 slide-in-from-bottom-4">
-            <ResultPreview />
+        {/* Kenny sluit af met de echte UX-scorecard als resultaat. */}
+        {done && card && (
+          <div className="mt-8 flex flex-col items-center gap-3 duration-700 animate-in fade-in-0 slide-in-from-bottom-4">
+            <div className="flex items-center gap-2.5 text-sm text-white/85">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/team/kenny.jpg"
+                alt="Kenny"
+                className="h-8 w-8 rounded-full object-cover ring-2 ring-[#ff5003]"
+              />
+              <span>
+                <span className="font-semibold text-white">Kenny</span> deelt jouw
+                resultaat
+              </span>
+            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={card}
+              alt="Voorbeeld UX Scorecard"
+              className="w-full max-w-[300px] overflow-hidden rounded-2xl shadow-2xl ring-1 ring-white/10"
+            />
           </div>
         )}
       </div>
     </section>
-  )
-}
-
-// Voorbeeld van het rapport dat eruit rolt, als afsluiter van de flow.
-function ResultPreview() {
-  const punten = [
-    { goed: true, tekst: "Snelle laadtijd, techniek zit goed in elkaar" },
-    { goed: false, tekst: "Onduidelijke knop bovenaan kost je aanvragen" },
-    { goed: false, tekst: "Teksten te formeel, boodschap niet meteen helder" },
-  ]
-  return (
-    <div className="mx-auto max-w-lg overflow-hidden rounded-3xl bg-white text-[#1728C8] shadow-2xl ring-1 ring-black/5">
-      <div className="flex items-center justify-between gap-4 bg-[#1728C8] px-6 py-5 text-white">
-        <div>
-          <p className="text-xs font-medium text-white/70">Voorbeeldrapport</p>
-          <p className="text-lg font-semibold tracking-tight">
-            Zo ziet jouw uitkomst eruit
-          </p>
-        </div>
-        <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20">
-          <span className="text-xl font-bold leading-none">7.2</span>
-          <span className="text-[10px] text-white/70">/10</span>
-        </div>
-      </div>
-      <div className="space-y-2.5 p-6">
-        {punten.map((p) => (
-          <div key={p.tekst} className="flex items-start gap-2.5">
-            <span
-              className={
-                "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-white " +
-                (p.goed ? "bg-emerald-500" : "bg-[#ff5003]")
-              }
-            >
-              <Check className="h-3 w-3" />
-            </span>
-            <span className="text-sm leading-snug text-[#1728C8]/85">
-              {p.tekst}
-            </span>
-          </div>
-        ))}
-        <button
-          onClick={scrollToSignup}
-          className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-[#ff5003] transition-opacity hover:opacity-80"
-        >
-          Doe de gratis check voor je eigen site{" "}
-          <ArrowRight className="h-4 w-4" />
-        </button>
-      </div>
-    </div>
   )
 }
 
@@ -1152,10 +1131,10 @@ function ChatRow({ s, right }: { s: ChatItem; right: boolean }) {
       {/* Echte card: frosted, met ring en schaduw (zelfde taal als de agent-cards) */}
       <div
         className={
-          "max-w-[82%] rounded-2xl p-4 shadow-lg ring-1 backdrop-blur-md transition-transform duration-200 hover:-translate-y-0.5 motion-reduce:transform-none sm:max-w-[78%] " +
+          "max-w-[82%] rounded-2xl p-4 shadow-lg ring-1 transition-transform duration-200 hover:-translate-y-0.5 motion-reduce:transform-none sm:max-w-[78%] " +
           (s.mens
-            ? "bg-[#ff5003]/25 ring-[#ff5003]/40"
-            : "bg-white/[0.12] ring-white/15") +
+            ? "bg-[#ff5003] ring-[#ff5003]"
+            : "bg-[#141a33] ring-white/10") +
           (right ? " rounded-br-sm" : " rounded-bl-sm")
         }
       >
@@ -1201,7 +1180,7 @@ function TypingRow({ s, right }: { s: ChatItem; right: boolean }) {
       <Avatar s={s} />
       <div
         className={
-          "rounded-2xl bg-white/[0.12] px-4 py-3.5 shadow-lg ring-1 ring-white/15 backdrop-blur-md " +
+          "rounded-2xl bg-[#141a33] px-4 py-3.5 shadow-lg ring-1 ring-white/10 " +
           (right ? "rounded-br-sm" : "rounded-bl-sm")
         }
       >
