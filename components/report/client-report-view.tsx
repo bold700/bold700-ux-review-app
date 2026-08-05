@@ -363,13 +363,14 @@ function ClientFindingCard({
 }: {
   f: Finding
   rankNum: number
-  plain?: { title: string; action: string }
+  plain?: { title: string; action: string; impact?: string; uitleg?: string }
   open?: boolean
   onImage: (src: string) => void
 }) {
   const [open, setOpen] = useState(!!openInit)
   const titel = deJargon(plain?.title || f.question || "Verbeterpunt")
-  const uitleg = deJargon(f.notes)
+  const uitleg = deJargon(plain?.uitleg || f.notes)
+  const waarom = deJargon(plain?.impact || "")
   const actie = deJargon(plain?.action || "")
   return (
     <Card>
@@ -398,6 +399,12 @@ function ClientFindingCard({
                   Wat er speelt:{" "}
                 </span>
                 <span className="text-muted-foreground">{uitleg}</span>
+              </p>
+            )}
+            {waarom && (
+              <p className="rounded-md bg-amber-500/10 px-2.5 py-1.5 text-amber-700 dark:text-amber-300">
+                <span className="font-semibold">Waarom dit belangrijk is: </span>
+                {waarom}
               </p>
             )}
             {actie && (

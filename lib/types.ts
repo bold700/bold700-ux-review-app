@@ -71,7 +71,7 @@ export interface Project {
   // Verbeterpunten in gewone taal (zonder jargon) voor het klant-rapport
   plainActions?: Record<
     string,
-    { title: string; action: string; impact?: string }
+    { title: string; action: string; impact?: string; uitleg?: string }
   >
   // professional/audit
   auditStatus?: string

@@ -8,7 +8,7 @@ const PROXY = process.env.NEXT_PUBLIC_AI_PROXY_URL
 
 export type PlainActions = Record<
   string,
-  { title: string; action: string; impact?: string }
+  { title: string; action: string; impact?: string; uitleg?: string }
 >
 
 function parseObj(text: string): PlainActions | null {
@@ -42,7 +42,10 @@ export async function generatePlainActions(
   // Herschrijf punten die nog geen gewone-taal-versie hebben, of die nog de
   // oude versie zonder "impact" hebben (upgrade naar jargon-vrije opbrengst).
   const items = buildActionPlan(project).priorities.filter(
-    (p) => !existing[p.id] || existing[p.id].impact === undefined,
+    (p) =>
+      !existing[p.id] ||
+      existing[p.id].impact === undefined ||
+      existing[p.id].uitleg === undefined,
   )
   if (items.length === 0) return existing
 
@@ -55,13 +58,14 @@ export async function generatePlainActions(
 
   const system = `Je herschrijft verbeterpunten voor een website naar heldere, simpele taal voor een ondernemer zonder technische kennis (jip-en-janneke). Vermijd ALLE vakjargon en Engelse termen (bijv. CTA, conversie, bounce, bounce rate, above the fold, hero, viewport, Flesch-Kincaid). Zeg bijvoorbeeld "meer aanvragen/aankopen" in plaats van "conversie", en "bezoekers haken af" in plaats van "bounce". Antwoord uitsluitend met JSON.`
 
-  const user = `Herschrijf elk punt hieronder naar gewone taal. Geef per id:
+  const user = `Herschrijf elk punt hieronder naar gewone taal, alsof je het aan een ondernemer uitlegt die net binnenloopt. Geef per id:
 - "title": kort wat er aan de hand is (max ~8 woorden, geen jargon)
-- "impact": wat het oplevert als je dit oplost, concreet en in gewone taal. Neem percentages uit OPLEVERT over als die er staan, maar zonder vakwoorden.
-- "action": het advies in 1 tot 2 zinnen, begin met een werkwoord. Verwerk de concrete observatie van REVIEWER als die er is, in nette taal.
+- "uitleg": 1 tot 2 zinnen die uitleggen wat een bezoeker nu ervaart of mist op de site, in gewone taal en menselijk verwoord. Beschrijf het probleem concreet vanuit de bezoeker, niet vanuit de techniek. Verwerk de observatie van REVIEWER als die er is.
+- "impact": waarom dit belangrijk is voor de ondernemer, concreet en in gewone taal (bv. minder aanvragen, minder vertrouwen). Neem percentages uit OPLEVERT over als die er staan, maar zonder vakwoorden.
+- "action": het advies in 1 tot 2 zinnen, begin met een werkwoord.
 
-Behoud de betekenis, verzin geen cijfers. Antwoord UITSLUITEND als JSON met exact deze id's:
-{"<id>": {"title": "<titel>", "impact": "<wat het oplevert>", "action": "<advies>"}}
+Behoud de betekenis, verzin geen cijfers. Schrijf warm en helder, geen opsomming van vakwoorden. Antwoord UITSLUITEND als JSON met exact deze id's:
+{"<id>": {"title": "<titel>", "uitleg": "<wat de bezoeker ervaart>", "impact": "<waarom dit belangrijk is>", "action": "<advies>"}}
 
 ${list}`
 
