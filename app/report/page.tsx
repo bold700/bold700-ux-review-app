@@ -19,7 +19,7 @@ import {
 } from "@/lib/dev-status"
 import { buildDevItems } from "@/lib/dev-items"
 import { BrandLogo } from "@/components/brand-logo"
-import { ReportView } from "@/components/report/report-view"
+import { ClientReportView } from "@/components/report/client-report-view"
 import { AgentReportView } from "@/components/report/agent-report-view"
 import { DevChecklist } from "@/components/report/dev-checklist"
 import { Button } from "@/components/ui/button"
@@ -162,11 +162,7 @@ function ReportContent() {
             {project.scanVersion === 2 ? (
               <AgentReportView project={project} />
             ) : (
-              <ReportView
-                project={project}
-                data={buildReport(project)}
-                aiPlan={project.aiPlan}
-              />
+              <ClientReportView project={project} data={buildReport(project)} />
             )}
           </div>
           <p className="mt-6 text-center text-sm text-muted-foreground">

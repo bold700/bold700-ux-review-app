@@ -8,10 +8,7 @@ import {
   CircleDashed,
   Lightbulb,
   Loader2,
-  Mail,
-  MessageCircle,
   MinusCircle,
-  Phone,
   ShieldCheck,
   XCircle,
 } from "lucide-react"
@@ -20,7 +17,7 @@ import type { Project, ScanFinding, TeamLogEntry } from "@/lib/types"
 import { scoreTone } from "@/lib/score"
 import { deJargon } from "@/lib/de-jargon"
 import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { ContactButtons } from "@/components/report/contact-buttons"
 import { cn } from "@/lib/utils"
 
 const toneText: Record<string, string> = {
@@ -60,40 +57,6 @@ const ROLE_NAME: Record<string, string> = {
   Kwaliteitscontrole: "Vera",
   Prioritering: "Stef",
   "Rapport-tekst": "Lot",
-}
-
-// Waar de "laat valideren / plan gesprek"-CTA's heen gaan (aanvraag expert-
-// review als extra dienst). TODO: vervangen door de echte productpagina-URL.
-// Contactgegevens voor "laat een specialist meekijken".
-const CONTACT_TEL = "+31614802802"
-const CONTACT_EMAIL = "support@bold700.com"
-const WA_NUMBER = "31614802802"
-const WA_TEXT = encodeURIComponent(
-  "Hoi! Ik heb een UX-review laten doen en wil deze graag met een specialist doornemen.",
-)
-const WHATSAPP_URL = `https://wa.me/${WA_NUMBER}?text=${WA_TEXT}`
-
-// Compacte rij met de drie contactkanalen (WhatsApp primair).
-function ContactButtons() {
-  return (
-    <div className="flex flex-wrap items-center justify-center gap-2">
-      <Button asChild size="lg">
-        <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer">
-          <MessageCircle className="h-4 w-4" /> WhatsApp
-        </a>
-      </Button>
-      <Button asChild size="lg" variant="outline">
-        <a href={`tel:${CONTACT_TEL}`}>
-          <Phone className="h-4 w-4" /> Bellen
-        </a>
-      </Button>
-      <Button asChild size="lg" variant="outline">
-        <a href={`mailto:${CONTACT_EMAIL}`}>
-          <Mail className="h-4 w-4" /> Mailen
-        </a>
-      </Button>
-    </div>
-  )
 }
 
 // Kort, geruststellend oordeel op basis van de score.
