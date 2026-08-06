@@ -1,7 +1,13 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Check, HelpCircle, MessageSquarePlus, X } from "lucide-react"
+import {
+  Check,
+  ChevronDown,
+  HelpCircle,
+  MessageSquarePlus,
+  X,
+} from "lucide-react"
 
 import type { Project } from "@/lib/types"
 import { buildDevItems, type DevItem } from "@/lib/dev-items"
@@ -37,8 +43,13 @@ export function DevChecklist({
   onDevUpdate: (id: string, entry: DevEntry) => void
 }) {
   const items = buildDevItems(project)
-  const done = items.filter((i) => devStateOf(devStatus[i.id]) === "done").length
+  // Afgevinkte items uit de openstaande lijst halen: open bovenaan (in
+  // prioriteitsvolgorde), afgeronde apart onderin een inklapbaar blok.
+  const openItems = items.filter((i) => devStateOf(devStatus[i.id]) !== "done")
+  const doneItems = items.filter((i) => devStateOf(devStatus[i.id]) === "done")
+  const done = doneItems.length
   const [preview, setPreview] = useState<string | null>(null)
+  const [doneOpen, setDoneOpen] = useState(false)
 
   useEffect(() => {
     if (!preview) return
@@ -85,18 +96,59 @@ export function DevChecklist({
         </div>
       </div>
 
-      <div className="space-y-2.5">
-        {items.map((it, i) => (
-          <DevRow
-            key={it.id}
-            item={it}
-            rank={i + 1}
-            entry={devStatus[it.id]}
-            onDevUpdate={onDevUpdate}
-            onImage={setPreview}
-          />
-        ))}
-      </div>
+      {/* Openstaande items */}
+      {openItems.length > 0 ? (
+        <div className="space-y-2.5">
+          {openItems.map((it, i) => (
+            <DevRow
+              key={it.id}
+              item={it}
+              rank={i + 1}
+              entry={devStatus[it.id]}
+              onDevUpdate={onDevUpdate}
+              onImage={setPreview}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/5 py-10 text-center">
+          <p className="text-lg font-medium text-emerald-600 dark:text-emerald-400">
+            All items shipped 🎉
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Nothing left on the list.
+          </p>
+        </div>
+      )}
+
+      {/* Afgeronde items — ingeklapt onderaan */}
+      {doneItems.length > 0 && (
+        <div className="space-y-2.5">
+          <button
+            onClick={() => setDoneOpen((o) => !o)}
+            className="flex w-full items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 transition-transform",
+                doneOpen && "rotate-180",
+              )}
+            />
+            Completed ({doneItems.length})
+          </button>
+          {doneOpen &&
+            doneItems.map((it, i) => (
+              <DevRow
+                key={it.id}
+                item={it}
+                rank={i + 1}
+                entry={devStatus[it.id]}
+                onDevUpdate={onDevUpdate}
+                onImage={setPreview}
+              />
+            ))}
+        </div>
+      )}
 
       {preview && (
         <div
