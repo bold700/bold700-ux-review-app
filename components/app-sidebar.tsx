@@ -5,6 +5,7 @@ import {
   BarChart3Icon,
   LayoutDashboardIcon,
   MessageSquareIcon,
+  SparklesIcon,
   UsersIcon,
 } from "lucide-react"
 
@@ -24,6 +25,7 @@ import {
 const navMain = [
   { title: "Dashboard", url: "/", icon: <LayoutDashboardIcon /> },
   { title: "Leads", url: "/leads", icon: <UsersIcon /> },
+  { title: "Website-leads", url: "/website-leads", icon: <SparklesIcon /> },
   { title: "Site-feedback", url: "/site-feedback", icon: <MessageSquareIcon /> },
   { title: "Insights", url: "/insights", icon: <BarChart3Icon /> },
 ]
