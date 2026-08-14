@@ -39,26 +39,29 @@ export function deviceOf(f: SiteFeedback): {
   return { label: "Desktop", emoji: "🖥", width: w }
 }
 
-// URL naar de site met de pin gemarkeerd ("Bekijk op de pagina").
-export function feedbackPageUrl(f: SiteFeedback): string {
-  const hash = `#fb=${encodeURIComponent(
-    `${f.xPct.toFixed(2)},${Math.round(f.yPx)},${f.text}`,
-  )}`
-  return `${SITE_ORIGIN}${f.path}${hash}`
-}
-
-// URL naar de site met ALLE pins van die pagina tegelijk gemarkeerd.
-export function feedbackAllPageUrl(list: SiteFeedback[]): string {
+// URL naar de site die ALLE pins van die pagina tegelijk toont. Met een
+// optionele focus-index licht die ene pin extra op en scrollt de site ernaartoe.
+export function feedbackPageUrl(
+  list: SiteFeedback[],
+  focus?: number,
+): string {
   const path = list[0]?.path || "/"
   const compact = list.map((f) => ({
     x: Number(f.xPct.toFixed(2)),
     y: Math.round(f.yPx),
     t: f.text,
   }))
-  const bytes = new TextEncoder().encode(JSON.stringify(compact))
+  const payload =
+    focus == null ? { p: compact } : { p: compact, f: focus }
+  const bytes = new TextEncoder().encode(JSON.stringify(payload))
   let bin = ""
   bytes.forEach((b) => (bin += String.fromCharCode(b)))
   return `${SITE_ORIGIN}${path}#fball=${btoa(bin)}`
+}
+
+// Alias: alle pins zonder focus.
+export function feedbackAllPageUrl(list: SiteFeedback[]): string {
+  return feedbackPageUrl(list)
 }
 
 const COL = "siteFeedback"

@@ -114,7 +114,7 @@ export function SiteFeedbackDashboard() {
                   )}
                 </div>
                 <ul className="space-y-2.5">
-                  {list.map((f) => (
+                  {list.map((f, i) => (
                     <li
                       key={f.id}
                       className={cn(
@@ -168,7 +168,7 @@ export function SiteFeedbackDashboard() {
                             })}
                           </span>
                           <a
-                            href={feedbackPageUrl(f)}
+                            href={feedbackPageUrl(list, i)}
                             target="_blank"
                             rel="noreferrer"
                             className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
