@@ -47,6 +47,20 @@ export function feedbackPageUrl(f: SiteFeedback): string {
   return `${SITE_ORIGIN}${f.path}${hash}`
 }
 
+// URL naar de site met ALLE pins van die pagina tegelijk gemarkeerd.
+export function feedbackAllPageUrl(list: SiteFeedback[]): string {
+  const path = list[0]?.path || "/"
+  const compact = list.map((f) => ({
+    x: Number(f.xPct.toFixed(2)),
+    y: Math.round(f.yPx),
+    t: f.text,
+  }))
+  const bytes = new TextEncoder().encode(JSON.stringify(compact))
+  let bin = ""
+  bytes.forEach((b) => (bin += String.fromCharCode(b)))
+  return `${SITE_ORIGIN}${path}#fball=${btoa(bin)}`
+}
+
 const COL = "siteFeedback"
 
 export function subscribeSiteFeedback(cb: (items: SiteFeedback[]) => void) {

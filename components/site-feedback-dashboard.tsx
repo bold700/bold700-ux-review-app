@@ -7,6 +7,7 @@ import {
   SITE_ORIGIN,
   deleteSiteFeedback,
   deviceOf,
+  feedbackAllPageUrl,
   feedbackPageUrl,
   setSiteFeedbackStatus,
   subscribeSiteFeedback,
@@ -81,7 +82,7 @@ export function SiteFeedbackDashboard() {
           <div className="space-y-8">
             {groups.map(([path, list]) => (
               <div key={path}>
-                <div className="mb-3 flex items-center gap-2 border-b pb-2">
+                <div className="mb-3 flex flex-wrap items-center gap-2 border-b pb-2">
                   <h2 className="font-mono text-sm">{path}</h2>
                   <a
                     href={`${SITE_ORIGIN}${path}`}
@@ -95,6 +96,22 @@ export function SiteFeedbackDashboard() {
                   <span className="text-xs text-muted-foreground">
                     ({list.length})
                   </span>
+                  {list.length > 1 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      asChild
+                      className="ml-auto h-7"
+                    >
+                      <a
+                        href={feedbackAllPageUrl(list)}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        <Eye className="h-3.5 w-3.5" /> Bekijk alle op de pagina
+                      </a>
+                    </Button>
+                  )}
                 </div>
                 <ul className="space-y-2.5">
                   {list.map((f) => (
