@@ -1,16 +1,19 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Check, ExternalLink, Loader2, Trash2 } from "lucide-react"
+import { Check, ExternalLink, Eye, Loader2, Trash2 } from "lucide-react"
 
 import {
   SITE_ORIGIN,
   deleteSiteFeedback,
+  deviceOf,
+  feedbackPageUrl,
   setSiteFeedbackStatus,
   subscribeSiteFeedback,
   type SiteFeedback,
 } from "@/lib/site-feedback"
 import { AppShell } from "@/components/app-shell"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -128,17 +131,34 @@ export function SiteFeedbackDashboard() {
                         >
                           {f.text}
                         </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {f.name ? `${f.name} · ` : ""}
-                          {new Date(f.createdAtMs).toLocaleString("nl-NL", {
-                            day: "numeric",
-                            month: "short",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                          {" · "}
-                          {Math.round(f.xPct)}% breed, {Math.round(f.yPx)}px hoog
-                        </p>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                          {(() => {
+                            const d = deviceOf(f)
+                            return (
+                              <Badge variant="outline" className="gap-1 font-normal">
+                                {d.emoji} {d.label}
+                                {d.width ? ` · ${d.width}px` : ""}
+                              </Badge>
+                            )
+                          })()}
+                          <span>
+                            {f.name ? `${f.name} · ` : ""}
+                            {new Date(f.createdAtMs).toLocaleString("nl-NL", {
+                              day: "numeric",
+                              month: "short",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                          <a
+                            href={feedbackPageUrl(f)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                          >
+                            <Eye className="h-3.5 w-3.5" /> Bekijk op de pagina
+                          </a>
+                        </div>
                       </div>
                       <Button
                         variant="ghost"
