@@ -26,6 +26,20 @@ export default {
 
     const url = new URL(request.url);
 
+    // ── Herkomstcontrole ──
+    // De worker-URL staat in de JavaScript-bundel, dus hij is publiek bekend.
+    // Zonder deze controle kan iedereen de AI-proxy leegtrekken op jouw kosten
+    // of /fetch als open proxy gebruiken. Endpoints die vanaf een KLANTSITE
+    // moeten werken (/pin, /pins) vallen hier bewust buiten: die hebben hun
+    // eigen sleutel of een willekeurig project-id.
+    const GUARDED = ['/', '/fetch', '/lead', '/dev-event', '/send-result', '/scan'];
+    if (GUARDED.includes(url.pathname) && !originAllowed(request, env)) {
+      return new Response(
+        JSON.stringify({ error: 'Niet toegestaan vanaf deze herkomst' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
     // ── POST /scan → headless multi-agent scan (overleeft dichte browser) ──
     if (request.method === 'POST' && url.pathname === '/scan') {
       return handleScan(request, env, ctx, corsHeaders);
@@ -186,6 +200,37 @@ export default {
 const SCAN_UA =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
+// Herkomsten die deze worker mogen gebruiken. Extra toevoegen kan zonder
+// code-wijziging via de variabele EXTRA_ORIGINS (komma-gescheiden).
+const ORIGIN_ALLOW = [
+  /^https:\/\/uxreviews\.bold700\.com$/,
+  /^https:\/\/(www\.)?bold700\.com$/,
+  /^https:\/\/bold700\.github\.io$/,
+  /^https:\/\/[a-z0-9-]+\.vercel\.app$/,
+  /^http:\/\/localhost:\d+$/,
+  /^http:\/\/127\.0\.0\.1:\d+$/,
+];
+
+function originAllowed(request, env) {
+  const extra = String(env.EXTRA_ORIGINS || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  // Een browser stuurt altijd Origin bij een cross-origin verzoek. Ontbreekt
+  // hij, dan komt het verzoek niet uit een pagina en laten we het niet door.
+  let origin = request.headers.get('Origin') || '';
+  if (!origin) {
+    try {
+      origin = new URL(request.headers.get('Referer') || '').origin;
+    } catch {
+      return false;
+    }
+  }
+  if (extra.includes(origin)) return true;
+  return ORIGIN_ALLOW.some((re) => re.test(origin));
+}
+
 function jsonResp(obj, status, cors) {
   return new Response(JSON.stringify(obj), {
     status,
@@ -214,13 +259,13 @@ async function handleScan(request, env, ctx, cors) {
 // Geheime sleutel voor /debug. Zonder de juiste ?key= doet het endpoint alsof
 // het niet bestaat (404), zodat niemand er ongevraagd kosten/schrijfacties mee
 // kan uitlokken. Repo is privé; env.DEBUG_KEY kan dit overschrijven.
-const DEBUG_TOKEN = 'b7-diag-k9x2m4p7q';
-
 // Diagnose: test elke laag los en geef het resultaat als JSON terug.
+// Staat standaard UIT. Zet DEBUG_KEY in de Worker-variabelen om hem aan te
+// zetten; er is bewust geen sleutel in de code, want die is mee te lezen.
 async function handleDebug(request, env, ctx, cors) {
   const u = new URL(request.url);
-  const expected = env.DEBUG_KEY || DEBUG_TOKEN;
-  if (u.searchParams.get('key') !== expected) {
+  const expected = env.DEBUG_KEY;
+  if (!expected || u.searchParams.get('key') !== expected) {
     return new Response('Not found', { status: 404, headers: cors });
   }
   const testUrl = normalizeScanUrl(u.searchParams.get('url') || 'https://example.com');

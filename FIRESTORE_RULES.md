@@ -100,6 +100,47 @@ service cloud.firestore {
 
 ---
 
+## NOG TE PUBLICEREN: twee gaten (gemeten 2026-08-15)
+
+De landingspagina logt bezoekers **anoniem** in. Daarmee voldoen zij aan
+`request.auth != null`, en dat is in twee collecties de enige eis. Getest vanaf
+buiten met een verse anonieme login:
+
+| Collectie | Anonieme bezoeker kan | Gemeten |
+|---|---|---|
+| `site_benchmarks` | lezen **en schrijven** | HTTP 200 op beide |
+| `config` | lezen | HTTP 200 |
+
+Schrijfrechten voor willekeurige bezoekers op je benchmarkdata betekent dat
+iemand die kan wissen of vervalsen. Vervang die twee blokken door:
+
+```
+    // ── Site Benchmarks (v1-restant, alleen beheer) ──
+    match /site_benchmarks/{siteId} {
+      allow read, write: if request.auth != null
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // ── Config: lezen alleen met een echt account, schrijven alleen beheer ──
+    match /config/{configId} {
+      allow read: if request.auth != null
+        && request.auth.token.firebase.sign_in_provider != 'anonymous';
+      allow write: if request.auth != null
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+```
+
+Dit breekt niets: `site_benchmarks` wordt nergens meer in de app gebruikt en
+`config` alleen op de insights-pagina, die al achter beheer zit. De
+landingspagina leest `benchmarks/global`, en dat blok blijft publiek.
+
+Controleer na het publiceren dat de landingspagina nog laadt en dat de
+insights-pagina zijn samenvatting nog toont.
+
+---
+
 ## Let op: dit bestand loopt achter
 
 De collecties `siteFeedback` en `websiteLeads` staan hier niet in, terwijl de
