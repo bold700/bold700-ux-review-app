@@ -40,6 +40,10 @@ export interface Project {
   package?: string
   sourceType?: "url" | "figma"
   reviewType?: "free-form"
+  // automatisch aangemaakt door de feedback-pins (Worker POST /pin): het
+  // project hoort bij één domein, id is "site-<domein>"
+  site?: string
+  source?: "pins"
   selectedTemplate?: string | null
   // branche/sector uit de vaste taxonomie (lib/branche.ts) — voor benchmarks
   branche?: string

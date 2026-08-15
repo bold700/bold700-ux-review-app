@@ -97,3 +97,56 @@ service cloud.firestore {
   }
 }
 ```
+
+---
+
+## Let op: dit bestand loopt achter
+
+De collecties `siteFeedback` en `websiteLeads` staan hier niet in, terwijl de
+bijbehorende dashboards wél werken. De console heeft dus nieuwere regels dan dit
+document. **Kopieer altijd eerst wat er in de console staat** voordat je hier iets
+uit plakt, anders draai je die regels terug.
+
+## Feedback-pins (`siteFeedback`)
+
+Schrijven gaat via de Cloudflare Worker met een service-account, dus dat valt
+buiten de regels. Regels gelden alleen voor lezen en bijwerken vanuit de app.
+
+Vandaag: alleen admins lezen alle pins.
+
+```
+match /siteFeedback/{id} {
+  allow read, write: if request.auth != null
+    && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+    && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+}
+```
+
+### Fase "eigen pins zien"
+
+Elke pin krijgt sinds augustus 2026 een `authorId` (stabiel per browser of
+extensie) en een `userId` (gevuld zodra de plaatser een account heeft). Zodra
+accounts hun eigen pins mogen zien, komt hier dit blok bij:
+
+```
+  allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+```
+
+Koppelen van bestaande pins aan een nieuw account gaat via `authorId`: bij het
+aanmelden schrijf je zijn `authorId` op de gebruiker en zet je `userId` op de
+pins die daarbij horen. Dat is een eenmalige actie, het beste vanuit de Worker.
+
+### Fase "alle pins van jouw website" (betaald)
+
+Elke pin heeft ook een `site` (het domein zonder `www.`). Die query wordt dan
+`where site == <domein>`. Dat mag pas nadat is bewezen dat het domein van die
+gebruiker is, bijvoorbeeld met een DNS-TXT-record of een bestand op de site. Leg
+dat vast in een aparte collectie (`siteOwners/{domein}`) en verwijs daarnaar:
+
+```
+  allow read: if request.auth != null
+    && exists(/databases/$(database)/documents/siteOwners/$(resource.data.site))
+    && get(/databases/$(database)/documents/siteOwners/$(resource.data.site)).data.userId == request.auth.uid;
+```
+
+Zonder die verificatie kan iedereen een willekeurig domein claimen en meelezen.

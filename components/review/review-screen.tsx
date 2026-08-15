@@ -36,6 +36,7 @@ import { FreeFormReview } from "@/components/review/free-form-review"
 import { ScoreButtons, SeverityRow } from "@/components/review/score-controls"
 import { LivePreview } from "@/components/review/live-preview"
 import { ContextEditor } from "@/components/review/context-editor"
+import { SitePinsPanel } from "@/components/review/site-pins-panel"
 import { cn } from "@/lib/utils"
 
 export function ReviewScreen({ id }: { id: string }) {
@@ -273,6 +274,7 @@ export function ReviewScreen({ id }: { id: string }) {
             )}
           </span>
           <ContextEditor project={project} setFields={setFields} />
+          <SitePinsPanel projectId={id} mutate={mutate} />
           {previewUrl && (
             <Button
               variant="outline"

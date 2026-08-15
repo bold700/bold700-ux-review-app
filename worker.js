@@ -52,6 +52,16 @@ export default {
       return handleSendResult(request, env, corsHeaders);
     }
 
+    // ── POST /pin → feedback-pin vanaf een externe site (public/pin.js) ──
+    if (request.method === 'POST' && url.pathname === '/pin') {
+      return handlePin(request, env, corsHeaders);
+    }
+
+    // ── GET /pins?p=<projectId>&path=/ → pins van één pagina (bekijkmodus) ──
+    if (request.method === 'GET' && url.pathname === '/pins') {
+      return handlePinsList(request, env, url, corsHeaders);
+    }
+
     // ── GET /fetch?url=... → Page fetcher voor Auto-Scan ──
     if (request.method === 'GET' && url.pathname === '/fetch') {
       const targetUrl = url.searchParams.get('url');
@@ -1430,6 +1440,233 @@ async function handleSendResult(request, env, cors) {
       status: 500,
       headers: { 'Content-Type': 'application/json', ...cors },
     });
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// Feedback-pins vanaf een externe site (public/pin.js)
+// ─────────────────────────────────────────────────────────
+// De pin gaat via de Worker naar Firestore, niet rechtstreeks vanuit de
+// browser: zo hoeft er geen Firebase-SDK of API-sleutel op de klantsite te
+// staan en blijven de Firestore-regels dicht.
+async function handlePin(request, env, cors) {
+  try {
+    const b = await request.json();
+    const text = String(b.text || '').trim();
+    if (!text) return jsonResp({ error: 'text is verplicht' }, 400, cors);
+
+    const token = await getAccessToken(env);
+
+    // Zonder projectId hoort de pin bij de site zelf: het project wordt op het
+    // domein aangemaakt (of hergebruikt als het er al is).
+    let projectId = String(b.projectId || '').trim();
+    if (!projectId || isSiteProject(projectId)) {
+      // Beide gevallen raken het site-project, en dat id is af te leiden uit
+      // het domein. Dus altijd de sleutel, ook als het id al is meegestuurd.
+      const bad = keyProblem(env, b.key);
+      if (bad) return jsonResp({ error: bad }, 403, cors);
+    }
+    if (!projectId) {
+      const key = siteKeyOf(b.url || b.origin);
+      if (!key) return jsonResp({ error: 'projectId of origin ontbreekt' }, 400, cors);
+      projectId = await ensureSiteProject(env, token, key, b);
+    }
+
+    const now = Date.now();
+    const doc = {
+      projectId,
+      // Het domein apart, zodat je later alle pins van één website kunt
+      // opvragen zonder door projecten te hoeven lopen.
+      site: siteKeyOf(b.url || b.origin),
+      // Wie hem plaatste: authorId is stabiel per browser/extensie, userId
+      // vullen we pas als de plaatser een account heeft.
+      authorId: String(b.authorId || '').slice(0, 60),
+      userId: String(b.userId || '').slice(0, 60) || null,
+      path: String(b.path || '/').slice(0, 300),
+      url: String(b.url || '').slice(0, 500),
+      origin: String(b.origin || '').slice(0, 200),
+      title: String(b.title || '').slice(0, 200),
+      xPct: Number(b.xPct) || 0,
+      yPx: Math.round(Number(b.yPx) || 0),
+      docWidth: Math.round(Number(b.docWidth) || 0),
+      docHeight: Math.round(Number(b.docHeight) || 0),
+      viewportW: Math.round(Number(b.viewportW) || 0),
+      viewportH: Math.round(Number(b.viewportH) || 0),
+      selector: String(b.selector || '').slice(0, 300),
+      elementText: String(b.elementText || '').slice(0, 200),
+      text: text.slice(0, 2000),
+      name: String(b.name || '').slice(0, 100),
+      userAgent: String(b.userAgent || '').slice(0, 200),
+      status: 'open',
+      createdAtMs: now,
+      createdAt: new Date(now).toISOString(),
+    };
+
+    const res = await fetch(
+      `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/siteFeedback`,
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fields: fsFields(doc) }),
+      },
+    );
+    if (!res.ok) {
+      const detail = await res.text().catch(() => '');
+      console.error('handlePin firestore', res.status, detail);
+      return jsonResp({ error: 'opslaan mislukt' }, 502, cors);
+    }
+    const saved = await res.json();
+    return jsonResp(
+      { ok: true, id: String(saved.name || '').split('/').pop(), projectId },
+      200,
+      cors,
+    );
+  } catch (e) {
+    return jsonResp({ error: String(e) }, 500, cors);
+  }
+}
+
+// Het site-project heeft een id dat uit het domein volgt, en dus te raden is.
+// Daarom mag alleen wie de sleutel heeft (de Chrome-extensie) op die manier
+// pinnen of pins opvragen. Een expliciet projectId is willekeurig en geldt zelf
+// als geheim: dat blijft open, want daar draait de script-tag op een klantsite op.
+function keyProblem(env, given) {
+  if (!env.PIN_KEY) {
+    return 'PIN_KEY staat niet in de Worker-variabelen, dus pinnen per domein is uit';
+  }
+  if (String(given || '') !== String(env.PIN_KEY)) return 'ongeldige sleutel';
+  return null;
+}
+
+// Het domein zonder www, als sleutel voor het site-project.
+function siteHost(input) {
+  try {
+    return new URL(normalizeScanUrl(input)).hostname.replace(/^www\./i, '').toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+// Hosts waar één domein meerdere losse sites draagt. Daar is het domein alleen
+// niet genoeg: bold700.github.io/daily en /uurwerk zijn twee verschillende
+// sites. Voor die hosts nemen we het eerste pad-stuk mee.
+const SHARED_HOSTS = [/\.github\.io$/, /\.gitlab\.io$/, /^sites\.google\.com$/];
+
+// De sleutel van een site: meestal het domein, bij een gedeelde host
+// "domein/eerste-map". Accepteert een volledige URL of een kaal domein.
+function siteKeyOf(input) {
+  const host = siteHost(input);
+  if (!host) return '';
+  if (!SHARED_HOSTS.some((r) => r.test(host))) return host;
+  let seg = '';
+  try {
+    seg = (new URL(normalizeScanUrl(input)).pathname.split('/')[1] || '').toLowerCase();
+  } catch {
+    seg = '';
+  }
+  // Een bestandsnaam is geen site (bv. /index.html op de root).
+  if (!seg || seg.includes('.')) return host;
+  return `${host}/${seg}`;
+}
+
+// Vast project-id per domein. Afleidbaar, dus twee pins die tegelijk
+// binnenkomen kunnen nooit twee projecten aanmaken.
+function siteProjectId(key) {
+  return 'site-' + key.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+// Een id dat uit een domein volgt, en dus geen geheim is.
+function isSiteProject(id) {
+  return /^site-/.test(String(id || ''));
+}
+
+// Maakt het site-project aan als het nog niet bestaat. Bestaat het al, dan
+// geeft Firestore 409 en gebruiken we gewoon het bestaande.
+async function ensureSiteProject(env, token, key, b) {
+  const id = siteProjectId(key);
+  const now = new Date().toISOString();
+  const origin = String(b.origin || '').replace(/\/+$/, '');
+  // Bij een gedeelde host hoort de map bij de site, dus die zit in de URL.
+  const sub = key.includes('/') ? '/' + key.split('/').slice(1).join('/') : '';
+  const fields = fsFields({
+    name: key,
+    url: (origin || `https://${key.split('/')[0]}`) + sub,
+    site: key,
+    reviewType: 'free-form',
+    source: 'pins',
+    createdAt: now,
+    updatedAt: now,
+    userId: env.OWNER_UID || null,
+  });
+  const res = await fetch(
+    `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/projects?documentId=${encodeURIComponent(id)}`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields }),
+    },
+  );
+  if (!res.ok && res.status !== 409) {
+    console.error('ensureSiteProject', res.status, await res.text().catch(() => ''));
+  }
+  return id;
+}
+
+// Pins van één project (optioneel één pagina) voor de bekijkmodus van pin.js.
+// Alleen tekst + positie, geen namen of e-mail: dit is een publiek endpoint.
+async function handlePinsList(request, env, url, cors) {
+  try {
+    // Of een expliciet project (?p=), of het site-project van een domein
+    // (?site=), dat we uit het domein afleiden zonder iets aan te maken.
+    let projectId = url.searchParams.get('p');
+    if (!projectId || isSiteProject(projectId)) {
+      const bad = keyProblem(env, url.searchParams.get('k'));
+      if (bad) return jsonResp({ error: bad }, 403, cors);
+    }
+    if (!projectId) {
+      const key = siteKeyOf(url.searchParams.get('site'));
+      if (key) projectId = siteProjectId(key);
+    }
+    if (!projectId) return jsonResp({ error: 'p of site ontbreekt' }, 400, cors);
+    const path = url.searchParams.get('path');
+
+    const token = await getAccessToken(env);
+    const res = await fetch(
+      `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:runQuery`,
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          structuredQuery: {
+            from: [{ collectionId: 'siteFeedback' }],
+            where: {
+              fieldFilter: {
+                field: { fieldPath: 'projectId' },
+                op: 'EQUAL',
+                value: { stringValue: projectId },
+              },
+            },
+            limit: 200,
+          },
+        }),
+      },
+    );
+    const rows = await res.json();
+    const pins = (rows || [])
+      .filter((r) => r.document)
+      .map((r) => ({ id: r.document.name.split('/').pop(), ...decode(r.document.fields) }))
+      .filter((p) => (path ? p.path === path : true))
+      .sort((a, b) => (a.createdAtMs || 0) - (b.createdAtMs || 0))
+      .map((p) => ({
+        id: p.id,
+        xPct: p.xPct || 0,
+        yPx: p.yPx || 0,
+        text: p.text || '',
+        status: p.status || 'open',
+      }));
+    return jsonResp({ pins }, 200, cors);
+  } catch (e) {
+    return jsonResp({ error: String(e) }, 500, cors);
   }
 }
 

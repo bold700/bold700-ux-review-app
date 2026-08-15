@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "BOLD700 UX Review — pins",
+  "version": "1.0.0",
+  "description": "Klik met de rechtermuisknop op elke website en laat feedback-pins achter bij een UX-review.",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Feedback-pins aanzetten"
+  }
+}
