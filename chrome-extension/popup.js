@@ -81,6 +81,26 @@ async function inject(view) {
   say("Bezig…")
 
   try {
+    // Sleutel eerst toetsen bij de Worker. Anders merk je een typefout pas
+    // nadat je je opmerking hebt getypt, en ben je hem kwijt.
+    if (!project) {
+      // Faalt de controle zelf (geen netwerk), dan gaan we gewoon door: liever
+      // een pin proberen dan blokkeren op een toets die niet lukte.
+      let bad = null
+      try {
+        const r = await fetch(
+          `${API}/pins?site=example.com&k=${encodeURIComponent(key)}`,
+        )
+        if (r.status === 403) {
+          const j = await r.json().catch(() => ({}))
+          bad = j.error || "sleutel klopt niet"
+        }
+      } catch {
+        bad = null
+      }
+      if (bad) throw new Error(bad)
+    }
+
     const author = await authorId()
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
     if (!tab || !tab.id) throw new Error("geen tabblad")

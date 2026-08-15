@@ -521,7 +521,18 @@
       body: JSON.stringify(body),
     })
       .then(function (r) {
-        if (!r.ok) throw new Error("http " + r.status)
+        // Bij een fout de reden van de server meenemen: "ongeldige sleutel"
+        // helpt, "kon niet opslaan" niet.
+        if (!r.ok) {
+          return r
+            .json()
+            .catch(function () {
+              return {}
+            })
+            .then(function (j) {
+              throw new Error(j.error || "fout " + r.status)
+            })
+        }
         return r.json()
       })
       .then(function (j) {
@@ -534,10 +545,10 @@
         render()
         toast("Bedankt! Je feedback is doorgestuurd.")
       })
-      .catch(function () {
+      .catch(function (e) {
         busy = false
         if (sync) sync()
-        toast("Kon feedback niet opslaan, probeer opnieuw.")
+        toast("Niet opgeslagen: " + (e && e.message ? e.message : "onbekende fout"))
       })
   }
 
