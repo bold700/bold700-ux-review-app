@@ -1,13 +1,34 @@
-# Firestore-regels (volledig)
+# Firestore-regels
 
-De rules beheer je in de Firebase console:
+Beheren in de Firebase console:
 **https://console.firebase.google.com/project/bold700-ux-reviews/firestore/rules**
-→ tab **Rules** → plak onderstaande → **Publiceren**.
+→ tab **Rules** → alles vervangen door onderstaande → **Publiceren**.
 
-De enige toevoeging t.o.v. de v1-rules is één `allow update`-blok in de
-**projects**-sectie (developer-handoff): op een gedeeld (public), niet-verlopen
-rapport mag iedereen — ook zonder login — **uitsluitend** het veld `devStatus`
-wijzigen (afvinken + notities). Al het andere blijft vergrendeld.
+Dit blok dekt **alle negen collecties** die in gebruik zijn. Laat er één weg en
+het bijbehorende scherm valt om met "Missing or insufficient permissions".
+
+| Collectie | Waarvoor | Wie mag wat |
+|---|---|---|
+| `users` | rollen | jezelf lezen/schrijven, admin alles |
+| `projects` | reviews | eigenaar/toegewezene, publiek gedeeld rapport leesbaar |
+| `leads` | landingspagina-aanmeldingen | anoniem aanmelden, admin alles |
+| `bold700Leads` | advies-tool op bold700.com | **iedereen aanmelden**, admin alles |
+| `siteFeedback` | feedback-pins | **iedereen een pin plaatsen**, admin alles |
+| `auditor_applications` | aanmeldingen auditors | jezelf, admin alles |
+| `site_benchmarks` | v1-restant | alleen admin |
+| `benchmarks` | cijfers in rapport/landing | publiek leesbaar, admin schrijft |
+| `config` | instellingen + insights | met echt account leesbaar, admin schrijft |
+
+Twee dingen om te weten voordat je iets aanscherpt:
+
+**bold700.com heeft geen login.** De qualifier-tool en de feedback-pins schrijven
+daar zonder enige authenticatie. Vandaar `allow create: if true` op
+`bold700Leads` en `siteFeedback`, met een groottecontrole zodat het geen
+open opslag wordt. Lezen mag daar juist niemand, alleen beheer.
+
+**De landingspagina van de review-tool logt anoniem in.** Iedereen voldoet dus aan
+`request.auth != null`. Gebruik die voorwaarde nooit als enige bescherming; voor
+echte accounts staat er een check op `sign_in_provider`.
 
 ```
 rules_version = '2';
@@ -15,202 +36,134 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ── Users collection ──
-    match /users/{userId} {
-      allow create: if request.auth != null && request.auth.uid == userId;
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow update: if request.auth != null && request.auth.uid == userId;
-      allow read, write: if request.auth != null
+    function isAdmin() {
+      return request.auth != null
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // ── Projects collection ──
+    // ── Gebruikers ──
+    match /users/{userId} {
+      allow create, read, update: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if isAdmin();
+    }
+
+    // ── Reviews ──
     match /projects/{projectId} {
       allow create: if request.auth != null;
-      // Publiek gedeelde rapporten: alleen als gedeeld én link nog niet verlopen (7 dagen)
+
+      // Publiek gedeeld rapport: alleen als gedeeld én de link nog niet verlopen is.
       allow read: if resource.data.public == true
         && (!('shareExpiresAtMs' in resource.data) || request.time.toMillis() < resource.data.shareExpiresAtMs);
 
-      // Developer-handoff: afvinken/notities zonder login op een gedeeld, niet-verlopen
-      // rapport. Alleen het devStatus-veld mag wijzigen — al het andere blijft vergrendeld.
+      // Developer-handoff: afvinken zonder login op een gedeeld rapport.
+      // Uitsluitend het veld devStatus mag wijzigen.
       allow update: if resource.data.public == true
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['devStatus'])
         && (!('shareExpiresAtMs' in resource.data) || request.time.toMillis() < resource.data.shareExpiresAtMs);
 
-      allow read: if request.auth != null && (
-        resource.data.userId == request.auth.uid ||
-        resource.data.assignedTo == request.auth.uid
-      );
-      allow update: if request.auth != null && (
+      allow read, update: if request.auth != null && (
         resource.data.userId == request.auth.uid ||
         resource.data.assignedTo == request.auth.uid
       );
       allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
-      allow read, write: if request.auth != null
-        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow read, write: if isAdmin();
     }
 
-    // ── Leads collection (landingspagina-aanmeldingen) ──
+    // ── Aanmeldingen landingspagina (anoniem ingelogd) ──
     match /leads/{id} {
-      // Aanmelden vanaf de publieke landingspagina (anoniem ingelogd).
       allow create: if request.auth != null
         && request.resource.data.userId == request.auth.uid;
-      // De aanvrager mag zijn eigen lead bijwerken (scanstatus/score tijdens scan).
       allow update: if request.auth != null
         && resource.data.userId == request.auth.uid;
-      // Beheerder (Kenny): volledige toegang.
-      allow read, write: if request.auth != null
-        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow read, write: if isAdmin();
     }
 
-    // ── Auditor Applications collection ──
+    // ── Website-leads uit de advies-tool op bold700.com (geen login daar) ──
+    match /bold700Leads/{id} {
+      allow create: if request.resource.data.email is string
+        && request.resource.data.email.size() < 200
+        && request.resource.data.name is string
+        && request.resource.data.name.size() < 200;
+      allow read, write: if isAdmin();
+    }
+
+    // ── Feedback-pins: van bold700.com (geen login) en van klantsites (via
+    //    de Worker, die met een service-account schrijft en dus langs deze
+    //    regels gaat). Lezen doet alleen beheer. ──
+    match /siteFeedback/{id} {
+      allow create: if request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() < 2000;
+      allow read, write: if isAdmin();
+    }
+
+    // ── Aanmeldingen auditors ──
     match /auditor_applications/{userId} {
       allow create, read, update: if request.auth != null && request.auth.uid == userId;
-      allow read, write: if request.auth != null
-        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow read, write: if isAdmin();
     }
 
-    // ── Site Benchmarks collection ──
+    // ── Site-benchmarks (v1-restant, app gebruikt dit niet meer) ──
     match /site_benchmarks/{siteId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isAdmin();
     }
 
-    // ── Benchmarks (publiek leesbaar, voor de per-site vergelijking in rapporten) ──
+    // ── Benchmarks: publiek leesbaar voor de vergelijking in rapport en landing ──
     match /benchmarks/{id} {
       allow read: if true;
-      allow write: if request.auth != null
-        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow write: if isAdmin();
     }
 
-    // ── Config collection ──
+    // ── Config: lezen alleen met een echt account, niet anoniem ──
     match /config/{configId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null
-        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow read: if request.auth != null
+        && request.auth.token.firebase.sign_in_provider != 'anonymous';
+      allow write: if isAdmin();
     }
   }
 }
 ```
 
----
+## Wat er veranderd is (2026-08-16)
 
-## NOG TE PUBLICEREN: twee gaten (gemeten 2026-08-15)
+- **`siteFeedback` en `bold700Leads` toegevoegd.** Die ontbraken, waardoor
+  Site-feedback en Website-leads na publiceren omvielen.
+- **`site_benchmarks` was `if request.auth != null`**, en omdat de landingspagina
+  anoniem inlogt kon elke bezoeker die data lezen **en overschrijven**. Nu alleen
+  beheer.
+- **`config` was leesbaar voor anonieme bezoekers.** Nu alleen met een echt account.
+- `isAdmin()` als functie, in plaats van dezelfde drie regels acht keer.
 
-De landingspagina logt bezoekers **anoniem** in. Daarmee voldoen zij aan
-`request.auth != null`, en dat is in twee collecties de enige eis. Getest vanaf
-buiten met een verse anonieme login:
+## Na het publiceren controleren
 
-| Collectie | Anonieme bezoeker kan | Gemeten |
-|---|---|---|
-| `site_benchmarks` | lezen **en schrijven** | HTTP 200 op beide |
-| `config` | lezen | HTTP 200 |
+1. `/site-feedback` en `/website-leads` laden weer
+2. De landingspagina laadt (die leest `benchmarks/global`)
+3. Een pin plaatsen op bold700.com werkt nog
+4. `/insights` toont zijn samenvatting
 
-Schrijfrechten voor willekeurige bezoekers op je benchmarkdata betekent dat
-iemand die kan wissen of vervalsen. Vervang die twee blokken door:
+## Later, bij "eigen pins zien"
 
-```
-    // ── Site Benchmarks (v1-restant, alleen beheer) ──
-    match /site_benchmarks/{siteId} {
-      allow read, write: if request.auth != null
-        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-
-    // ── Config: lezen alleen met een echt account, schrijven alleen beheer ──
-    match /config/{configId} {
-      allow read: if request.auth != null
-        && request.auth.token.firebase.sign_in_provider != 'anonymous';
-      allow write: if request.auth != null
-        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-```
-
-Dit breekt niets: `site_benchmarks` wordt nergens meer in de app gebruikt en
-`config` alleen op de insights-pagina, die al achter beheer zit. De
-landingspagina leest `benchmarks/global`, en dat blok blijft publiek.
-
-Controleer na het publiceren dat de landingspagina nog laadt en dat de
-insights-pagina zijn samenvatting nog toont.
-
----
-
-## Let op: dit bestand loopt achter
-
-De collecties `siteFeedback` en `websiteLeads` staan hier niet in, terwijl de
-bijbehorende dashboards wél werken. De console heeft dus nieuwere regels dan dit
-document. **Kopieer altijd eerst wat er in de console staat** voordat je hier iets
-uit plakt, anders draai je die regels terug.
-
-## ONTBREKEND IN HET BLOK HIERBOVEN: siteFeedback en bold700Leads
-
-De app gebruikt acht collecties; het ruleset hierboven dekt er zes. Publiceer je
-dat blok kaal, dan blijven **Site-feedback** en **Website-leads** eeuwig laden.
-Deze twee horen er dus bij:
+Elke pin draagt `authorId` (stabiel per browser/extensie) en `userId`. Zodra
+accounts hun eigen pins mogen zien komt hierbij:
 
 ```
-    // ── Feedback-pins ──
-    match /siteFeedback/{id} {
-      allow read, write: if request.auth != null
-        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-
-    // ── Website-leads (advies-tool op bold700.com) ──
-    match /bold700Leads/{id} {
-      allow create: if true;              // aanmelden vanaf bold700.com
-      allow read, write: if request.auth != null
-        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-```
-
-## Feedback-pins (`siteFeedback`)
-
-Schrijven gaat via de Cloudflare Worker met een service-account, dus dat valt
-buiten de regels. Regels gelden alleen voor lezen en bijwerken vanuit de app.
-
-Vandaag: alleen admins lezen alle pins.
-
-```
-match /siteFeedback/{id} {
-  allow read, write: if request.auth != null
-    && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-    && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-}
-```
-
-### Fase "eigen pins zien"
-
-Elke pin krijgt sinds augustus 2026 een `authorId` (stabiel per browser of
-extensie) en een `userId` (gevuld zodra de plaatser een account heeft). Zodra
-accounts hun eigen pins mogen zien, komt hier dit blok bij:
-
-```
-  allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
 ```
 
 Koppelen van bestaande pins aan een nieuw account gaat via `authorId`: bij het
-aanmelden schrijf je zijn `authorId` op de gebruiker en zet je `userId` op de
-pins die daarbij horen. Dat is een eenmalige actie, het beste vanuit de Worker.
+aanmelden zijn `authorId` op de gebruiker schrijven en `userId` op de bijbehorende
+pins zetten, het beste vanuit de Worker.
 
-### Fase "alle pins van jouw website" (betaald)
-
-Elke pin heeft ook een `site` (het domein zonder `www.`). Die query wordt dan
-`where site == <domein>`. Dat mag pas nadat is bewezen dat het domein van die
-gebruiker is, bijvoorbeeld met een DNS-TXT-record of een bestand op de site. Leg
-dat vast in een aparte collectie (`siteOwners/{domein}`) en verwijs daarnaar:
+Voor de betaalde stap "alle pins van jouw website" draagt elke pin ook `site`
+(het domein). Dat mag pas nadat bewezen is dat het domein van die gebruiker is,
+bijvoorbeeld met een DNS-TXT-record. Leg dat vast in `siteOwners/{domein}`:
 
 ```
-  allow read: if request.auth != null
-    && exists(/databases/$(database)/documents/siteOwners/$(resource.data.site))
-    && get(/databases/$(database)/documents/siteOwners/$(resource.data.site)).data.userId == request.auth.uid;
+      allow read: if request.auth != null
+        && exists(/databases/$(database)/documents/siteOwners/$(resource.data.site))
+        && get(/databases/$(database)/documents/siteOwners/$(resource.data.site)).data.userId == request.auth.uid;
 ```
 
-Zonder die verificatie kan iedereen een willekeurig domein claimen en meelezen.
+Zonder die verificatie claimt de eerste de beste een willekeurig domein en leest
+hij mee.
