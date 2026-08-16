@@ -22,12 +22,20 @@ export function WebsiteLeadsDashboard() {
   const [items, setItems] = useState<WebsiteLead[]>([])
   const [loaded, setLoaded] = useState(false)
   const [openId, setOpenId] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    return subscribeWebsiteLeads((list) => {
-      setItems(list)
-      setLoaded(true)
-    })
+    return subscribeWebsiteLeads(
+      (list) => {
+        setItems(list)
+        setError(null)
+        setLoaded(true)
+      },
+      (e) => {
+        setError(e.message)
+        setLoaded(true)
+      },
+    )
   }, [])
 
   const sorted = useMemo(
@@ -52,6 +60,19 @@ export function WebsiteLeadsDashboard() {
         {!loaded ? (
           <div className="flex justify-center py-16">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : error ? (
+          <div className="py-16 text-center">
+            <p className="text-sm font-medium">Leads konden niet geladen worden</p>
+            <p className="mt-1 text-sm text-muted-foreground">{error}</p>
+            <p className="mx-auto mt-4 max-w-md text-sm text-muted-foreground">
+              Staat er &quot;permission&quot; in? Dan mist de collectie{" "}
+              <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">
+                bold700Leads
+              </code>{" "}
+              in je Firestore-regels. De juiste blokken staan in
+              FIRESTORE_RULES.md.
+            </p>
           </div>
         ) : sorted.length === 0 ? (
           <p className="py-16 text-center text-muted-foreground">

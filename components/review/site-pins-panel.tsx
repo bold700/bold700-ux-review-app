@@ -49,8 +49,20 @@ export function SitePinsPanel({
 }) {
   const [pins, setPins] = useState<SiteFeedback[]>([])
   const [open, setOpen] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => subscribeProjectPins(projectId, setPins), [projectId])
+  useEffect(
+    () =>
+      subscribeProjectPins(
+        projectId,
+        (list) => {
+          setPins(list)
+          setError(null)
+        },
+        (e) => setError(e.message),
+      ),
+    [projectId],
+  )
 
   const openPins = pins.filter((p) => p.status === "open")
 
@@ -91,6 +103,11 @@ export function SitePinsPanel({
           </TabsContent>
 
           <TabsContent value="pins" className="mt-4">
+            {error && (
+              <p className="mb-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+                Pins konden niet geladen worden: {error}
+              </p>
+            )}
             <PinList
               pins={pins}
               mutate={mutate}

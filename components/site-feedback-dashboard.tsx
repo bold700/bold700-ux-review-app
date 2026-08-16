@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import {
+  AlertTriangle,
   ArrowLeft,
   Check,
   ExternalLink,
@@ -47,16 +48,24 @@ export function SiteFeedbackDashboard() {
   const [openSite, setOpenSite] = useState<string | null>(null)
   // Momentopname bij het laden: anders verdwijnt "nieuw" terwijl je kijkt.
   const [seen, setSeen] = useState<Record<string, number>>({})
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     // Wat je al gezien had, vastgelegd op het moment van abonneren. Anders
     // verdwijnt de "nieuw"-markering terwijl je ernaar kijkt.
     const wasSeen = allSeen()
-    return subscribeSiteFeedback((list) => {
-      setItems(list)
-      setSeen(wasSeen)
-      setLoaded(true)
-    })
+    return subscribeSiteFeedback(
+      (list) => {
+        setItems(list)
+        setSeen(wasSeen)
+        setError(null)
+        setLoaded(true)
+      },
+      (e) => {
+        setError(e.message)
+        setLoaded(true)
+      },
+    )
   }, [])
 
   const shown = filter === "open" ? items.filter((i) => i.status === "open") : items
@@ -123,6 +132,26 @@ export function SiteFeedbackDashboard() {
       <AppShell title="Site-feedback" actions={actions}>
         <div className="flex justify-center py-24">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      </AppShell>
+    )
+  }
+
+  if (error) {
+    return (
+      <AppShell title="Site-feedback" actions={actions}>
+        <div className="mx-auto w-full max-w-lg px-4 py-16 text-center">
+          <AlertTriangle className="mx-auto mb-3 h-6 w-6 text-amber-500" />
+          <p className="text-sm font-medium">Feedback kon niet geladen worden</p>
+          <p className="mt-1 text-sm text-muted-foreground">{error}</p>
+          <p className="mt-4 text-sm text-muted-foreground">
+            Staat er &quot;permission&quot; in? Dan mist de collectie{" "}
+            <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">
+              siteFeedback
+            </code>{" "}
+            in je Firestore-regels. De juiste blokken staan in
+            FIRESTORE_RULES.md.
+          </p>
         </div>
       </AppShell>
     )

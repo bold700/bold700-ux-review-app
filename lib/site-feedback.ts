@@ -124,11 +124,19 @@ function toFeedback(id: string, data: Record<string, unknown>): SiteFeedback {
 }
 
 // Alle pins, van elke website. Het dashboard groepeert ze zelf per site.
-export function subscribeSiteFeedback(cb: (items: SiteFeedback[]) => void) {
+export function subscribeSiteFeedback(
+  cb: (items: SiteFeedback[]) => void,
+  onError?: (e: Error) => void,
+) {
   const q = query(collection(getDb(), COL), orderBy("createdAtMs", "desc"))
-  return onSnapshot(q, (snap) => {
-    cb(snap.docs.map((d) => toFeedback(d.id, d.data())))
-  })
+  return onSnapshot(
+    q,
+    (snap) => cb(snap.docs.map((d) => toFeedback(d.id, d.data()))),
+    (e) => {
+      console.error("[siteFeedback]", e)
+      onError?.(e)
+    },
+  )
 }
 
 // Het domein waar een pin bij hoort. Nieuwe pins hebben `site`; oudere pins van
@@ -173,15 +181,22 @@ export function markSeen(site: string, atMs: number) {
 export function subscribeProjectPins(
   projectId: string,
   cb: (items: SiteFeedback[]) => void,
+  onError?: (e: Error) => void,
 ) {
   const q = query(collection(getDb(), COL), where("projectId", "==", projectId))
-  return onSnapshot(q, (snap) => {
-    cb(
-      snap.docs
-        .map((d) => toFeedback(d.id, d.data()))
-        .sort((a, b) => a.createdAtMs - b.createdAtMs),
-    )
-  })
+  return onSnapshot(
+    q,
+    (snap) =>
+      cb(
+        snap.docs
+          .map((d) => toFeedback(d.id, d.data()))
+          .sort((a, b) => a.createdAtMs - b.createdAtMs),
+      ),
+    (e) => {
+      console.error("[projectPins]", e)
+      onError?.(e)
+    },
+  )
 }
 
 export async function setSiteFeedbackStatus(id: string, status: "open" | "done") {

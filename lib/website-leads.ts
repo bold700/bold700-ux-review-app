@@ -35,9 +35,14 @@ export const STATUS_LABELS: Record<LeadStatus, string> = {
 
 const COL = "bold700Leads"
 
-export function subscribeWebsiteLeads(cb: (items: WebsiteLead[]) => void) {
+export function subscribeWebsiteLeads(
+  cb: (items: WebsiteLead[]) => void,
+  onError?: (e: Error) => void,
+) {
   const q = query(collection(getDb(), COL), orderBy("createdAtMs", "desc"))
-  return onSnapshot(q, (snap) => {
+  return onSnapshot(
+    q,
+    (snap) => {
     cb(
       snap.docs.map((d) => {
         const data = d.data()
@@ -55,7 +60,12 @@ export function subscribeWebsiteLeads(cb: (items: WebsiteLead[]) => void) {
         }
       }),
     )
-  })
+    },
+    (e) => {
+      console.error("[websiteLeads]", e)
+      onError?.(e)
+    },
+  )
 }
 
 export async function setWebsiteLeadStatus(id: string, status: LeadStatus) {

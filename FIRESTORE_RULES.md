@@ -148,6 +148,29 @@ bijbehorende dashboards wél werken. De console heeft dus nieuwere regels dan di
 document. **Kopieer altijd eerst wat er in de console staat** voordat je hier iets
 uit plakt, anders draai je die regels terug.
 
+## ONTBREKEND IN HET BLOK HIERBOVEN: siteFeedback en bold700Leads
+
+De app gebruikt acht collecties; het ruleset hierboven dekt er zes. Publiceer je
+dat blok kaal, dan blijven **Site-feedback** en **Website-leads** eeuwig laden.
+Deze twee horen er dus bij:
+
+```
+    // ── Feedback-pins ──
+    match /siteFeedback/{id} {
+      allow read, write: if request.auth != null
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // ── Website-leads (advies-tool op bold700.com) ──
+    match /bold700Leads/{id} {
+      allow create: if true;              // aanmelden vanaf bold700.com
+      allow read, write: if request.auth != null
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+```
+
 ## Feedback-pins (`siteFeedback`)
 
 Schrijven gaat via de Cloudflare Worker met een service-account, dus dat valt
