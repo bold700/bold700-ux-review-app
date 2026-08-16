@@ -42,6 +42,8 @@ export type SiteFeedback = {
   // wordt gevuld zodra de plaatser een account heeft
   authorId?: string
   userId?: string
+  // schermopname staat apart in pinShots/<pinId>, dit zegt of die er is
+  hasShot?: boolean
 }
 
 // Apparaat afleiden uit de viewport-breedte (val terug op de documentbreedte
@@ -120,6 +122,7 @@ function toFeedback(id: string, data: Record<string, unknown>): SiteFeedback {
     site: str(data.site),
     authorId: str(data.authorId),
     userId: str(data.userId),
+    hasShot: data.hasShot === true,
   }
 }
 

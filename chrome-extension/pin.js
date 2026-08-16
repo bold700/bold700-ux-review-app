@@ -487,11 +487,99 @@
     render()
   }
 
+  // ── Schermopname bij de pin ─────────────────────────────────
+  // Draait dit script als content script van de extensie, dan kan de
+  // achtergrondpagina het zichtbare tabblad vastleggen. We snijden een stuk
+  // rond de klik uit en tekenen er een markering op, zodat de ontvanger ziet
+  // waar het over gaat. Lukt het niet, dan gaat de pin zonder plaatje mee.
+  function captureShot(clientX, clientY, cb) {
+    var api = typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.sendMessage
+    if (!api) return cb(null)
+
+    // Onze eigen overlay hoort niet op de foto.
+    host.style.display = "none"
+    var done = false
+    var finish = function (v) {
+      if (done) return
+      done = true
+      host.style.display = ""
+      cb(v)
+    }
+    // Blijft het antwoord uit, dan niet eindeloos wachten.
+    var bail = setTimeout(function () {
+      finish(null)
+    }, 4000)
+
+    try {
+      chrome.runtime.sendMessage({ type: "uxpin:capture" }, function (res) {
+        clearTimeout(bail)
+        if (!res || !res.dataUrl) return finish(null)
+        cropShot(res.dataUrl, clientX, clientY, function (out) {
+          finish(out)
+        })
+      })
+    } catch {
+      clearTimeout(bail)
+      finish(null)
+    }
+  }
+
+  // Uitsnede rond het punt, met een oranje markering erop.
+  function cropShot(dataUrl, clientX, clientY, cb) {
+    var img = new Image()
+    img.onload = function () {
+      try {
+        // De opname is op schermresolutie, de coördinaten in CSS-pixels.
+        var scale = img.width / window.innerWidth
+        var cx = clientX * scale
+        var cy = clientY * scale
+        var w = Math.min(img.width, 900 * scale)
+        var h = Math.min(img.height, 560 * scale)
+        var sx = Math.max(0, Math.min(img.width - w, cx - w / 2))
+        var sy = Math.max(0, Math.min(img.height - h, cy - h / 2))
+
+        // Uitvoer op maximaal 900px breed: leesbaar en klein genoeg.
+        var outW = Math.min(900, Math.round(w))
+        var outH = Math.round((h / w) * outW)
+        var c = document.createElement("canvas")
+        c.width = outW
+        c.height = outH
+        var g = c.getContext("2d")
+        g.drawImage(img, sx, sy, w, h, 0, 0, outW, outH)
+
+        // Markering op de plek van de pin, in de uitsnede.
+        var mx = ((cx - sx) / w) * outW
+        var my = ((cy - sy) / h) * outH
+        g.strokeStyle = BRAND
+        g.lineWidth = 3
+        g.beginPath()
+        g.arc(mx, my, 16, 0, Math.PI * 2)
+        g.stroke()
+        g.fillStyle = BRAND + "33"
+        g.fill()
+
+        cb(c.toDataURL("image/jpeg", 0.62))
+      } catch {
+        cb(null)
+      }
+    }
+    img.onerror = function () {
+      cb(null)
+    }
+    img.src = dataUrl
+  }
+
   function submit(text, name, sync) {
     text = (text || "").trim()
     if (!draft || !text || busy) return
     busy = true
     if (sync) sync()
+    captureShot(draft.clientX, draft.clientY, function (shot) {
+      send(text, name, sync, shot)
+    })
+  }
+
+  function send(text, name, sync, shot) {
     var dw = docWidth()
     var body = {
       projectId: PROJECT,
@@ -512,6 +600,7 @@
       elementText: draft.elText,
       text: text,
       name: (name || "").trim(),
+      shot: shot || undefined,
       userAgent: navigator.userAgent.slice(0, 200),
     }
     var saved = { xPct: body.xPct, yPx: body.yPx, text: text }

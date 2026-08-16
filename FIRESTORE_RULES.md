@@ -4,7 +4,7 @@ Beheren in de Firebase console:
 **https://console.firebase.google.com/project/bold700-ux-reviews/firestore/rules**
 → tab **Rules** → alles vervangen door onderstaande → **Publiceren**.
 
-Dit blok dekt **alle negen collecties** die in gebruik zijn. Laat er één weg en
+Dit blok dekt **alle tien collecties** die in gebruik zijn. Laat er één weg en
 het bijbehorende scherm valt om met "Missing or insufficient permissions".
 
 | Collectie | Waarvoor | Wie mag wat |
@@ -13,7 +13,8 @@ het bijbehorende scherm valt om met "Missing or insufficient permissions".
 | `projects` | reviews | eigenaar/toegewezene, publiek gedeeld rapport leesbaar |
 | `leads` | landingspagina-aanmeldingen | anoniem aanmelden, admin alles |
 | `bold700Leads` | advies-tool op bold700.com | **iedereen aanmelden**, admin alles |
-| `siteFeedback` | feedback-pins | **iedereen een pin plaatsen**, admin alles |
+| `siteFeedback` | feedback-pins | **iedereen een pin plaatsen**, admin alles, gedeelde link leest mee |
+| `pinShots` | schermopname per pin | admin, gedeelde link leest mee |
 | `auditor_applications` | aanmeldingen auditors | jezelf, admin alles |
 | `site_benchmarks` | v1-restant | alleen admin |
 | `benchmarks` | cijfers in rapport/landing | publiek leesbaar, admin schrijft |
@@ -88,13 +89,29 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    // Hoort dit project bij een geldige deel-link?
+    function gedeeld(projectId) {
+      return exists(/databases/$(database)/documents/projects/$(projectId))
+        && get(/databases/$(database)/documents/projects/$(projectId)).data.public == true
+        && (!('shareExpiresAtMs' in get(/databases/$(database)/documents/projects/$(projectId)).data)
+            || request.time.toMillis() < get(/databases/$(database)/documents/projects/$(projectId)).data.shareExpiresAtMs);
+    }
+
     // ── Feedback-pins: van bold700.com (geen login) en van klantsites (via
     //    de Worker, die met een service-account schrijft en dus langs deze
-    //    regels gaat). Lezen doet alleen beheer. ──
+    //    regels gaat). ──
     match /siteFeedback/{id} {
       allow create: if request.resource.data.text is string
         && request.resource.data.text.size() > 0
         && request.resource.data.text.size() < 2000;
+      // Pin-rapport: wie de deel-link heeft mag de pins van dat project lezen.
+      allow read: if 'projectId' in resource.data && gedeeld(resource.data.projectId);
+      allow read, write: if isAdmin();
+    }
+
+    // ── Schermopnames bij de pins, apart zodat lijsten licht blijven ──
+    match /pinShots/{id} {
+      allow read: if 'projectId' in resource.data && gedeeld(resource.data.projectId);
       allow read, write: if isAdmin();
     }
 

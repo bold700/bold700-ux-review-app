@@ -6,7 +6,9 @@ import {
   Copy,
   ExternalLink,
   ListPlus,
+  Loader2,
   MapPin,
+  Share2,
   Trash2,
 } from "lucide-react"
 import { toast } from "sonner"
@@ -22,6 +24,7 @@ import {
   subscribeProjectPins,
   type SiteFeedback,
 } from "@/lib/site-feedback"
+import { sharePins } from "@/lib/pin-share"
 import type { Answer } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -103,6 +106,7 @@ export function SitePinsPanel({
           </TabsContent>
 
           <TabsContent value="pins" className="mt-4">
+            {pins.length > 0 && <SharePins projectId={projectId} />}
             {error && (
               <p className="mb-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
                 Pins konden niet geladen worden: {error}
@@ -231,6 +235,62 @@ function EmbedOptions({ projectId }: { projectId: string }) {
           <CopyButton value={consoleSnippet} icon />
         </div>
       </section>
+    </div>
+  )
+}
+
+// Pins delen met de eigenaar van de site: publieke, aflopende link met een
+// vinkje per punt. Zelfde mechanisme als de developer-checklist.
+function SharePins({ projectId }: { projectId: string }) {
+  const [url, setUrl] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  async function share() {
+    setBusy(true)
+    try {
+      setUrl(await sharePins(projectId))
+      toast.success("Link klaar, 30 dagen geldig")
+    } catch {
+      toast.error("Delen lukte niet")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (!url) {
+    return (
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/30 p-3">
+        <p className="text-sm text-muted-foreground">
+          Deel deze punten met de eigenaar van de site.
+        </p>
+        <Button size="sm" onClick={share} disabled={busy}>
+          {busy ? (
+            <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+          ) : (
+            <Share2 className="mr-1 h-4 w-4" />
+          )}
+          Deel link
+        </Button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="mb-4 space-y-2 rounded-lg border bg-muted/30 p-3">
+      <p className="text-sm font-medium">Link staat klaar, 30 dagen geldig</p>
+      <div className="flex items-center gap-2">
+        <Input readOnly value={url} onFocus={(e) => e.currentTarget.select()} className="text-xs" />
+        <CopyButton value={url} icon />
+        <Button size="icon" variant="outline" asChild aria-label="Openen">
+          <a href={url} target="_blank" rel="noreferrer">
+            <ExternalLink className="h-4 w-4" />
+          </a>
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        De ontvanger ziet de punten per pagina met schermafbeelding en kan
+        afvinken, zonder in te loggen. Jij ziet dat live terug.
+      </p>
     </div>
   )
 }

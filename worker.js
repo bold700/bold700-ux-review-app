@@ -1543,6 +1543,7 @@ async function handlePin(request, env, cors) {
       name: String(b.name || '').slice(0, 100),
       userAgent: String(b.userAgent || '').slice(0, 200),
       status: 'open',
+      hasShot: typeof b.shot === 'string' && b.shot.startsWith('data:image/'),
       createdAtMs: now,
       createdAt: new Date(now).toISOString(),
     };
@@ -1561,8 +1562,28 @@ async function handlePin(request, env, cors) {
       return jsonResp({ error: 'opslaan mislukt' }, 502, cors);
     }
     const saved = await res.json();
+    const pinId = String(saved.name || '').split('/').pop();
+
+    // De schermopname komt in een APART document (pinShots/<pinId>). Anders
+    // sleep je bij elke lijstweergave tientallen kilobytes per pin mee.
+    // Firestore-documenten mogen 1 MB zijn; we kappen ruim daaronder af.
+    const shot = typeof b.shot === 'string' ? b.shot : '';
+    if (pinId && shot.startsWith('data:image/') && shot.length < 700000) {
+      const r = await fetch(
+        `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/pinShots?documentId=${encodeURIComponent(pinId)}`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fields: fsFields({ projectId, image: shot, createdAtMs: now }),
+          }),
+        },
+      );
+      if (!r.ok) console.error('pinShot', r.status, await r.text().catch(() => ''));
+    }
+
     return jsonResp(
-      { ok: true, id: String(saved.name || '').split('/').pop(), projectId },
+      { ok: true, id: pinId, projectId },
       200,
       cors,
     );
