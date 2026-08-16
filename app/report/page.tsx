@@ -119,7 +119,8 @@ function ReportContent() {
     <div className="min-h-svh bg-muted/30">
       <header className="flex items-center justify-between gap-4 border-b bg-background px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)]">
         <Link href="/" className="flex items-center gap-2 font-semibold">
-          <BrandLogo className="h-6 w-auto" /> UX Review
+          <BrandLogo className="h-6 w-auto shrink-0" />
+          <span className="truncate font-semibold">BOLD700 · UX Review</span>
         </Link>
         {!devView && (
           <Button size="sm" onClick={() => (location.href = "/")}>

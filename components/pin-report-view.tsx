@@ -85,8 +85,9 @@ export function PinReportView({ id }: { id: string }) {
     <div className="min-h-svh bg-background">
       <header className="border-b">
         <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3 px-4 py-4">
-          <span className="flex items-center gap-2 font-semibold">
-            <BrandLogo className="h-6 w-auto" /> UX Review
+          <span className="flex min-w-0 items-center gap-2">
+            <BrandLogo className="h-6 w-auto shrink-0" />
+            <span className="truncate font-semibold">BOLD700 · UX Review</span>
           </span>
           <span className="text-xs whitespace-nowrap text-muted-foreground">
             {done} van {pins.length} verwerkt
