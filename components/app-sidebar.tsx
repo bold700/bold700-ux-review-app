@@ -5,6 +5,7 @@ import {
   BarChart3Icon,
   LayoutDashboardIcon,
   MessageSquareIcon,
+  PuzzleIcon,
   SparklesIcon,
   UsersIcon,
 } from "lucide-react"
@@ -28,6 +29,7 @@ const navMain = [
   { title: "Website-leads", url: "/website-leads", icon: <SparklesIcon /> },
   { title: "Site-feedback", url: "/site-feedback", icon: <MessageSquareIcon /> },
   { title: "Insights", url: "/insights", icon: <BarChart3Icon /> },
+  { title: "Extensie", url: "/extensie", icon: <PuzzleIcon /> },
 ]
 
 export function AppSidebar({

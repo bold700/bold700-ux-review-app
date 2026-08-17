@@ -17,7 +17,7 @@ export default {
     const corsHeaders = {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     };
 
     if (request.method === 'OPTIONS') {
@@ -1504,12 +1504,13 @@ async function handlePin(request, env, cors) {
 
     // Zonder projectId hoort de pin bij de site zelf: het project wordt op het
     // domein aangemaakt (of hergebruikt als het er al is).
+    // Wie pint dit? Een ingelogd account (voorkeur) of nog de gedeelde sleutel.
+    const who = await whoIs(request, env, b.key);
     let projectId = String(b.projectId || '').trim();
     if (!projectId || isSiteProject(projectId)) {
-      // Beide gevallen raken het site-project, en dat id is af te leiden uit
-      // het domein. Dus altijd de sleutel, ook als het id al is meegestuurd.
-      const bad = keyProblem(env, b.key);
-      if (bad) return jsonResp({ error: bad }, 403, cors);
+      // Beide gevallen raken het site-project, en dat id volgt uit het domein.
+      // Dus altijd bewijs, ook als het id al is meegestuurd.
+      if (!who.ok) return jsonResp({ error: who.error }, 403, cors);
     }
     if (!projectId) {
       const key = siteKeyOf(b.url || b.origin);
@@ -1526,7 +1527,9 @@ async function handlePin(request, env, cors) {
       // Wie hem plaatste: authorId is stabiel per browser/extensie, userId
       // vullen we pas als de plaatser een account heeft.
       authorId: String(b.authorId || '').slice(0, 60),
-      userId: String(b.userId || '').slice(0, 60) || null,
+      // Uit het geverifieerde token, niet uit de body: die kan iedereen vullen.
+      userId: who.uid || null,
+      userEmail: who.email || '',
       path: String(b.path || '/').slice(0, 300),
       url: String(b.url || '').slice(0, 500),
       origin: String(b.origin || '').slice(0, 200),
@@ -1592,18 +1595,96 @@ async function handlePin(request, env, cors) {
   }
 }
 
+// ─────────────────────────────────────────────────────────
+// Identiteit: een Firebase-token van een ingelogde gebruiker
+// ─────────────────────────────────────────────────────────
+// De extensie stuurt het token van je eigen account mee. Daarmee weten we WIE
+// er pint, ongeacht op welke computer. Dat vervangt de gedeelde PIN_KEY, die
+// alleen kon zeggen "iemand met de sleutel".
+
+let JWK_CACHE = { at: 0, keys: null };
+
+async function firebaseJwks() {
+  // De sleutels van Google roteren; een uur cachen is ruim voldoende.
+  if (JWK_CACHE.keys && Date.now() - JWK_CACHE.at < 3600000) return JWK_CACHE.keys;
+  const r = await fetch(
+    'https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com',
+  );
+  const j = await r.json();
+  JWK_CACHE = { at: Date.now(), keys: j.keys || [] };
+  return JWK_CACHE.keys;
+}
+
+function b64urlToBytes(s) {
+  const pad = s.replace(/-/g, '+').replace(/_/g, '/');
+  const bin = atob(pad + '='.repeat((4 - (pad.length % 4)) % 4));
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+// Geeft { uid, email } terug, of null als het token niet deugt.
+async function verifyFirebaseToken(token, env) {
+  try {
+    const parts = String(token || '').split('.');
+    if (parts.length !== 3) return null;
+    const header = JSON.parse(new TextDecoder().decode(b64urlToBytes(parts[0])));
+    const claims = JSON.parse(new TextDecoder().decode(b64urlToBytes(parts[1])));
+    if (header.alg !== 'RS256' || !header.kid) return null;
+
+    const projectId = env.FIREBASE_PROJECT_ID;
+    const now = Math.floor(Date.now() / 1000);
+    if (claims.aud !== projectId) return null;
+    if (claims.iss !== `https://securetoken.google.com/${projectId}`) return null;
+    if (!claims.sub || claims.exp <= now) return null;
+
+    const jwk = (await firebaseJwks()).find((k) => k.kid === header.kid);
+    if (!jwk) return null;
+
+    const key = await crypto.subtle.importKey(
+      'jwk',
+      { kty: jwk.n ? 'RSA' : jwk.kty, n: jwk.n, e: jwk.e, alg: 'RS256', ext: true },
+      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+      false,
+      ['verify'],
+    );
+    const ok = await crypto.subtle.verify(
+      'RSASSA-PKCS1-v1_5',
+      key,
+      b64urlToBytes(parts[2]),
+      new TextEncoder().encode(parts[0] + '.' + parts[1]),
+    );
+    if (!ok) return null;
+    return { uid: claims.sub, email: claims.email || '' };
+  } catch (e) {
+    console.error('verifyFirebaseToken', e);
+    return null;
+  }
+}
+
+// Wie doet dit verzoek? Een geldig account-token, of (tijdelijk nog) de
+// gedeelde sleutel. Zodra de extensie overal ingelogd is kan PIN_KEY weg.
+async function whoIs(request, env, givenKey) {
+  const auth = request.headers.get('Authorization') || '';
+  const bearer = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+  if (bearer) {
+    const user = await verifyFirebaseToken(bearer, env);
+    if (user) return { ok: true, uid: user.uid, email: user.email, via: 'account' };
+    return { ok: false, error: 'ongeldig of verlopen account-token' };
+  }
+  if (env.PIN_KEY && String(givenKey || '') === String(env.PIN_KEY)) {
+    return { ok: true, uid: null, email: '', via: 'sleutel' };
+  }
+  if (!env.PIN_KEY) {
+    return { ok: false, error: 'PIN_KEY staat niet in de Worker-variabelen, dus pinnen per domein is uit' };
+  }
+  return { ok: false, error: 'niet ingelogd' };
+}
+
 // Het site-project heeft een id dat uit het domein volgt, en dus te raden is.
 // Daarom mag alleen wie de sleutel heeft (de Chrome-extensie) op die manier
 // pinnen of pins opvragen. Een expliciet projectId is willekeurig en geldt zelf
 // als geheim: dat blijft open, want daar draait de script-tag op een klantsite op.
-function keyProblem(env, given) {
-  if (!env.PIN_KEY) {
-    return 'PIN_KEY staat niet in de Worker-variabelen, dus pinnen per domein is uit';
-  }
-  if (String(given || '') !== String(env.PIN_KEY)) return 'ongeldige sleutel';
-  return null;
-}
-
 // Het domein zonder www, als sleutel voor het site-project.
 function siteHost(input) {
   try {
@@ -1686,8 +1767,8 @@ async function handlePinsList(request, env, url, cors) {
     // (?site=), dat we uit het domein afleiden zonder iets aan te maken.
     let projectId = url.searchParams.get('p');
     if (!projectId || isSiteProject(projectId)) {
-      const bad = keyProblem(env, url.searchParams.get('k'));
-      if (bad) return jsonResp({ error: bad }, 403, cors);
+      const who = await whoIs(request, env, url.searchParams.get('k'));
+      if (!who.ok) return jsonResp({ error: who.error }, 403, cors);
     }
     if (!projectId) {
       const key = siteKeyOf(url.searchParams.get('site'));

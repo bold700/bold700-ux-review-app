@@ -579,13 +579,45 @@
     })
   }
 
+  // Binnen de extensie: vers account-token ophalen. Daarbuiten (script-tag)
+  // bestaat chrome.runtime niet en gaat het verzoek zonder token.
+  function withToken(cb) {
+    var api = typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.sendMessage
+    if (!api) return cb(null)
+    var done = false
+    var t = setTimeout(function () {
+      if (done) return
+      done = true
+      cb(null)
+    }, 4000)
+    try {
+      chrome.runtime.sendMessage({ type: "uxpin:token" }, function (res) {
+        if (done) return
+        done = true
+        clearTimeout(t)
+        cb(res && res.token ? res.token : null)
+      })
+    } catch {
+      clearTimeout(t)
+      if (!done) {
+        done = true
+        cb(null)
+      }
+    }
+  }
+
   function send(text, name, sync, shot) {
+    withToken(function (token) {
+      sendWith(text, name, sync, shot, token)
+    })
+  }
+
+  function sendWith(text, name, sync, shot, token) {
     var dw = docWidth()
     var body = {
       projectId: PROJECT,
       key: CFG.key || undefined,
       authorId: AUTHOR,
-      userId: CFG.user || undefined,
       url: location.href.split("#")[0],
       origin: location.origin,
       path: location.pathname || "/",
@@ -604,9 +636,11 @@
       userAgent: navigator.userAgent.slice(0, 200),
     }
     var saved = { xPct: body.xPct, yPx: body.yPx, text: text }
+    var headers = { "Content-Type": "text/plain;charset=UTF-8" }
+    if (token) headers.Authorization = "Bearer " + token
     fetch(CFG.api + "/pin", {
       method: "POST",
-      headers: { "Content-Type": "text/plain;charset=UTF-8" },
+      headers: headers,
       body: JSON.stringify(body),
     })
       .then(function (r) {
@@ -731,6 +765,12 @@
   // Gebeurt in beide standen: ook tijdens het reviewen wil je zien wat er al
   // ligt, van jezelf én van anderen. Afgevinkte pins tekenen we niet.
   function loadPins() {
+    withToken(function (token) {
+      loadPinsWith(token)
+    })
+  }
+
+  function loadPinsWith(token) {
     // De sleutel gaat altijd mee als we er een hebben: een site-project heeft
     // een id dat uit het domein volgt, dus de Worker vraagt er ook naar als we
     // dat id al kennen.
@@ -745,7 +785,7 @@
       (CFG.key ? "&k=" + encodeURIComponent(CFG.key) : "") +
       "&path=" +
       encodeURIComponent(location.pathname || "/")
-    fetch(u)
+    fetch(u, token ? { headers: { Authorization: "Bearer " + token } } : undefined)
       .then(function (r) {
         return r.json()
       })

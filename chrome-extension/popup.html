@@ -66,6 +66,31 @@
       .primary { background: var(--brand); color: #fff; }
       .ghost { background: transparent; border-color: var(--line); color: var(--ink); }
       .hint { margin: 6px 0 0; font-size: 11px; line-height: 1.4; color: var(--muted); }
+      .account {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 12px;
+        padding: 8px 10px;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .account .who { color: var(--ink); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .linkbtn {
+        flex: 0 0 auto;
+        min-height: 0;
+        padding: 2px 4px;
+        border: 0;
+        background: none;
+        color: var(--muted);
+        font: 400 11px/1 ui-sans-serif, system-ui, sans-serif;
+        text-decoration: underline;
+      }
+      .linkbtn:hover { color: var(--ink); }
+      .linkfull { width: 100%; margin-bottom: 12px; }
       .status { margin: 12px 0 0; min-height: 18px; font-size: 12px; color: var(--muted); }
       .status[data-kind="err"] { color: #dc2626; }
       .status[data-kind="ok"] { color: #059669; }
@@ -91,6 +116,11 @@
     <h1>Feedback-pins</h1>
     <p class="sub">Rechtermuisknop op de pagina plaatst een pin bij de review.</p>
 
+    <div class="account" id="account">Laden…</div>
+    <button id="link" class="primary linkfull" type="button" hidden>
+      Koppel je BOLD700-account
+    </button>
+
     <label for="project">Review (optioneel)</label>
     <input
       id="project"
@@ -102,21 +132,6 @@
     <p class="hint">
       Laat leeg en de pins komen in het project van dit domein. Vul een
       review-id of review-URL in om ze aan een bestaande review te hangen.
-    </p>
-
-    <label for="key" style="margin-top: 12px">Sleutel</label>
-    <input
-      id="key"
-      type="text"
-      placeholder="PIN_KEY uit de Worker"
-      autocomplete="off"
-      autocapitalize="off"
-      spellcheck="false"
-    />
-    <p class="hint">
-      Eenmalig invullen. Hij blijft in deze browser en gaat mee als bewijs dat
-      jij het bent. Bewust zichtbaar, zodat je een verkeerd geplakte waarde ziet
-      staan.
     </p>
 
     <div class="row">

@@ -1,15 +1,20 @@
-// Popup van de extensie: kies het review-project en injecteer pin.js in het
-// actieve tabblad. Het script draait als content script, dus in een eigen
-// wereld: de Content-Security-Policy van de site blokkeert het niet.
+// Popup: kies eventueel een review en zet de pins aan op het actieve tabblad.
+// Het script draait als content script, dus in een eigen wereld: de
+// Content-Security-Policy van de site blokkeert het niet.
+//
+// Wie je bent komt uit je BOLD700-account, niet uit een sleutel. Koppelen doe
+// je één keer per browser via de app, waar je toch al ingelogd bent.
 
 const API = "https://bold700uxreview.nova-bold700-6fa.workers.dev"
+const APP = "https://uxreviews.bold700.com"
 
 const $project = document.getElementById("project")
-const $key = document.getElementById("key")
 const $start = document.getElementById("start")
 const $view = document.getElementById("view")
 const $status = document.getElementById("status")
 const $recent = document.getElementById("recent")
+const $account = document.getElementById("account")
+const $link = document.getElementById("link")
 
 // Zowel een kaal id als een volledige review-URL mag erin.
 function idFrom(value) {
@@ -25,14 +30,41 @@ function say(text, kind) {
   else $status.removeAttribute("data-kind")
 }
 
-async function load() {
-  const {
-    lastProject = "",
-    recent = [],
-    key = "",
-  } = await chrome.storage.local.get(["lastProject", "recent", "key"])
+function ask(type) {
+  return new Promise((resolve) => chrome.runtime.sendMessage({ type }, resolve))
+}
+
+async function paint() {
+  const acc = await ask("uxpin:account")
+  if (acc && acc.email) {
+    $account.innerHTML = ""
+    const who = document.createElement("span")
+    who.className = "who"
+    who.textContent = acc.email
+    const out = document.createElement("button")
+    out.className = "linkbtn"
+    out.type = "button"
+    out.textContent = "ontkoppelen"
+    out.addEventListener("click", async () => {
+      await ask("uxpin:unlink")
+      paint()
+    })
+    $account.append(who, out)
+    $link.hidden = true
+    $start.disabled = false
+    $view.disabled = false
+  } else {
+    $account.textContent = "Nog niet gekoppeld aan je account."
+    $link.hidden = false
+    $start.disabled = true
+    $view.disabled = true
+  }
+
+  const { lastProject = "", recent = [] } = await chrome.storage.local.get([
+    "lastProject",
+    "recent",
+  ])
   $project.value = lastProject
-  $key.value = key
   $recent.innerHTML = ""
   for (const id of recent.filter((r) => r !== lastProject).slice(0, 4)) {
     const li = document.createElement("li")
@@ -48,16 +80,6 @@ async function load() {
   }
 }
 
-// Vast auteur-id voor deze installatie: hetzelfde op elke site, zodat later
-// te zien is welke pins van jou zijn.
-async function authorId() {
-  const { author } = await chrome.storage.local.get("author")
-  if (author) return author
-  const fresh = crypto.randomUUID()
-  await chrome.storage.local.set({ author: fresh })
-  return fresh
-}
-
 async function remember(id) {
   const { recent = [] } = await chrome.storage.local.get("recent")
   const next = [id, ...recent.filter((r) => r !== id)].slice(0, 5)
@@ -66,42 +88,14 @@ async function remember(id) {
 
 async function inject(view) {
   // Leeg mag: dan hangt de Worker de pins aan het project van dit domein en
-  // maakt hij dat aan als het nog niet bestaat. Daarvoor is wel de sleutel
-  // nodig, want zo'n project-id is uit het domein af te leiden.
+  // maakt hij dat aan als het nog niet bestaat.
   const project = idFrom($project.value)
-  const key = $key.value.trim()
-  if (!project && !key) {
-    say("Vul de sleutel in, of een review-id.", "err")
-    $key.focus()
-    return
-  }
 
   $start.disabled = true
   $view.disabled = true
   say("Bezig…")
 
   try {
-    // Sleutel eerst toetsen bij de Worker. Anders merk je een typefout pas
-    // nadat je je opmerking hebt getypt, en ben je hem kwijt.
-    if (!project) {
-      // Faalt de controle zelf (geen netwerk), dan gaan we gewoon door: liever
-      // een pin proberen dan blokkeren op een toets die niet lukte.
-      let bad = null
-      try {
-        const r = await fetch(
-          `${API}/pins?site=example.com&k=${encodeURIComponent(key)}`,
-        )
-        if (r.status === 403) {
-          const j = await r.json().catch(() => ({}))
-          bad = j.error || "sleutel klopt niet"
-        }
-      } catch {
-        bad = null
-      }
-      if (bad) throw new Error(bad)
-    }
-
-    const author = await authorId()
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
     if (!tab || !tab.id) throw new Error("geen tabblad")
     if (/^(chrome|edge|about|chrome-extension|devtools):/.test(tab.url || "")) {
@@ -110,23 +104,20 @@ async function inject(view) {
 
     // Eerst de configuratie in dezelfde (geïsoleerde) wereld zetten, dan het
     // script. pin.js valt terug op window.__UXPIN__ als er geen script-tag is.
+    // Het token haalt pin.js zelf op, vlak voor het versturen: dan is het vers.
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       func: (cfg) => {
         window.__UXPIN__ = cfg
-        // Opnieuw injecteren mag: de vorige instantie wordt losgelaten.
         window.__UXPIN_ACTIVE__ = false
       },
-      args: [
-        { project: project || null, key, author, api: API, view: !!view },
-      ],
+      args: [{ project: project || null, api: API, view: !!view }],
     })
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       files: ["pin.js"],
     })
 
-    await chrome.storage.local.set({ key })
     if (project) await remember(project)
     say(view ? "Pins geladen." : "Klaar. Rechtermuisknop op de pagina.", "ok")
     setTimeout(() => window.close(), 900)
@@ -139,10 +130,12 @@ async function inject(view) {
 
 $start.addEventListener("click", () => inject(false))
 $view.addEventListener("click", () => inject(true))
-for (const el of [$project, $key]) {
-  el.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") inject(false)
-  })
-}
+$project.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") inject(false)
+})
+$link.addEventListener("click", () => {
+  chrome.tabs.create({ url: `${APP}/extensie` })
+  window.close()
+})
 
-load()
+paint()

@@ -1,9 +1,23 @@
 {
   "manifest_version": 3,
   "name": "BOLD700 UX Review — pins",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Klik met de rechtermuisknop op elke website en laat feedback-pins achter bij een UX-review.",
-  "permissions": ["activeTab", "scripting", "storage"],
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyzOWmRZ3S5W9gtCvjhPyHQgaQtJE4PBPUqwrvmFIxhKWGecv5MWcL2CIDYt9+Nfmgso3b3VnmFHV0pX+VlLBWHArJcvRvqn/ihZjkYC86Hdt3OVFYgz/miG9jrJHhEIPGPv97tYXCfuG/avDWky421lJURsF+ZIRW+Gzoi//AfK8XmljJ4rOuCzbgjNmgxP2sxTelvSR9B106o//2snqncbzfBmqqvTj4L8/JXKomIJFYieF0sc2jxTmDfjq/wIZlZNT4J8qQ0MaIhS35xsJWfDdeboifc71AumBrAihvwuGv86LhweaFUDDh6tst9dH2dwETvA8Nd69/qSuGLNycwIDAQAB",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://securetoken.googleapis.com/*"
+  ],
+  "externally_connectable": {
+    "matches": [
+      "https://uxreviews.bold700.com/*",
+      "http://localhost/*"
+    ]
+  },
   "background": {
     "service_worker": "background.js"
   },
