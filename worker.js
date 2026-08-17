@@ -1638,6 +1638,12 @@ async function verifyFirebaseToken(token, env) {
     if (claims.iss !== `https://securetoken.google.com/${projectId}`) return null;
     if (!claims.sub || claims.exp <= now) return null;
 
+    // Anonieme sessies zijn GEEN account. De landingspagina logt bezoekers zo
+    // in, dus iedereen kan er met de publieke Firebase-sleutel een halen. Zonder
+    // deze regel stelt de hele accountcontrole niets voor.
+    const provider = claims.firebase && claims.firebase.sign_in_provider;
+    if (!provider || provider === 'anonymous') return null;
+
     const jwk = (await firebaseJwks()).find((k) => k.kid === header.kid);
     if (!jwk) return null;
 
