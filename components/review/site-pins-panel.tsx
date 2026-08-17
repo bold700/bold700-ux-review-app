@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import {
   Check,
   Copy,
+  Download,
   ExternalLink,
   ListPlus,
   Loader2,
@@ -144,10 +145,34 @@ function InstallOptions({ projectId }: { projectId: string }) {
           die site. Daar krijg je wel een script-tag, want zo&apos;n review heeft
           een willekeurig id dat op zichzelf geheim is.
         </p>
+        <ExtensionDownload />
       </div>
     )
   }
   return <EmbedOptions projectId={projectId} />
+}
+
+// De extensie werkt per machine: Chrome synchroniseert uitgepakte extensies
+// niet. Dit zipje is dezelfde map, zodat je hem op een andere computer binnen
+// kunt halen zonder de repo te klonen.
+function ExtensionDownload() {
+  return (
+    <div className="rounded-lg border border-dashed p-3">
+      <p className="text-sm font-medium">Op een andere computer?</p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Download de extensie, pak hem uit, en laad de map via{" "}
+        <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">
+          chrome://extensions
+        </code>{" "}
+        met Ontwikkelaarsmodus aan. Je sleutel vul je daar één keer opnieuw in.
+      </p>
+      <Button variant="outline" size="sm" asChild className="mt-2">
+        <a href="/uxpins-extensie.zip" download>
+          <Download className="mr-1 h-4 w-4" /> Extensie downloaden
+        </a>
+      </Button>
+    </div>
+  )
 }
 
 function EmbedOptions({ projectId }: { projectId: string }) {
@@ -235,6 +260,8 @@ function EmbedOptions({ projectId }: { projectId: string }) {
           <CopyButton value={consoleSnippet} icon />
         </div>
       </section>
+
+      <ExtensionDownload />
     </div>
   )
 }

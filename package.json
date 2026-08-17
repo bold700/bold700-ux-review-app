@@ -10,7 +10,9 @@
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
-    "sync:extension": "cp public/pin.js chrome-extension/pin.js"
+    "sync:extension": "cp public/pin.js chrome-extension/pin.js",
+    "pack:extension": "node scripts/pack-extension.mjs",
+    "prebuild": "node scripts/pack-extension.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

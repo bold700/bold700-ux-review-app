@@ -4,6 +4,18 @@ Zet de feedback-pins aan op **elke** website, ook op sites met een strikte
 Content-Security-Policy waar de bookmarklet niets doet. Een content script van
 een extensie draait in een eigen wereld en valt niet onder de CSP van de pagina.
 
+## Op een andere computer
+
+Chrome synchroniseert uitgepakte extensies **niet**, dus dit doe je per machine.
+Twee manieren:
+
+- **Met de repo:** `git pull` en de map hieronder laden. Bij elke update daarna
+  alleen `git pull` plus het herlaad-icoontje in `chrome://extensions`.
+- **Zonder de repo:** download
+  https://uxreviews.bold700.com/uxpins-extensie.zip, pak hem uit en laad die
+  map. Dat zipje wordt bij elke deploy opnieuw gemaakt, dus hij loopt nooit
+  achter. Je sleutel vul je op elke machine één keer in.
+
 ## Installeren (eenmalig)
 
 1. Open `chrome://extensions`
