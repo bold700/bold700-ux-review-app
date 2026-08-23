@@ -1504,8 +1504,8 @@ async function handlePin(request, env, cors) {
 
     // Zonder projectId hoort de pin bij de site zelf: het project wordt op het
     // domein aangemaakt (of hergebruikt als het er al is).
-    // Wie pint dit? Een ingelogd account (voorkeur) of nog de gedeelde sleutel.
-    const who = await whoIs(request, env, b.key);
+    // Wie pint dit? Alleen een ingelogd account komt hier langs.
+    const who = await whoIs(request, env);
     let projectId = String(b.projectId || '').trim();
     if (!projectId || isSiteProject(projectId)) {
       // Beide gevallen raken het site-project, en dat id volgt uit het domein.
@@ -1599,7 +1599,7 @@ async function handlePin(request, env, cors) {
 // Identiteit: een Firebase-token van een ingelogde gebruiker
 // ─────────────────────────────────────────────────────────
 // De extensie stuurt het token van je eigen account mee. Daarmee weten we WIE
-// er pint, ongeacht op welke computer. Dat vervangt de gedeelde PIN_KEY, die
+// er pint, ongeacht op welke computer. Dit verving de gedeelde PIN_KEY, die
 // alleen kon zeggen "iemand met de sleutel".
 
 let JWK_CACHE = { at: 0, keys: null };
@@ -1668,27 +1668,22 @@ async function verifyFirebaseToken(token, env) {
   }
 }
 
-// Wie doet dit verzoek? Een geldig account-token, of (tijdelijk nog) de
-// gedeelde sleutel. Zodra de extensie overal ingelogd is kan PIN_KEY weg.
-async function whoIs(request, env, givenKey) {
+// Wie doet dit verzoek? Alleen een geldig account-token telt. De gedeelde
+// PIN_KEY is eruit: die kon niet meer zeggen dan "iemand met de sleutel", gold
+// voor elk domein tegelijk en kwam nooit te vervallen.
+async function whoIs(request, env) {
   const auth = request.headers.get('Authorization') || '';
   const bearer = auth.startsWith('Bearer ') ? auth.slice(7) : '';
-  if (bearer) {
-    const user = await verifyFirebaseToken(bearer, env);
-    if (user) return { ok: true, uid: user.uid, email: user.email, via: 'account' };
-    return { ok: false, error: 'ongeldig of verlopen account-token' };
+  if (!bearer) {
+    return { ok: false, error: 'niet ingelogd: koppel de extensie aan je BOLD700-account' };
   }
-  if (env.PIN_KEY && String(givenKey || '') === String(env.PIN_KEY)) {
-    return { ok: true, uid: null, email: '', via: 'sleutel' };
-  }
-  if (!env.PIN_KEY) {
-    return { ok: false, error: 'PIN_KEY staat niet in de Worker-variabelen, dus pinnen per domein is uit' };
-  }
-  return { ok: false, error: 'niet ingelogd' };
+  const user = await verifyFirebaseToken(bearer, env);
+  if (!user) return { ok: false, error: 'ongeldig of verlopen account-token' };
+  return { ok: true, uid: user.uid, email: user.email, via: 'account' };
 }
 
 // Het site-project heeft een id dat uit het domein volgt, en dus te raden is.
-// Daarom mag alleen wie de sleutel heeft (de Chrome-extensie) op die manier
+// Daarom mag alleen een ingelogd account (de Chrome-extensie) op die manier
 // pinnen of pins opvragen. Een expliciet projectId is willekeurig en geldt zelf
 // als geheim: dat blijft open, want daar draait de script-tag op een klantsite op.
 // Het domein zonder www, als sleutel voor het site-project.
@@ -1773,7 +1768,7 @@ async function handlePinsList(request, env, url, cors) {
     // (?site=), dat we uit het domein afleiden zonder iets aan te maken.
     let projectId = url.searchParams.get('p');
     if (!projectId || isSiteProject(projectId)) {
-      const who = await whoIs(request, env, url.searchParams.get('k'));
+      const who = await whoIs(request, env);
       if (!who.ok) return jsonResp({ error: who.error }, 403, cors);
     }
     if (!projectId) {
