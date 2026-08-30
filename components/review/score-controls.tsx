@@ -51,17 +51,14 @@ export function SeverityRow({
   value?: Severity | null
   onChange: (s: Severity) => void
 }) {
-  if (score !== "ok" && score !== "bad") return null
-  const opts: { v: Severity; label: string }[] =
-    score === "ok"
-      ? [
-          { v: "high", label: "Quick Win" },
-          { v: "low", label: "Opvuller" },
-        ]
-      : [
-          { v: "high", label: "Strategisch" },
-          { v: "low", label: "Niet Nu" },
-        ]
+  // Alleen bij "Matig" nog een keuze. Bij "Niet OK" stonden hier Strategisch en
+  // Niet Nu, maar die werden niet gebruikt: iets dat niet OK is, is gewoon
+  // belangrijk. Dat leidt de developer-lijst nu zelf af uit de score.
+  if (score !== "ok") return null
+  const opts: { v: Severity; label: string }[] = [
+    { v: "high", label: "Quick Win" },
+    { v: "low", label: "Opvuller" },
+  ]
   return (
     <div className="grid grid-cols-2 gap-2">
       {opts.map((o) => (

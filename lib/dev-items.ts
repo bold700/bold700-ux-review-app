@@ -50,7 +50,10 @@ export function buildDevItems(project: Project): DevItem[] {
       id: f.id,
       title: tr[f.id]?.title || f.question,
       fix: tr[f.id]?.note || f.notes || f.question,
-      severity: f.severity === "high" ? "Important" : "Minor",
+      // "Niet OK" telt altijd als Important. De reviewer kiest daar geen ernst
+      // meer bij, dus zonder deze regel zou juist het ergste als Minor landen.
+      severity:
+        f.score === "bad" || f.severity === "high" ? "Important" : "Minor",
       effort: "",
       category: f.category,
       images: f.images,
