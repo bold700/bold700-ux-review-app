@@ -21,7 +21,6 @@ import {
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 
-import { FF_CATEGORIES } from "@/lib/modules"
 import type { Answer } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -76,7 +75,6 @@ export function FreeFormReview({
           severity: null,
           notes: "",
           findingTitle: "",
-          findingCategories: [],
           findingOrder: order,
           screenshotUrls: [],
         },
@@ -116,14 +114,6 @@ export function FreeFormReview({
       delete next[id]
       return next
     })
-  }
-
-  function toggleCategory(id: string, cat: string) {
-    const cur = answers[id]?.findingCategories ?? []
-    const next = cur.includes(cat)
-      ? cur.filter((c) => c !== cat)
-      : [...cur, cat]
-    setAnswer(id, { findingCategories: next })
   }
 
   return (
@@ -174,7 +164,6 @@ export function FreeFormReview({
                 setAnswer={setAnswer}
                 onFocus={() => setFocusedId(id)}
                 onRemove={() => removeFinding(id)}
-                onToggleCategory={(cat) => toggleCategory(id, cat)}
               />
             ))}
           </div>
@@ -205,7 +194,6 @@ function SortableFinding({
   setAnswer,
   onFocus,
   onRemove,
-  onToggleCategory,
 }: {
   id: string
   index: number
@@ -215,7 +203,6 @@ function SortableFinding({
   setAnswer: (qId: string, patch: Partial<Answer>) => void
   onFocus: () => void
   onRemove: () => void
-  onToggleCategory: (cat: string) => void
 }) {
   const {
     attributes,
@@ -227,7 +214,6 @@ function SortableFinding({
     isDragging,
   } = useSortable({ id })
 
-  const cats = answer.findingCategories ?? []
   const images = answer.screenshotUrls ?? answer.screenshots ?? []
   const missingScore = !answer.score
 
@@ -271,23 +257,6 @@ function SortableFinding({
           >
             <Trash2 className="h-4 w-4 text-muted-foreground" />
           </Button>
-        </div>
-
-        <div className="flex flex-wrap gap-1.5">
-          {FF_CATEGORIES.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => onToggleCategory(c.id)}
-              className={cn(
-                "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
-                cats.includes(c.id)
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted",
-              )}
-            >
-              {c.label}
-            </button>
-          ))}
         </div>
 
         <div>

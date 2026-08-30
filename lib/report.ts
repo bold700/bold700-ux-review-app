@@ -83,8 +83,10 @@ export function buildReport(project: Project): ReportData {
       const a = answers[id]
       if (!a?.score) continue
       const cats = a.findingCategories ?? (a.findingCategory ? [a.findingCategory] : [])
-      const category =
-        cats.map((c) => FF_CAT_LABELS[c] ?? c).join(", ") || "Overig"
+      // Leeg laten als er geen categorie is gekozen. Het chip-rijtje is uit de
+      // review gehaald, dus "Overig" op elke regel zou alleen ruis zijn.
+      // Oudere bevindingen die wel een categorie hebben houden hun label.
+      const category = cats.map((c) => FF_CAT_LABELS[c] ?? c).join(", ")
       const question =
         a.findingTitle || (a.notes ?? "").split("\n")[0].slice(0, 80) || "Bevinding"
       push({

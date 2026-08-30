@@ -353,9 +353,11 @@ function PlanRow({
                     ))}
                   </div>
                 )}
-                <p className="text-[11px] text-muted-foreground">
-                  {item.category}
-                </p>
+                {item.category && (
+                  <p className="text-[11px] text-muted-foreground">
+                    {item.category}
+                  </p>
+                )}
 
                 {onDevUpdate && (
                   <div className="mt-1 space-y-2 print:hidden">

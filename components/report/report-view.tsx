@@ -389,9 +389,11 @@ function FindingItem({
             >
               {deJargon(plainTitle || f.question)}
             </span>
-            <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
-              {f.category}
-            </span>
+            {f.category && (
+              <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                {f.category}
+              </span>
+            )}
             <SourceLabel source={f.source} confidence={f.confidence} />
             {done && (
               <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
