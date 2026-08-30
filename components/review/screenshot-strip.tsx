@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import {
   Camera,
   ClipboardPaste,
+  ImageDown,
   Loader2,
   Monitor,
   Pen,
@@ -14,6 +15,38 @@ import { toast } from "sonner"
 import { fileToDataUrl, uploadScreenshot } from "@/lib/storage"
 import { Button } from "@/components/ui/button"
 import { Annotator } from "@/components/review/annotator"
+import { cn } from "@/lib/utils"
+
+// De browser opent een bestand dat je náást een strip laat vallen gewoon in
+// het tabblad, en dan ben je je review kwijt. Eén keer per pagina afvangen,
+// hoeveel stripjes er ook staan.
+let dropGuards = 0
+function useNavigationGuard() {
+  useEffect(() => {
+    const stop = (e: DragEvent) => {
+      if (!e.dataTransfer?.types.includes("Files")) return
+      e.preventDefault()
+    }
+    if (dropGuards === 0) {
+      document.addEventListener("dragover", stop)
+      document.addEventListener("drop", stop)
+      ;(window as unknown as { __uxDropGuard?: () => void }).__uxDropGuard =
+        () => {
+          document.removeEventListener("dragover", stop)
+          document.removeEventListener("drop", stop)
+        }
+    }
+    dropGuards++
+    return () => {
+      dropGuards--
+      if (dropGuards === 0) {
+        const off = (window as unknown as { __uxDropGuard?: () => void })
+          .__uxDropGuard
+        off?.()
+      }
+    }
+  }, [])
+}
 
 function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -40,6 +73,9 @@ export function ScreenshotStrip({
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
+  const [dragging, setDragging] = useState(false)
+  const dragDepth = useRef(0)
+  useNavigationGuard()
   const [preview, setPreview] = useState<string | null>(null)
   // Annotatie: nieuwe afbeelding (replaceIndex undefined) of bestaande bijwerken.
   const [annotate, setAnnotate] = useState<{
@@ -164,8 +200,13 @@ export function ScreenshotStrip({
 
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return
-    const file = files[0]
+    const list = Array.from(files)
     if (inputRef.current) inputRef.current.value = ""
+    // Eén bestand gaat door de annotator, zoals altijd. Bij meerdere zou dat
+    // een rij vensters worden, dus die gaan er direct in; annoteren kan daarna
+    // met het penknopje op de miniatuur.
+    if (list.length > 1) return addFiles(list)
+    const file = list[0]
     if (!file.type.startsWith("image/")) return
     try {
       const dataUrl = await fileToDataUrl(file)
@@ -173,6 +214,52 @@ export function ScreenshotStrip({
     } catch {
       toast.error("Kon afbeelding niet verwerken", { description: file.name })
     }
+  }
+
+  async function addFiles(list: File[]) {
+    const imgs = list.filter((f) => f.type.startsWith("image/"))
+    if (imgs.length === 0) {
+      toast.error("Geen afbeelding gevonden", {
+        description: "Sleep een JPG, PNG, GIF of WebP.",
+      })
+      return
+    }
+    setBusy(true)
+    const added: string[] = []
+    try {
+      for (const file of imgs) {
+        try {
+          const dataUrl = await fileToDataUrl(file)
+          const key = `${itemKey}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
+          const url = await uploadScreenshot(projectId, key, dataUrl)
+          if (url) added.push(url)
+          else toast.error("Upload mislukt", { description: file.name })
+        } catch {
+          toast.error("Kon afbeelding niet verwerken", {
+            description: file.name,
+          })
+        }
+      }
+      if (added.length > 0) {
+        onChange([...images, ...added])
+        toast.success(
+          added.length === 1
+            ? "Screenshot toegevoegd"
+            : `${added.length} screenshots toegevoegd`,
+        )
+      }
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function onDrop(e: React.DragEvent) {
+    dragDepth.current = 0
+    setDragging(false)
+    if (!e.dataTransfer.types.includes("Files")) return
+    e.preventDefault()
+    e.stopPropagation()
+    void addFiles(Array.from(e.dataTransfer.files))
   }
 
   async function saveAnnotated(dataUrl: string) {
@@ -202,7 +289,36 @@ export function ScreenshotStrip({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div
+      onDragEnter={(e) => {
+        if (!e.dataTransfer.types.includes("Files")) return
+        e.preventDefault()
+        dragDepth.current++
+        setDragging(true)
+      }}
+      onDragOver={(e) => {
+        if (!e.dataTransfer.types.includes("Files")) return
+        e.preventDefault()
+        e.dataTransfer.dropEffect = "copy"
+      }}
+      onDragLeave={() => {
+        dragDepth.current = Math.max(0, dragDepth.current - 1)
+        if (dragDepth.current === 0) setDragging(false)
+      }}
+      onDrop={onDrop}
+      className={cn(
+        "flex flex-wrap items-center gap-2 rounded-md border border-dashed p-2 transition-colors",
+        dragging
+          ? "border-primary bg-primary/5"
+          : "border-transparent hover:border-border",
+      )}
+    >
+      {dragging && (
+        <p className="flex w-full items-center gap-1.5 text-xs font-medium text-primary">
+          <ImageDown className="h-3.5 w-3.5" />
+          Laat los om toe te voegen
+        </p>
+      )}
       {images.map((src, i) => (
         <div key={i} className="group relative">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -233,6 +349,7 @@ export function ScreenshotStrip({
         ref={inputRef}
         type="file"
         accept="image/*"
+        multiple
         hidden
         onChange={(e) => handleFiles(e.target.files)}
       />
