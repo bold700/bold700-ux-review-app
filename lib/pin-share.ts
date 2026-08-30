@@ -1,5 +1,6 @@
 import {
   collection,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -13,11 +14,12 @@ import type { SiteFeedback } from "@/lib/site-feedback"
 import type { Project } from "@/lib/types"
 
 // Pins delen met de eigenaar van de site: dezelfde deel-link als bij een
-// rapport (public + vervaldatum), maar met een eigen pagina die de pins per
-// pagina toont in plaats van een scorecard. Afvinken loopt via `devStatus`,
-// precies zoals de developer-checklist, dus zonder login.
-
-export const PIN_SHARE_TTL_MS = 30 * 24 * 60 * 60 * 1000 // 30 dagen
+// rapport (public), maar met een eigen pagina die de pins per pagina toont in
+// plaats van een scorecard. Afvinken loopt via `devStatus`, precies zoals de
+// developer-checklist, dus zonder login.
+//
+// Geen vervaldatum: aan de andere kant zit iemand die de hele lijst moet
+// afwerken. Delen stopt met `stopSharingPins`, dat zet public terug op false.
 
 export function pinShareUrl(projectId: string, origin?: string): string {
   const base = (
@@ -31,11 +33,11 @@ export function pinShareUrl(projectId: string, origin?: string): string {
 
 /** Zet het project op gedeeld en geeft de link terug. */
 export async function sharePins(projectId: string): Promise<string> {
-  const expires = Date.now() + PIN_SHARE_TTL_MS
   await updateDoc(doc(getDb(), "projects", projectId), {
     public: true,
     sharedAt: new Date().toISOString(),
-    shareExpiresAtMs: expires,
+    // Een eerder gezette vervaldatum weghalen, anders sterft de link alsnog.
+    shareExpiresAtMs: deleteField(),
   })
   return pinShareUrl(projectId)
 }

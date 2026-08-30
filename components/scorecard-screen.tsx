@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { doc, getDoc, updateDoc } from "firebase/firestore"
+import { deleteField, doc, getDoc, updateDoc } from "firebase/firestore"
 import {
   ArrowLeft,
   ArrowRight,
@@ -230,14 +230,19 @@ export function ScorecardScreen({ id }: { id: string }) {
 
   async function publish() {
     if (!project) return
-    const exp = Date.now() + 7 * 24 * 60 * 60 * 1000
+    // Geen vervaldatum. De developer moet de hele lijst kunnen afwerken, en de
+    // Firestore-regels lezen een ontbrekend shareExpiresAtMs als "niet verlopen".
+    // Delen stopt via "Stop met delen", dat zet public terug op false.
     try {
       await updateDoc(doc(getDb(), "projects", id), {
         public: true,
         sharedAt: new Date().toISOString(),
-        shareExpiresAtMs: exp,
+        // Een eerder gezette vervaldatum weghalen, anders sterft de oude link alsnog.
+        shareExpiresAtMs: deleteField(),
       })
-      setProject((p) => (p ? { ...p, public: true, shareExpiresAtMs: exp } : p))
+      setProject((p) =>
+        p ? { ...p, public: true, shareExpiresAtMs: undefined } : p,
+      )
       const link = `${location.origin}/report?id=${encodeURIComponent(id)}`
       await navigator.clipboard.writeText(link).catch(() => {})
       setShareLink(link)
@@ -479,8 +484,8 @@ export function ScorecardScreen({ id }: { id: string }) {
                 <Share2 className="h-4 w-4 text-emerald-500" /> Rapport gedeeld
               </div>
               <p className="text-sm text-muted-foreground">
-                Twee links, beide zonder login en 7 dagen geldig. Wijzigingen van
-                de developer zie je hier live terug.
+                Twee links, beide zonder login en zonder vervaldatum. Wijzigingen
+                van de developer zie je hier live terug.
               </p>
 
               <div className="space-y-1.5">

@@ -276,7 +276,7 @@ function SharePins({ projectId }: { projectId: string }) {
     setBusy(true)
     try {
       setUrl(await sharePins(projectId))
-      toast.success("Link klaar, 30 dagen geldig")
+      toast.success("Link klaar, zonder vervaldatum")
     } catch {
       toast.error("Delen lukte niet")
     } finally {
@@ -304,7 +304,7 @@ function SharePins({ projectId }: { projectId: string }) {
 
   return (
     <div className="mb-4 space-y-2 rounded-lg border bg-muted/30 p-3">
-      <p className="text-sm font-medium">Link staat klaar, 30 dagen geldig</p>
+      <p className="text-sm font-medium">Link staat klaar, zonder vervaldatum</p>
       <div className="flex items-center gap-2">
         <Input readOnly value={url} onFocus={(e) => e.currentTarget.select()} className="text-xs" />
         <CopyButton value={url} icon />
