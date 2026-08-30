@@ -131,8 +131,13 @@ export function buildReport(project: Project): ReportData {
     }
   }
 
-  // hoge impact eerst
-  issues.sort((a, b) => (a.severity === "high" ? 0 : 1) - (b.severity === "high" ? 0 : 1))
+  // Hoge impact eerst. Behalve bij een vrije review: daar heeft de reviewer de
+  // volgorde zelf bepaald door te slepen, en dan is die volgorde de bedoeling.
+  if (project.reviewType !== "free-form") {
+    issues.sort(
+      (a, b) => (a.severity === "high" ? 0 : 1) - (b.severity === "high" ? 0 : 1),
+    )
+  }
 
   return {
     score: projectScore(project),

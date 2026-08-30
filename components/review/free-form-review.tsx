@@ -1,7 +1,25 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { AlertCircle, Plus, Trash2 } from "lucide-react"
+import { AlertCircle, GripVertical, Plus, Trash2 } from "lucide-react"
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core"
+import { restrictToVerticalAxis } from "@dnd-kit/modifiers"
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 
 import { FF_CATEGORIES } from "@/lib/modules"
 import type { Answer } from "@/lib/types"
@@ -67,6 +85,31 @@ export function FreeFormReview({
     setPendingScroll(id)
   }
 
+  // Slepen start pas na 5px, anders slikt de greep gewone klikken op.
+  // De toetsenbordsensor geeft dezelfde volgorde via de pijltjestoetsen.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
+  // Na het slepen krijgt elke bevinding zijn nieuwe positie als findingOrder,
+  // aaneengesloten vanaf 0. Rapport en developer-lijst lezen datzelfde veld.
+  function handleDragEnd(e: DragEndEvent) {
+    const { active, over } = e
+    if (!over || active.id === over.id) return
+    const from = findings.indexOf(String(active.id))
+    const to = findings.indexOf(String(over.id))
+    if (from < 0 || to < 0) return
+    const next = arrayMove(findings, from, to)
+    mutate((a) => {
+      const copy = { ...a }
+      next.forEach((fid, idx) => {
+        if (copy[fid]) copy[fid] = { ...copy[fid], findingOrder: idx }
+      })
+      return copy
+    })
+  }
+
   function removeFinding(id: string) {
     mutate((a) => {
       const next = { ...a }
@@ -97,6 +140,13 @@ export function FreeFormReview({
         })()}
       </h2>
 
+      {findings.length > 1 && (
+        <p className="-mt-2 text-xs text-muted-foreground">
+          Sleep aan de greep om de volgorde te bepalen. De developer werkt de
+          lijst van boven naar beneden af.
+        </p>
+      )}
+
       {findings.length === 0 && (
         <Card>
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
@@ -105,94 +155,31 @@ export function FreeFormReview({
         </Card>
       )}
 
-      {findings.map((id, i) => {
-        const a = answers[id] ?? {}
-        const cats = a.findingCategories ?? []
-        const images = a.screenshotUrls ?? a.screenshots ?? []
-        const activePaste = focusedId ? focusedId === id : i === 0
-        const missingScore = !a.score
-        return (
-          <Card
-            key={id}
-            data-finding={id}
-            onFocusCapture={() => setFocusedId(id)}
-            className={cn(missingScore && "border-amber-500/50")}
-          >
-            <CardContent className="space-y-4 py-5">
-              <div className="flex items-start gap-2">
-                <span className="mt-2 text-sm font-medium text-muted-foreground">
-                  {i + 1}.
-                </span>
-                <Input
-                  value={a.findingTitle ?? ""}
-                  onChange={(e) => setAnswer(id, { findingTitle: e.target.value })}
-                  placeholder="Titel van de bevinding"
-                  className="flex-1"
-                />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => removeFinding(id)}
-                  aria-label="Verwijder bevinding"
-                >
-                  <Trash2 className="h-4 w-4 text-muted-foreground" />
-                </Button>
-              </div>
-
-              <div className="flex flex-wrap gap-1.5">
-                {FF_CATEGORIES.map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => toggleCategory(id, c.id)}
-                    className={cn(
-                      "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
-                      cats.includes(c.id)
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-muted",
-                    )}
-                  >
-                    {c.label}
-                  </button>
-                ))}
-              </div>
-
-              <div>
-                <ScoreButtons
-                  value={a.score}
-                  onChange={(s) => setAnswer(id, { score: s })}
-                />
-                {missingScore && (
-                  <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400">
-                    <AlertCircle className="h-3.5 w-3.5" />
-                    Kies een score, anders telt deze bevinding niet mee in het
-                    rapport en de developer-link.
-                  </p>
-                )}
-              </div>
-              <SeverityRow
-                score={a.score}
-                value={a.severity}
-                onChange={(sev) => setAnswer(id, { severity: sev })}
-              />
-              <Textarea
-                value={a.notes ?? ""}
-                onChange={(e) => setAnswer(id, { notes: e.target.value })}
-                placeholder="Beschrijving, observatie, aanbeveling…"
-                className="min-h-24"
-              />
-              <ScreenshotStrip
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        modifiers={[restrictToVerticalAxis]}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext items={findings} strategy={verticalListSortingStrategy}>
+          <div className="space-y-4">
+            {findings.map((id, i) => (
+              <SortableFinding
+                key={id}
+                id={id}
+                index={i}
+                answer={answers[id] ?? {}}
                 projectId={projectId}
-                itemKey={id}
-                images={images}
-                active={activePaste}
-                onChange={(next) =>
-                  setAnswer(id, { screenshotUrls: next, screenshots: [] })
-                }
+                activePaste={focusedId ? focusedId === id : i === 0}
+                setAnswer={setAnswer}
+                onFocus={() => setFocusedId(id)}
+                onRemove={() => removeFinding(id)}
+                onToggleCategory={(cat) => toggleCategory(id, cat)}
               />
-            </CardContent>
-          </Card>
-        )
-      })}
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
 
       {/* Sticky knop: altijd zichtbaar tijdens het werken */}
       <div className="sticky bottom-0 -mx-4 border-t bg-background/95 px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur">
@@ -201,5 +188,142 @@ export function FreeFormReview({
         </Button>
       </div>
     </div>
+  )
+}
+
+/**
+ * Eén bevinding als sleepbare kaart. De sleeplisteners hangen alleen aan de
+ * greep, niet aan de kaart: anders kun je geen tekst meer selecteren in de
+ * titel of de beschrijving.
+ */
+function SortableFinding({
+  id,
+  index,
+  answer,
+  projectId,
+  activePaste,
+  setAnswer,
+  onFocus,
+  onRemove,
+  onToggleCategory,
+}: {
+  id: string
+  index: number
+  answer: Partial<Answer>
+  projectId: string
+  activePaste: boolean
+  setAnswer: (qId: string, patch: Partial<Answer>) => void
+  onFocus: () => void
+  onRemove: () => void
+  onToggleCategory: (cat: string) => void
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id })
+
+  const cats = answer.findingCategories ?? []
+  const images = answer.screenshotUrls ?? answer.screenshots ?? []
+  const missingScore = !answer.score
+
+  return (
+    <Card
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      data-finding={id}
+      onFocusCapture={onFocus}
+      className={cn(
+        missingScore && "border-amber-500/50",
+        isDragging && "relative z-10 shadow-lg",
+      )}
+    >
+      <CardContent className="space-y-4 py-5">
+        <div className="flex items-start gap-2">
+          <button
+            type="button"
+            ref={setActivatorNodeRef}
+            {...attributes}
+            {...listeners}
+            aria-label={`Bevinding ${index + 1} verplaatsen`}
+            title="Sleep om te ordenen"
+            className="flex h-11 w-11 shrink-0 cursor-grab touch-none items-center justify-center gap-0.5 rounded-md text-muted-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
+          >
+            <GripVertical className="h-4 w-4" />
+            <span className="text-sm font-medium tabular-nums">{index + 1}</span>
+          </button>
+          <Input
+            value={answer.findingTitle ?? ""}
+            onChange={(e) => setAnswer(id, { findingTitle: e.target.value })}
+            placeholder="Titel van de bevinding"
+            className="mt-1 flex-1"
+          />
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onRemove}
+            aria-label="Verwijder bevinding"
+            className="mt-1"
+          >
+            <Trash2 className="h-4 w-4 text-muted-foreground" />
+          </Button>
+        </div>
+
+        <div className="flex flex-wrap gap-1.5">
+          {FF_CATEGORIES.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => onToggleCategory(c.id)}
+              className={cn(
+                "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+                cats.includes(c.id)
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-muted",
+              )}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
+
+        <div>
+          <ScoreButtons
+            value={answer.score}
+            onChange={(s) => setAnswer(id, { score: s })}
+          />
+          {missingScore && (
+            <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400">
+              <AlertCircle className="h-3.5 w-3.5" />
+              Kies een score, anders telt deze bevinding niet mee in het rapport
+              en de developer-link.
+            </p>
+          )}
+        </div>
+        <SeverityRow
+          score={answer.score}
+          value={answer.severity}
+          onChange={(sev) => setAnswer(id, { severity: sev })}
+        />
+        <Textarea
+          value={answer.notes ?? ""}
+          onChange={(e) => setAnswer(id, { notes: e.target.value })}
+          placeholder="Beschrijving, observatie, aanbeveling…"
+          className="min-h-24"
+        />
+        <ScreenshotStrip
+          projectId={projectId}
+          itemKey={id}
+          images={images}
+          active={activePaste}
+          onChange={(next) =>
+            setAnswer(id, { screenshotUrls: next, screenshots: [] })
+          }
+        />
+      </CardContent>
+    </Card>
   )
 }
